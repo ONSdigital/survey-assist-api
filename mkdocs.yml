@@ -1,0 +1,6 @@
+site_name: Survey Assist API
+nav:
+  - Home: index.md
+  - Guide: guide.md
+theme:
+  name: material  # Optional, you can change it
