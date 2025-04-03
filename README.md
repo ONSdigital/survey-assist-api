@@ -48,7 +48,7 @@ poetry install
 To run the application locally execute:
 
 ```bash
-make run-ui
+make run-api
 ```
 
 ### GCP Setup
