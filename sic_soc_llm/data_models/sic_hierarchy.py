@@ -11,9 +11,7 @@ Usage:
 from typing import Iterator
 import html
 import re
-
 import pandas as pd
-
 from sic_soc_llm.data_models import sicDB
 
 SEE_CODE_REGEX = re.compile(
@@ -301,7 +299,7 @@ class SIC:
         return df
 
 
-def _define_codes_and_nodes(sic_df) -> ([SicCode], [SicNode]):
+def _define_codes_and_nodes(sic_df) -> tuple[list[SicCode], list[SicNode]]:
     codes = []
     nodes = []
 
