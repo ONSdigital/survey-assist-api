@@ -16,7 +16,7 @@ app: FastAPI = FastAPI(
 
 # Include versioned routes
 app.include_router(config_router, prefix="/v1/survey-assist")
-
+app.include_router(sic_lookup_router, prefix="/v1/survey-assist")
 
 @app.get("/")
 def read_root() -> dict[str, str]:
