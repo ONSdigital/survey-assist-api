@@ -11,6 +11,7 @@ python = "^3.12"
 fastapi = "^0.115.11"
 uvicorn = "^0.34.0"
 pydantic = "^2.10.6"
+pandas = "^2.1.4"
 
 
 [tool.poetry.group.dev.dependencies]
