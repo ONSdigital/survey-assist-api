@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from api.routes.v1.config import router as config_router
-from api.routes.v1.sic_lookup import router as sic_lookup_router
+from api.routes.v1.sic_lookup_router import router as sic_lookup_router
 
 """Main entry point to the Survey Assist API.
 
