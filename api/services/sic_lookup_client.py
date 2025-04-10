@@ -1,7 +1,7 @@
 from sic_lookup.sic_lookup import SICLookup
 
 class SICLookupClient:
-    def __init__(self, data_path="src/sic_lookup/data/example_sic_data.csv"):
+    def __init__(self, data_path="sic_lookup/data/example_sic_data.csv"):
         self.lookup_service = SICLookup(data_path)
 
     def get_result(self, description, similarity=False):
