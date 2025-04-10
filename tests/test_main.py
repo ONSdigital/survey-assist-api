@@ -58,7 +58,18 @@ def test_get_config():
 
 @pytest.mark.api
 def test_sic_lookup_exact_match():
-    """Test the SIC Lookup endpoint with an exact match."""
+    """Test the SIC Lookup endpoint with an exact match.
+
+    This test sends a GET request to the SIC Lookup endpoint with a specific description
+    ("electrician") and verifies:
+    1. The response status code is HTTP 200 (OK).
+    2. The response JSON contains the expected keys: "code" and "description".
+
+    Assertions:
+    - The response status code is HTTPStatus.OK.
+    - The response JSON contains the "code" key.
+    - The response JSON contains the "description" key.
+    """
     response = client.get("/v1/survey-assist/sic-lookup?description=electrician")
     assert response.status_code == HTTPStatus.OK
     assert "code" in response.json()
@@ -66,7 +77,19 @@ def test_sic_lookup_exact_match():
 
 @pytest.mark.api
 def test_sic_lookup_similarity():
-    """Test the SIC Lookup endpoint with similarity search enabled."""
+    """Test the SIC Lookup endpoint with similarity search enabled.
+
+    This test sends a GET request to the SIC Lookup endpoint with the description
+    parameter set to "electrician" and the similarity parameter set to true. It verifies:
+    1. The response status code is HTTP 200 (OK).
+    2. The response JSON contains a "potential_matches" key, indicating similarity search results.
+    3. The "potential_matches" object in the response JSON contains a "descriptions" key.
+
+    Assertions:
+    - The response status code is HTTPStatus.OK.
+    - The "potential_matches" key is present in the response JSON.
+    - The "descriptions" key is present within the "potential_matches" object in the response JSON.
+    """
     response = client.get("/v1/survey-assist/sic-lookup?description=electrician&similarity=true")
     assert response.status_code == HTTPStatus.OK
     assert "potential_matches" in response.json()
@@ -74,7 +97,17 @@ def test_sic_lookup_similarity():
 
 @pytest.mark.api
 def test_sic_lookup_no_description():
-    """Test the SIC Lookup endpoint to ensure it returns an error when the description parameter is missing."""
+    """Test the SIC Lookup endpoint to ensure it returns an error when the description parameter is missing.
+
+    This test sends a GET request to the SIC Lookup endpoint without providing a description
+    parameter. It verifies:
+    1. The response status code is HTTP 422 (Unprocessable Entity).
+    2. The response JSON contains the expected validation error details.
+
+    Assertions:
+    - The response status code is HTTPStatus.UNPROCESSABLE_ENTITY.
+    - The response JSON matches the expected validation error format.
+    """
     response = client.get("/v1/survey-assist/sic-lookup")
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert response.json() == {"detail": [{"type": "missing", "loc": ["query", "description"], "msg": "Field required", "input": None}]}
