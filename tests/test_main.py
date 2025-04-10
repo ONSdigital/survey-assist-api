@@ -71,3 +71,10 @@ def test_sic_lookup_similarity():
     assert response.status_code == HTTPStatus.OK
     assert "potential_matches" in response.json()
     assert "descriptions" in response.json()["potential_matches"]
+
+@pytest.mark.api
+def test_sic_lookup_no_description():
+    """Test the SIC Lookup endpoint to ensure it returns an error when the description parameter is missing."""
+    response = client.get("/v1/survey-assist/sic-lookup")
+    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
+    assert response.json() == {"detail": [{"type": "missing", "loc": ["query", "description"], "msg": "Field required", "input": None}]}
