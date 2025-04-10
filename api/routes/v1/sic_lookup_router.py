@@ -4,7 +4,7 @@ from api.services.sic_lookup_client import SICLookupClient
 router = APIRouter(prefix="/v1/survey-assist", tags=["Survey Assist"])
 
 # Initialize the SIC Lookup Client
-lookup_client = SICLookupClient(data_path="src/sic_lookup/data/sic_knowledge_base_utf8.csv")
+lookup_client = SICLookupClient(data_path="sic_lookup/data/sic_knowledge_base_utf8.csv")
 
 @router.get("/sic-lookup")
 async def sic_lookup(description: str, similarity: bool = False):
