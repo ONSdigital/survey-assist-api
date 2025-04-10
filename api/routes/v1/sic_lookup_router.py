@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from api.services.sic_lookup_client import SICLookupClient
 
-router = APIRouter(prefix="/v1/survey-assist", tags=["Survey Assist"])
+router = APIRouter(tags=["Survey Assist"])
 
 # Initialize the SIC Lookup Client
 lookup_client = SICLookupClient(data_path="sic_lookup/data/sic_knowledge_base_utf8.csv")
