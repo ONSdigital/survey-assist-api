@@ -3,7 +3,7 @@ from sic_soc_llm.data_models.sicDB import SicMeta
 
 
 class SICLookup:
-    def __init__(self, data_path="src/sic_lookup/data/example_sic_data.csv"):
+    def __init__(self, data_path="sic_lookup/data/example_sic_data.csv"):
         # Load data and store descriptions in lowercase
         self.data = pd.read_csv(data_path)
         self.data["description"] = self.data["description"].str.lower()
