@@ -22,3 +22,7 @@ async def sic_lookup(description: str, similarity: bool = False):
         raise HTTPException(status_code=400, detail="Description parameter is required")
     result = lookup_client.get_result(description, similarity)
     return result
+
+@router.get("/test")
+async def test():
+    return {"message": "Test endpoint is working"}
