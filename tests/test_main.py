@@ -55,3 +55,11 @@ def test_get_config():
     response = client.get("/v1/survey-assist/config")
     assert response.status_code == HTTPStatus.OK
     assert response.json()["llm_model"] == "gpt-4"
+
+@pytest.mark.api
+def test_sic_lookup_exact_match():
+    """Test the SIC Lookup endpoint with an exact match."""
+    response = client.get("/v1/survey-assist/sic-lookup?description=electrician")
+    assert response.status_code == HTTPStatus.OK
+    assert "code" in response.json()
+    assert "description" in response.json()
