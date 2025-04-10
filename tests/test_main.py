@@ -63,3 +63,11 @@ def test_sic_lookup_exact_match():
     assert response.status_code == HTTPStatus.OK
     assert "code" in response.json()
     assert "description" in response.json()
+
+@pytest.mark.api
+def test_sic_lookup_similarity():
+    """Test the SIC Lookup endpoint with similarity search enabled."""
+    response = client.get("/v1/survey-assist/sic-lookup?description=electrician&similarity=true")
+    assert response.status_code == HTTPStatus.OK
+    assert "potential_matches" in response.json()
+    assert "descriptions" in response.json()["potential_matches"]
