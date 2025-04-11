@@ -1,4 +1,4 @@
-from sic_lookup.sic_lookup import SICLookup
+from industrial_classification.lookup.sic_lookup import SICLookup
 
 class SICLookupClient:
     def __init__(self, data_path="sic_lookup/data/example_sic_data.csv"):
