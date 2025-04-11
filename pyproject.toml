@@ -5,6 +5,7 @@ description = "Survey Assist API to backend data services"
 authors = ["Steve Gibbard <steve.gibbard@ons.gov.uk>"]
 license = "MIT"
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
@@ -12,6 +13,7 @@ fastapi = "^0.115.11"
 uvicorn = "^0.34.0"
 pydantic = "^2.10.6"
 pandas = "^2.1.4"
+sic-classification-library = {path = "../sic-classification-library", develop = true}
 
 
 [tool.poetry.group.dev.dependencies]
