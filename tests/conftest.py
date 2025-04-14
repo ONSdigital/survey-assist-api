@@ -73,7 +73,7 @@ def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argumen
 
 
 @pytest.fixture(scope="session")
-def test_data_directory():
+def test_data_dir():
     """Create a temporary directory for test data files.
 
     Returns:
@@ -86,16 +86,16 @@ def test_data_directory():
 
 
 @pytest.fixture(scope="session")
-def sic_test_data_file(test_data_dir_path: Path):
+def sic_data_file(test_data_dir):
     """Create a test SIC data file.
 
     Args:
-        test_data_dir_path (Path): Path to the test data directory.
+        test_data_dir (Path): Path to the test data directory.
 
     Returns:
         Path: Path to the test SIC data file.
     """
-    data_file = test_data_dir_path / "sic_codes.csv"
+    data_file = test_data_dir / "sic_codes.csv"
 
     # Create a minimal SIC data file
     with open(data_file, "w", encoding="utf-8") as f:
@@ -110,16 +110,30 @@ def sic_test_data_file(test_data_dir_path: Path):
 
 
 @pytest.fixture(scope="session")
-def test_client(sic_data_path: Path):
+def has_sic_data():
+    """Check if the SIC data file exists.
+
+    Returns:
+        bool: True if the SIC data file exists, False otherwise.
+    """
+    default_path = Path(
+        "../sic-classification-library/src/industrial_classification/data/sic_knowledge_base_utf8.csv"
+    )
+    return default_path.exists()
+
+
+@pytest.fixture(scope="session")
+def client(sic_data_file, has_sic_data):
     """Create a test client for the FastAPI app.
 
     Args:
-        sic_data_path (Path): Path to the test SIC data file.
+        sic_data_file (Path): Path to the test SIC data file.
+        has_sic_data (bool): Whether the SIC data file exists.
 
     Returns:
         TestClient: A test client for the FastAPI app.
     """
     # Set the environment variable for the test data file
-    os.environ["SIC_DATA_FILE"] = str(sic_data_path)
+    os.environ["SIC_DATA_FILE"] = str(sic_data_file)
 
     return TestClient(app)

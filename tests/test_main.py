@@ -57,6 +57,10 @@ def test_get_config(test_client: TestClient):
     assert response.json()["llm_model"] == "gpt-4"
 
 
+@pytest.mark.skipif(
+    "not pytest.has_sic_data",
+    reason="SIC data file not found",
+)
 @pytest.mark.api
 def test_sic_lookup_exact_match(test_client: TestClient):
     """Test the SIC Lookup endpoint with an exact match.
@@ -80,6 +84,10 @@ def test_sic_lookup_exact_match(test_client: TestClient):
     assert response.json()["code"] == "01120"
 
 
+@pytest.mark.skipif(
+    "not pytest.has_sic_data",
+    reason="SIC data file not found",
+)
 @pytest.mark.api
 def test_sic_lookup_similarity(test_client: TestClient):
     """Test the SIC Lookup endpoint with similarity search enabled.
@@ -106,6 +114,10 @@ def test_sic_lookup_similarity(test_client: TestClient):
     assert "descriptions" in response.json()["potential_matches"]
 
 
+@pytest.mark.skipif(
+    "not pytest.has_sic_data",
+    reason="SIC data file not found",
+)
 @pytest.mark.api
 def test_sic_lookup_no_description(test_client: TestClient):
     """Test the SIC Lookup endpoint to ensure it returns an error when the description
