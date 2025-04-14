@@ -42,7 +42,8 @@ class SICLookupClient:
             else:
                 # Try the default path from the library
                 default_path = Path(
-                    "../sic-classification-library/src/industrial_classification/data/sic_knowledge_base_utf8.csv"
+                    "../sic-classification-library/src/industrial_classification/data/"
+                    "sic_knowledge_base_utf8.csv"
                 )
                 if default_path.exists():
                     resolved_path = str(default_path)
