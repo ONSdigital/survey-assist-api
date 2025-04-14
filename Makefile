@@ -44,8 +44,8 @@ unit-tests: ## Run the example unit tests
 api-tests: ## Run the example API tests
 	poetry run pytest -m api --cov=api --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
 
-all-tests:
-	poetry run pytest  --cov=. --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
+all-tests: ## Run all tests with coverage
+	poetry run pytest --cov=. --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
 	
 install: ## Install the dependencies
 	poetry install --only main --no-root

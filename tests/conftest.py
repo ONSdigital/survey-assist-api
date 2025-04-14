@@ -10,8 +10,13 @@ Functions:
 """
 
 import logging
+import os
+from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
+
+from api.main import app
 
 # Configure a global logger
 logger = logging.getLogger(__name__)
@@ -65,3 +70,56 @@ def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argumen
         warnings for unused arguments in this function.
     """
     logger.info("=== Test Session Finished ===")
+
+
+@pytest.fixture(scope="session")
+def test_data_directory():
+    """Create a temporary directory for test data files.
+
+    Returns:
+        Path: Path to the test data directory.
+    """
+    test_dir = Path(__file__).parent
+    data_dir = test_dir / "data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir
+
+
+@pytest.fixture(scope="session")
+def sic_test_data_file(test_data_dir_path):
+    """Create a test SIC data file.
+
+    Args:
+        test_data_dir_path (Path): Path to the test data directory.
+
+    Returns:
+        Path: Path to the test SIC data file.
+    """
+    data_file = test_data_dir_path / "sic_codes.csv"
+
+    # Create a minimal SIC data file with UTF-8 encoding
+    with open(data_file, "w", encoding="utf-8") as f:
+        f.write("code,description\n")
+        f.write(
+            "01110,growing of cereals (except rice), leguminous crops and oil seeds\n"
+        )
+        f.write("01120,growing of rice\n")
+        f.write("01130,growing of vegetables and melons, roots and tubers\n")
+
+    return data_file
+
+
+@pytest.fixture(scope="session")
+def test_client(sic_data_path):
+    """Create a test client for the FastAPI app.
+
+    Args:
+        sic_data_path (Path): Path to the test SIC data file.
+
+    Returns:
+        TestClient: A test client for the FastAPI app.
+    """
+    # Set the environment variable for the test data file
+    os.environ["SIC_DATA_FILE"] = str(sic_data_path)
+
+    return TestClient(app)
