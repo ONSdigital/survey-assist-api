@@ -28,7 +28,7 @@ client = TestClient(app)  # Create a test client for your FastAPI app
 
 
 @pytest.mark.api
-def test_read_root():
+def test_read_root(client: TestClient):
     """Test the root endpoint of the API.
 
     This test sends a GET request to the root endpoint ("/") and verifies:
@@ -41,7 +41,7 @@ def test_read_root():
 
 
 @pytest.mark.api
-def test_get_config():
+def test_get_config(client: TestClient):
     """Test the `/v1/survey-assist/config` endpoint.
 
     This test verifies that the endpoint returns a successful HTTP status code
@@ -58,11 +58,11 @@ def test_get_config():
 
 
 @pytest.mark.api
-def test_sic_lookup_exact_match():
+def test_sic_lookup_exact_match(client: TestClient):
     """Test the SIC Lookup endpoint with an exact match.
 
     This test sends a GET request to the SIC Lookup endpoint with a specific
-    description ("electrician") and verifies:
+    description ("Growing of rice") and verifies:
     1. The response status code is HTTP 200 (OK).
     2. The response JSON contains the expected keys: "code" and "description".
 
@@ -71,19 +71,19 @@ def test_sic_lookup_exact_match():
     - The response JSON contains the "code" key.
     - The response JSON contains the "description" key.
     """
-    response = client.get("/v1/survey-assist/sic-lookup?description=electrician")
+    response = client.get("/v1/survey-assist/sic-lookup?description=Growing of rice")
     assert response.status_code == HTTPStatus.OK
     assert "code" in response.json()
     assert "description" in response.json()
+    assert response.json()["code"] == "01120"
 
 
 @pytest.mark.api
-def test_sic_lookup_similarity():
+def test_sic_lookup_similarity(client: TestClient):
     """Test the SIC Lookup endpoint with similarity search enabled.
 
     This test sends a GET request to the SIC Lookup endpoint with the description
-    parameter set to "electrician" and the similarity parameter set to true. It
-    verifies:
+    parameter set to "rice" and the similarity parameter set to true. It verifies:
     1. The response status code is HTTP 200 (OK).
     2. The response JSON contains a "potential_matches" key, indicating similarity
        search results.
@@ -96,16 +96,14 @@ def test_sic_lookup_similarity():
     - The "descriptions" key is present within the "potential_matches" object in
       the response JSON.
     """
-    response = client.get(
-        "/v1/survey-assist/sic-lookup?description=electrician&similarity=true"
-    )
+    response = client.get("/v1/survey-assist/sic-lookup?description=rice&similarity=true")
     assert response.status_code == HTTPStatus.OK
     assert "potential_matches" in response.json()
     assert "descriptions" in response.json()["potential_matches"]
 
 
 @pytest.mark.api
-def test_sic_lookup_no_description():
+def test_sic_lookup_no_description(client: TestClient):
     """Test the SIC Lookup endpoint to ensure it returns an error when the description
     parameter is missing.
 
