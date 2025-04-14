@@ -5,6 +5,7 @@ It defines the FastAPI application and the API endpoints.
 """
 
 from fastapi import FastAPI
+
 from api.routes.v1.config import router as config_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
 
