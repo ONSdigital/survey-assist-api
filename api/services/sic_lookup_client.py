@@ -43,7 +43,7 @@ class SICLookupClient:
                 ).resolve()
             )
             self.lookup_service = SICLookup(resolved_path)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             logger.warning(
                 "SIC data file not found at %s. SIC lookup functionality will be disabled.",
                 resolved_path,
