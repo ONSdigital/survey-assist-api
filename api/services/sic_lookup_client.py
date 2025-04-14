@@ -4,7 +4,6 @@ This module contains the SIC lookup client service that interfaces with the
 SIC Classification Library to perform SIC code lookups.
 """
 
-import os
 from pathlib import Path
 
 from industrial_classification.lookup.sic_lookup import SICLookup
