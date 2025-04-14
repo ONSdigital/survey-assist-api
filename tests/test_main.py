@@ -72,7 +72,9 @@ def test_sic_lookup_exact_match(test_client: TestClient):
     - The response JSON contains the "code" key.
     - The response JSON contains the "description" key.
     """
-    response = test_client.get("/v1/survey-assist/sic-lookup?description=Growing of rice")
+    response = test_client.get(
+        "/v1/survey-assist/sic-lookup?description=Growing of rice"
+    )
     assert response.status_code == HTTPStatus.OK
     assert "code" in response.json()
     assert "description" in response.json()
@@ -100,7 +102,9 @@ def test_sic_lookup_similarity(test_client: TestClient):
     - The "descriptions" key is present within the "potential_matches" object in
       the response JSON.
     """
-    response = test_client.get("/v1/survey-assist/sic-lookup?description=rice&similarity=true")
+    response = test_client.get(
+        "/v1/survey-assist/sic-lookup?description=rice&similarity=true"
+    )
     assert response.status_code == HTTPStatus.OK
     assert "potential_matches" in response.json()
     assert "descriptions" in response.json()["potential_matches"]
