@@ -16,9 +16,9 @@ app: FastAPI = FastAPI(
         "name": "ONS Digital",
         "email": "steve.gibbard@ons.gov.uk"
     },
-    openapi_url="/v1/survey-assist/openapi.json",
-    docs_url="/v1/survey-assist/docs",
-    redoc_url="/v1/survey-assist/redoc",
+    openapi_url="/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc",
 )
 
 # Include versioned routes
