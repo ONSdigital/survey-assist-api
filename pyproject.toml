@@ -12,7 +12,7 @@ fastapi = "^0.115.11"
 uvicorn = "^0.34.0"
 pydantic = "^2.10.6"
 pandas = "^2.1.4"
-sic-classification-library = {path = "../sic-classification-library", develop = true}
+sic-classification-library = {git = "https://github.com/ONSdigital/sic-classification-library.git"}
 
 
 [tool.poetry.group.dev.dependencies]
