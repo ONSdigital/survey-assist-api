@@ -13,10 +13,7 @@ app: FastAPI = FastAPI(
     title="Survey Assist API",
     description="API for interacting with backend data processing services such as classification",
     version="1.0.0",
-    contact={
-        "name": "ONS Digital",
-        "email": "steve.gibbard@ons.gov.uk"
-    },
+    contact={"name": "ONS Digital", "email": "steve.gibbard@ons.gov.uk"},
     openapi_url="/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -25,6 +22,7 @@ app: FastAPI = FastAPI(
 # Include versioned routes
 app.include_router(config_router, prefix="/v1/survey-assist")
 app.include_router(sic_lookup_router, prefix="/v1/survey-assist")
+
 
 @app.get("/", tags=["Root"])
 def read_root() -> dict[str, str]:
