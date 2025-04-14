@@ -96,14 +96,16 @@ def sic_data_file(test_data_dir):
         Path: Path to the test SIC data file.
     """
     data_file = test_data_dir / "sic_codes.csv"
-    
+
     # Create a minimal SIC data file
     with open(data_file, "w") as f:
         f.write("code,description\n")
-        f.write("01110,Growing of cereals (except rice), leguminous crops and oil seeds\n")
+        f.write(
+            "01110,Growing of cereals (except rice), leguminous crops and oil seeds\n"
+        )
         f.write("01120,Growing of rice\n")
         f.write("01130,Growing of vegetables and melons, roots and tubers\n")
-    
+
     return data_file
 
 
@@ -119,5 +121,5 @@ def client(sic_data_file):
     """
     # Set the environment variable for the test data file
     os.environ["SIC_DATA_FILE"] = str(sic_data_file)
-    
+
     return TestClient(app)
