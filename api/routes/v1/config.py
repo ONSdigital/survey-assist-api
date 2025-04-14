@@ -8,7 +8,7 @@ from fastapi import APIRouter
 
 from api.models.config import ClassificationModel, ConfigResponse, PromptModel
 
-router: APIRouter = APIRouter()
+router: APIRouter = APIRouter(tags=["Configuration"])
 
 # Mock configuration
 config_data: ConfigResponse = ConfigResponse(
@@ -47,5 +47,44 @@ async def get_config() -> ConfigResponse:
 
     Returns:
         ConfigResponse: A dictionary containing the current configuration settings.
+        
+    Example:
+        ```json
+        {
+            "llm_model": "gpt-4",
+            "data_store": "some_data_store",
+            "bucket_name": "my_bucket",
+            "v1v2": {
+                "classification": [
+                    {
+                        "type": "sic",
+                        "prompts": [
+                            {
+                                "name": "SA_SIC_PROMPT_RAG",
+                                "text": "my SIC RAG prompt"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "v3": {
+                "classification": [
+                    {
+                        "type": "sic",
+                        "prompts": [
+                            {
+                                "name": "SIC_PROMPT_RERANKER",
+                                "text": "my reranker prompt"
+                            },
+                            {
+                                "name": "SIC_PROMPT_UNAMBIGUOUS",
+                                "text": "my unambiguous prompt"
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        ```
     """
     return config_data
