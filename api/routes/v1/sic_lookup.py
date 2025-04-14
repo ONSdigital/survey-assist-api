@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+
 from api.services.sic_lookup_client import SICLookupClient
 
 router = APIRouter(tags=["SIC Lookup"])
