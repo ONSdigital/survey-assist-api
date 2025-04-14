@@ -73,7 +73,7 @@ def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argumen
 
 
 @pytest.fixture(scope="session")
-def test_data_dir():
+def test_data_directory():
     """Create a temporary directory for test data files.
 
     Returns:
@@ -86,19 +86,19 @@ def test_data_dir():
 
 
 @pytest.fixture(scope="session")
-def sic_data_file(test_data_dir):
+def sic_test_data_file(test_data_directory):
     """Create a test SIC data file.
 
     Args:
-        test_data_dir (Path): Path to the test data directory.
+        test_data_directory (Path): Path to the test data directory.
 
     Returns:
         Path: Path to the test SIC data file.
     """
-    data_file = test_data_dir / "sic_codes.csv"
+    data_file = test_data_directory / "sic_codes.csv"
 
     # Create a minimal SIC data file
-    with open(data_file, "w") as f:
+    with open(data_file, "w", encoding="utf-8") as f:
         f.write("code,description\n")
         f.write(
             "01110,Growing of cereals (except rice), leguminous crops and oil seeds\n"
@@ -110,16 +110,16 @@ def sic_data_file(test_data_dir):
 
 
 @pytest.fixture(scope="session")
-def client(sic_data_file):
+def test_client(sic_test_data_file):
     """Create a test client for the FastAPI app.
 
     Args:
-        sic_data_file (Path): Path to the test SIC data file.
+        sic_test_data_file (Path): Path to the test SIC data file.
 
     Returns:
         TestClient: A test client for the FastAPI app.
     """
     # Set the environment variable for the test data file
-    os.environ["SIC_DATA_FILE"] = str(sic_data_file)
+    os.environ["SIC_DATA_FILE"] = str(sic_test_data_file)
 
     return TestClient(app)
