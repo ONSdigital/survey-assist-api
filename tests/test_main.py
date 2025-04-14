@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 client = TestClient(app)  # Create a test client for your FastAPI app
 
 
-@pytest.mark.api
 def test_read_root(test_client: TestClient):
     """Test the root endpoint of the API.
 
@@ -40,7 +39,6 @@ def test_read_root(test_client: TestClient):
     assert response.json() == {"message": "Survey Assist API is running"}
 
 
-@pytest.mark.api
 def test_get_config(test_client: TestClient):
     """Test the `/v1/survey-assist/config` endpoint.
 
@@ -58,10 +56,9 @@ def test_get_config(test_client: TestClient):
 
 
 @pytest.mark.skipif(
-    "not pytest.has_sic_data",
+    "not pytest.sic_data_exists",
     reason="SIC data file not found",
 )
-@pytest.mark.api
 def test_sic_lookup_exact_match(test_client: TestClient):
     """Test the SIC Lookup endpoint with an exact match.
 
@@ -75,9 +72,7 @@ def test_sic_lookup_exact_match(test_client: TestClient):
     - The response JSON contains the "code" key.
     - The response JSON contains the "description" key.
     """
-    response = test_client.get(
-        "/v1/survey-assist/sic-lookup?description=Growing of rice"
-    )
+    response = test_client.get("/v1/survey-assist/sic-lookup?description=Growing of rice")
     assert response.status_code == HTTPStatus.OK
     assert "code" in response.json()
     assert "description" in response.json()
@@ -85,10 +80,9 @@ def test_sic_lookup_exact_match(test_client: TestClient):
 
 
 @pytest.mark.skipif(
-    "not pytest.has_sic_data",
+    "not pytest.sic_data_exists",
     reason="SIC data file not found",
 )
-@pytest.mark.api
 def test_sic_lookup_similarity(test_client: TestClient):
     """Test the SIC Lookup endpoint with similarity search enabled.
 
@@ -106,19 +100,16 @@ def test_sic_lookup_similarity(test_client: TestClient):
     - The "descriptions" key is present within the "potential_matches" object in
       the response JSON.
     """
-    response = test_client.get(
-        "/v1/survey-assist/sic-lookup?description=rice&similarity=true"
-    )
+    response = test_client.get("/v1/survey-assist/sic-lookup?description=rice&similarity=true")
     assert response.status_code == HTTPStatus.OK
     assert "potential_matches" in response.json()
     assert "descriptions" in response.json()["potential_matches"]
 
 
 @pytest.mark.skipif(
-    "not pytest.has_sic_data",
+    "not pytest.sic_data_exists",
     reason="SIC data file not found",
 )
-@pytest.mark.api
 def test_sic_lookup_no_description(test_client: TestClient):
     """Test the SIC Lookup endpoint to ensure it returns an error when the description
     parameter is missing.
