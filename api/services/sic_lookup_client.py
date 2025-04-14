@@ -31,24 +31,32 @@ class SICLookupClient:
         Raises:
             FileNotFoundError: If the data file cannot be found.
         """
+        resolved_path: str | None = None
         if data_path is None:
             # Try to find the data file in the package directory
             package_dir = Path(__file__).parent.parent.parent
-            data_path = package_dir / "data" / "sic_codes.csv"
+            test_path = package_dir / "data" / "sic_codes.csv"
 
-            if not data_path.exists():
+            if test_path.exists():
+                resolved_path = str(test_path)
+            else:
                 # Try the default path from the library
                 default_path = Path(
                     "../sic-classification-library/src/industrial_classification/data/sic_knowledge_base_utf8.csv"
                 )
                 if default_path.exists():
-                    data_path = default_path
+                    resolved_path = str(default_path)
                 else:
                     raise FileNotFoundError(
-                        f"Could not find SIC data file. Tried: {data_path} and {default_path}"
+                        f"Could not find SIC data file. Tried: {test_path} and {default_path}"
                     )
+        else:
+            resolved_path = data_path
 
-        self.lookup_service = SICLookup(str(data_path))
+        if resolved_path is None:
+            raise FileNotFoundError("No valid data path provided")
+
+        self.lookup_service = SICLookup(resolved_path)
 
     def get_result(self, description: str, similarity: bool = False) -> dict:
         """Get the SIC lookup result for a given description.
