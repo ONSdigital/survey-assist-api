@@ -36,10 +36,12 @@ class SICLookupClient:
             # Try to find the data file in the package directory
             package_dir = Path(__file__).parent.parent.parent
             data_path = package_dir / "data" / "sic_codes.csv"
-            
+
             if not data_path.exists():
                 # Try the default path from the library
-                default_path = Path("../sic-classification-library/src/industrial_classification/data/sic_knowledge_base_utf8.csv")
+                default_path = Path(
+                    "../sic-classification-library/src/industrial_classification/data/sic_knowledge_base_utf8.csv"
+                )
                 if default_path.exists():
                     data_path = default_path
                 else:
