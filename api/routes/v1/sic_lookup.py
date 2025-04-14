@@ -46,7 +46,7 @@ def sic_lookup(
     except Exception as e:
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail="Error looking up SIC code: {!s}".format(e),
+            detail=f"Error looking up SIC code: {e!s}",
         ) from e
 
 

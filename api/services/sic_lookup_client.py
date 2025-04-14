@@ -22,7 +22,7 @@ class SICLookupClient:
     to perform exact and similarity-based searches.
 
     Attributes:
-        lookup_service (SICLookup): The SIC lookup service instance.
+        lookup_service (Optional[SICLookup]): The SIC lookup service instance.
     """
 
     def __init__(self, data_path: Optional[str] = None):
@@ -42,7 +42,7 @@ class SICLookupClient:
                     "sic_knowledge_base_utf8.csv"
                 ).resolve()
             )
-            self.lookup_service = SICLookup(resolved_path)
+            self.lookup_service: Optional[SICLookup] = SICLookup(resolved_path)
         except FileNotFoundError:
             logger.warning(
                 "SIC data file not found at %s. SIC lookup functionality will be disabled.",
@@ -69,13 +69,18 @@ class SICLookupClient:
             raise RuntimeError("SIC lookup service is not initialized")
 
         if similarity:
-            return self.lookup_service.similarity_search(description)
-        return self.lookup_service.exact_search(description)
+            return self.lookup_service.lookup(description, similarity=True)
+        return self.lookup_service.lookup(description, similarity=False)
 
     def get_sic_codes_count(self) -> int:
         """Get the total number of SIC codes in the lookup service.
 
         Returns:
             int: The total number of SIC codes available in the lookup service.
+
+        Raises:
+            RuntimeError: If the SIC lookup service is not initialized.
         """
+        if self.lookup_service is None:
+            raise RuntimeError("SIC lookup service is not initialized")
         return len(self.lookup_service.data)
