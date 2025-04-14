@@ -1,57 +1,53 @@
-"""Module that provides the SIC lookup endpoint for the Survey Assist API.
+"""SIC Lookup Route.
 
-This module contains the SIC lookup endpoint for the Survey Assist API.
-It defines the endpoint for looking up SIC codes based on descriptions.
+This module provides the SIC lookup endpoint for the Survey Assist API.
+It handles requests to look up SIC codes based on business descriptions.
 """
 
-from fastapi import APIRouter, HTTPException
+from http import HTTPStatus
+
+from fastapi import APIRouter, HTTPException, Query
 
 from api.services.sic_lookup_client import SICLookupClient
 
-router = APIRouter(tags=["SIC Lookup"])
+router = APIRouter()
 
-# Initialize the SIC Lookup Client
-lookup_client = SICLookupClient(
-    data_path=(
-        "../sic-classification-library/src/industrial_classification/data/"
-        "sic_knowledge_base_utf8.csv"
-    )
-)
+# Initialize the SIC lookup client
+lookup_client = SICLookupClient()
 
 
 @router.get("/sic-lookup")
-async def sic_lookup(description: str, similarity: bool = False):
-    """Lookup the SIC code for a given description.
+def sic_lookup(
+    description: str = Query(..., description="Business description to look up"),
+    similarity: bool = Query(False, description="Whether to use similarity search"),
+) -> dict:
+    """Look up a SIC code based on a business description.
 
     Args:
-        description (str): The description to look up.
-        similarity (bool, optional): Whether to use similarity search. Defaults to False.
+        description (str): The business description to look up.
+        similarity (bool, optional): Whether to use similarity search.
+            Defaults to False.
 
     Returns:
-        dict: The SIC lookup result.
-
-    Example:
-        ```json
-        {
-            "code": "43210",
-            "description": "Electrical installation",
-            "potential_matches": {
-                "descriptions": [
-                    "Electrical installation",
-                    "Electrical contractor",
-                    "Electrician"
-                ]
-            }
-        }
-        ```
+        dict: A dictionary containing the SIC code and description, or
+            potential matches if similarity search is enabled.
 
     Raises:
-        HTTPException: If the description parameter is missing or invalid.
+        HTTPException: If the SIC lookup service is not initialized or if
+            an error occurs during the lookup.
     """
-    if not description:
-        raise HTTPException(status_code=400, detail="Description parameter is required")
-    result = lookup_client.get_result(description, similarity)
-    return result
+    try:
+        return lookup_client.lookup_sic_code(description, similarity)
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            detail="SIC lookup service is not available",
+        ) from e
+    except Exception as e:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Error looking up SIC code: {str(e)}",
+        ) from e
 
 
 @router.get("/test")

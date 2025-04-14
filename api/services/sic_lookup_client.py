@@ -1,76 +1,76 @@
-"""Module that provides the SIC lookup client service for the Survey Assist API.
+"""SIC Lookup Client Service.
 
-This module contains the SIC lookup client service that interfaces with the
-SIC Classification Library to perform SIC code lookups.
+This module provides the SIC Lookup Client service for the Survey Assist API.
+It handles the interaction with the SIC classification library to perform
+SIC code lookups based on business descriptions.
 """
 
+import logging
 from pathlib import Path
+from typing import Optional
 
 from industrial_classification.lookup.sic_lookup import SICLookup
 
+logger = logging.getLogger(__name__)
+
 
 class SICLookupClient:
-    """Client for performing SIC code lookups.
+    """Client for interacting with the SIC classification library.
 
-    This class provides a simplified interface to the SIC Classification Library's
-    lookup functionality. It handles the initialization of the lookup service and
-    provides methods for performing SIC code lookups.
+    This class provides methods to look up SIC codes based on business descriptions.
+    It handles the initialization of the SIC lookup service and provides methods
+    to perform exact and similarity-based searches.
 
     Attributes:
-        lookup_service (SICLookup): The underlying SIC lookup service.
+        lookup_service (SICLookup): The SIC lookup service instance.
     """
 
-    def __init__(self, data_path: str | None = None):
-        """Initialize the SIC lookup client.
+    def __init__(self, data_path: Optional[str] = None):
+        """Initialize the SIC Lookup Client.
 
         Args:
-            data_path (str | None, optional): Path to the SIC codes data file.
-                If None, will try to find the data file in the package directory.
-                Defaults to None.
+            data_path (Optional[str]): Path to the SIC data file. If not provided,
+                uses the default path from the SIC classification library.
 
         Raises:
-            FileNotFoundError: If the data file cannot be found.
+            FileNotFoundError: If the SIC data file cannot be found.
         """
-        resolved_path: str | None = None
-        if data_path is None:
-            # Try to find the data file in the package directory
-            package_dir = Path(__file__).parent.parent.parent
-            test_path = package_dir / "data" / "sic_codes.csv"
-
-            if test_path.exists():
-                resolved_path = str(test_path)
-            else:
-                # Try the default path from the library
-                default_path = Path(
+        try:
+            resolved_path = data_path or str(
+                Path(
                     "../sic-classification-library/src/industrial_classification/data/"
                     "sic_knowledge_base_utf8.csv"
-                )
-                if default_path.exists():
-                    resolved_path = str(default_path)
-                else:
-                    raise FileNotFoundError(
-                        f"Could not find SIC data file. Tried: {test_path} and {default_path}"
-                    )
-        else:
-            resolved_path = data_path
+                ).resolve()
+            )
+            self.lookup_service = SICLookup(resolved_path)
+        except FileNotFoundError as e:
+            logger.warning(
+                "SIC data file not found at %s. SIC lookup functionality will be disabled.",
+                resolved_path,
+            )
+            self.lookup_service = None
 
-        if resolved_path is None:
-            raise FileNotFoundError("No valid data path provided")
-
-        self.lookup_service = SICLookup(resolved_path)
-
-    def get_result(self, description: str, similarity: bool = False) -> dict:
-        """Get the SIC lookup result for a given description.
+    def lookup_sic_code(self, description: str, similarity: bool = False) -> dict:
+        """Look up a SIC code based on a business description.
 
         Args:
-            description (str): The description to look up.
-            similarity (bool, optional): Whether to use similarity search.
+            description (str): The business description to look up.
+            similarity (bool, optional): Whether to perform a similarity search.
                 Defaults to False.
 
         Returns:
-            dict: The SIC lookup result.
+            dict: A dictionary containing the SIC code and description, or
+                potential matches if similarity search is enabled.
+
+        Raises:
+            RuntimeError: If the SIC lookup service is not initialized.
         """
-        return self.lookup_service.lookup(description, similarity)
+        if self.lookup_service is None:
+            raise RuntimeError("SIC lookup service is not initialized")
+
+        if similarity:
+            return self.lookup_service.similarity_search(description)
+        return self.lookup_service.exact_search(description)
 
     def get_sic_codes_count(self) -> int:
         """Get the total number of SIC codes in the lookup service.
