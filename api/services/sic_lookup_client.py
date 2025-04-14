@@ -27,27 +27,18 @@ class SICLookupClient:
         """
         self.lookup_service = SICLookup(data_path)
 
-    def lookup(self, description: str, similarity: bool = False) -> dict:
-        """Look up a SIC code by description.
+    def get_result(self, description: str, similarity: bool = False) -> dict:
+        """Get the SIC lookup result for a given description.
 
         Args:
-            description (str): The description to search for.
+            description (str): The description to look up.
             similarity (bool, optional): Whether to use similarity search.
                 Defaults to False.
 
         Returns:
-            dict: A dictionary containing the SIC code and description, or
-                potential matches if similarity search is enabled.
-
-        Raises:
-            ValueError: If the description is empty or None.
+            dict: The SIC lookup result.
         """
-        if not description:
-            raise ValueError("Description cannot be empty or None")
-
-        if similarity:
-            return self.lookup_service.similarity_search(description)
-        return self.lookup_service.exact_search(description)
+        return self.lookup_service.lookup(description, similarity)
 
     def get_sic_codes_count(self) -> int:
         """Get the total number of SIC codes in the lookup service.
@@ -55,4 +46,4 @@ class SICLookupClient:
         Returns:
             int: The total number of SIC codes available in the lookup service.
         """
-        return len(self.lookup_service.sic_codes)
+        return len(self.lookup_service.data)
