@@ -47,7 +47,7 @@ async def get_config() -> ConfigResponse:
 
     Returns:
         ConfigResponse: A dictionary containing the current configuration settings.
-        
+
     Example:
         ```json
         {

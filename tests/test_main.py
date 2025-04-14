@@ -56,6 +56,7 @@ def test_get_config():
     assert response.status_code == HTTPStatus.OK
     assert response.json()["llm_model"] == "gpt-4"
 
+
 @pytest.mark.api
 def test_sic_lookup_exact_match():
     """Test the SIC Lookup endpoint with an exact match.
@@ -75,6 +76,7 @@ def test_sic_lookup_exact_match():
     assert "code" in response.json()
     assert "description" in response.json()
 
+
 @pytest.mark.api
 def test_sic_lookup_similarity():
     """Test the SIC Lookup endpoint with similarity search enabled.
@@ -90,10 +92,13 @@ def test_sic_lookup_similarity():
     - The "potential_matches" key is present in the response JSON.
     - The "descriptions" key is present within the "potential_matches" object in the response JSON.
     """
-    response = client.get("/v1/survey-assist/sic-lookup?description=electrician&similarity=true")
+    response = client.get(
+        "/v1/survey-assist/sic-lookup?description=electrician&similarity=true"
+    )
     assert response.status_code == HTTPStatus.OK
     assert "potential_matches" in response.json()
     assert "descriptions" in response.json()["potential_matches"]
+
 
 @pytest.mark.api
 def test_sic_lookup_no_description():
@@ -110,4 +115,13 @@ def test_sic_lookup_no_description():
     """
     response = client.get("/v1/survey-assist/sic-lookup")
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert response.json() == {"detail": [{"type": "missing", "loc": ["query", "description"], "msg": "Field required", "input": None}]}
+    assert response.json() == {
+        "detail": [
+            {
+                "type": "missing",
+                "loc": ["query", "description"],
+                "msg": "Field required",
+                "input": None,
+            }
+        ]
+    }
