@@ -4,7 +4,6 @@ This module provides a client for the SIC lookup service, which is used to
 look up SIC codes and descriptions.
 """
 
-import os
 from pathlib import Path
 
 from industrial_classification.lookup.sic_lookup import SICLookup
@@ -24,19 +23,14 @@ class SICLookupClient:
         """Initialize the SIC lookup client.
 
         Args:
-            data_path: Path to the SIC data file. If not provided, the path will be
-                read from the SIC_DATA_FILE environment variable, or a default path
-                will be used.
+            data_path: Path to the SIC data file. If not provided, the default
+                knowledge base path will be used.
         """
-        # Use the provided path, environment variable, or default path
-        resolved_path = data_path or os.getenv("SIC_DATA_FILE")
-
-        # If no path is provided, use the default knowledge base path
-        if resolved_path is None:
-            resolved_path = (
-                "../sic-classification-library/src/industrial_classification/data/"
-                "sic_knowledge_base_utf8.csv"
-            )
+        # Use the provided path or default path
+        resolved_path = data_path or (
+            "../sic-classification-library/src/industrial_classification/data/"
+            "sic_knowledge_base_utf8.csv"
+        )
 
         # Ensure the path is a string
         if isinstance(resolved_path, Path):
