@@ -17,6 +17,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
+from api.routes.v1.sic_lookup import get_lookup_client
+from api.services.sic_lookup_client import SICLookupClient
 
 # Configure a global logger
 logger = logging.getLogger(__name__)
@@ -54,40 +56,31 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
 
 @pytest.hookimpl(trylast=True)
 def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argument
-    """Hook function called after the test session ends.
+    """Pytest hook implementation that is executed at the end of a test session.
 
-    This function is executed after all tests have been run and the test session
-    is about to finish. It can be used to perform cleanup or logging tasks.
+    This function logs a message indicating that the test session has finished,
+    including the exit status of the session.
 
     Args:
-        session (Session): The pytest session object containing information
-            about the test session.
-        exitstatus (int): The exit status code of the test session. This indicates
-            whether the tests passed, failed, or were interrupted.
-
-    Note:
-        The `pylint: disable=unused-argument` directive is used to suppress
-        warnings for unused arguments in this function.
+        session: The pytest session object (not used in this implementation).
+        exitstatus: The exit status of the test session.
     """
-    logger.info("=== Test Session Finished ===")
+    logger.info("=== Test Session Finished with Status: %s ===", exitstatus)
 
 
 @pytest.fixture(scope="session")
 def test_data_directory():
-    """Create a temporary directory for test data files.
+    """Return the path to the test data directory.
 
     Returns:
         Path: Path to the test data directory.
     """
-    test_dir = Path(__file__).parent
-    data_dir = test_dir / "data"
-    data_dir.mkdir(exist_ok=True)
-    return data_dir
+    return Path(__file__).parent / "data"
 
 
 @pytest.fixture(scope="session")
 def sic_test_data_file(test_data_dir_path):
-    """Create a test SIC data file.
+    """Return the path to the test SIC data file.
 
     Args:
         test_data_dir_path (Path): Path to the test data directory.
@@ -95,18 +88,7 @@ def sic_test_data_file(test_data_dir_path):
     Returns:
         Path: Path to the test SIC data file.
     """
-    data_file = test_data_dir_path / "sic_codes.csv"
-
-    # Create a minimal SIC data file with UTF-8 encoding
-    with open(data_file, "w", encoding="utf-8") as f:
-        f.write("code,description\n")
-        f.write(
-            "01110,growing of cereals (except rice), leguminous crops and oil seeds\n"
-        )
-        f.write("01120,growing of rice\n")
-        f.write("01130,growing of vegetables and melons, roots and tubers\n")
-
-    return data_file
+    return test_data_dir_path / "example_sic_lookup_data.csv"
 
 
 @pytest.fixture(scope="session")
@@ -121,5 +103,11 @@ def test_client(sic_data_path):
     """
     # Set the environment variable for the test data file
     os.environ["SIC_DATA_FILE"] = str(sic_data_path)
+
+    # Override the get_lookup_client function to use the test data
+    def get_test_lookup_client() -> SICLookupClient:
+        return SICLookupClient(data_path=str(sic_data_path))
+
+    app.dependency_overrides[get_lookup_client] = get_test_lookup_client
 
     return TestClient(app)

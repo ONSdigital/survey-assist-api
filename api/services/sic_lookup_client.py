@@ -1,56 +1,73 @@
-"""Module that provides the SIC lookup client service for the Survey Assist API.
+"""SIC lookup client service for the Survey Assist API.
 
-This module contains the SIC lookup client service that interfaces with the
-SIC Classification Library to perform SIC code lookups.
+This module provides a client for the SIC lookup service, which is used to
+look up SIC codes and descriptions.
 """
 
+import os
 from pathlib import Path
 
 from industrial_classification.lookup.sic_lookup import SICLookup
 
 
 class SICLookupClient:
-    """Client for performing SIC code lookups.
+    """Client for the SIC lookup service.
 
-    This class provides a simplified interface to the SIC Classification Library's
-    lookup functionality. It handles the initialization of the lookup service and
-    provides methods for performing SIC code lookups.
+    This class provides a client for the SIC lookup service, which is used to
+    look up SIC codes and descriptions.
 
     Attributes:
-        lookup_service (SICLookup): The underlying SIC lookup service.
+        lookup_service: The SIC lookup service instance.
     """
 
-    def __init__(self, data_path: str | None = None):
+    def __init__(self, data_path: str | None = None) -> None:
         """Initialize the SIC lookup client.
 
         Args:
-            data_path (str | None, optional): Path to the SIC codes data file.
-                If None, will try to find the data file in the package directory.
-                Defaults to None.
-
-        Raises:
-            FileNotFoundError: If the data file cannot be found.
+            data_path: Path to the SIC data file. If not provided, the path will be
+                read from the SIC_DATA_FILE environment variable, or a default path
+                will be used.
         """
-        resolved_path: str | None = None
-        if data_path is None:
-            # Try the default path from the library
-            default_path = Path(
+        # Use the provided path, environment variable, or default path
+        resolved_path = data_path or os.getenv("SIC_DATA_FILE")
+
+        # If no path is provided, use the default knowledge base path
+        if resolved_path is None:
+            resolved_path = (
                 "../sic-classification-library/src/industrial_classification/data/"
                 "sic_knowledge_base_utf8.csv"
             )
-            if default_path.exists():
-                resolved_path = str(default_path)
-            else:
-                raise FileNotFoundError(
-                    f"Could not find SIC data file. Tried: {default_path}"
-                )
-        else:
-            resolved_path = data_path
 
-        if resolved_path is None:
-            raise FileNotFoundError("No valid data path provided")
+        # Ensure the path is a string
+        if isinstance(resolved_path, Path):
+            resolved_path = str(resolved_path)
 
+        # Initialize the SIC lookup service
         self.lookup_service = SICLookup(resolved_path)
+
+    def lookup(self, description: str) -> dict | None:
+        """Look up a SIC code by description.
+
+        Args:
+            description: The description to look up.
+
+        Returns:
+            A dictionary containing the SIC code and description, or None if no match
+            was found.
+        """
+        return self.lookup_service.lookup(description)
+
+    def similarity_search(self, description: str) -> dict | None:
+        """Search for similar SIC codes by description.
+
+        Args:
+            description: The description to search for.
+
+        Returns:
+            A dictionary containing potential matches, or None if no matches were
+            found.
+        """
+        return self.lookup_service.lookup(description, similarity=True)
 
     def get_result(self, description: str, similarity: bool = False) -> dict:
         """Get the SIC lookup result for a given description.

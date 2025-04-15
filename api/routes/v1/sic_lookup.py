@@ -12,16 +12,18 @@ from api.services.sic_lookup_client import SICLookupClient
 
 router = APIRouter(tags=["SIC Lookup"])
 
+
+def get_lookup_client() -> SICLookupClient:
+    """Get a SIC lookup client instance.
+
+    Returns:
+        SICLookupClient: A SIC lookup client instance.
+    """
+    return SICLookupClient(data_path=os.getenv("SIC_DATA_FILE"))
+
+
 # Initialize the SIC Lookup Client
-lookup_client = SICLookupClient(
-    data_path=os.getenv(
-        "SIC_DATA_FILE",
-        (
-            "../sic-classification-library/src/industrial_classification/data/"
-            "sic_knowledge_base_utf8.csv"
-        ),
-    )
-)
+lookup_client = get_lookup_client()
 
 
 @router.get("/sic-lookup")
@@ -48,22 +50,26 @@ async def sic_lookup(description: str, similarity: bool = False):
                 ]
             }
         }
-        ```
-
-    Raises:
-        HTTPException: If the description parameter is missing or invalid.
+    ```
     """
     if not description:
-        raise HTTPException(status_code=400, detail="Description parameter is required")
+        raise HTTPException(status_code=400, detail="Description cannot be empty")
+
     result = lookup_client.get_result(description, similarity)
+    if not result:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No SIC code found for description: {description}",
+        )
+
     return result
 
 
 @router.get("/test")
 async def test():
-    """Test endpoint to verify the API is working.
+    """Test endpoint for the SIC lookup service.
 
     Returns:
-        dict: A message indicating the test endpoint is working.
+        dict: A test response.
     """
-    return {"message": "Test endpoint is working"}
+    return {"message": "SIC lookup service is running"}
