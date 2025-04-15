@@ -4,8 +4,6 @@ This module contains the SIC lookup endpoint for the Survey Assist API.
 It defines the endpoint for looking up SIC codes based on descriptions.
 """
 
-import os
-
 from fastapi import APIRouter, HTTPException
 
 from api.services.sic_lookup_client import SICLookupClient
@@ -19,7 +17,7 @@ def get_lookup_client() -> SICLookupClient:
     Returns:
         SICLookupClient: A SIC lookup client instance.
     """
-    return SICLookupClient(data_path=os.getenv("SIC_DATA_FILE"))
+    return SICLookupClient()
 
 
 # Initialize the SIC Lookup Client

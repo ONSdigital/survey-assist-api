@@ -10,7 +10,6 @@ Functions:
 """
 
 import logging
-import os
 from pathlib import Path
 
 import pytest
@@ -92,21 +91,16 @@ def sic_test_data_file(test_data_dir_path):
 
 
 @pytest.fixture(scope="session")
-def test_client(sic_data_path):
+def test_client():
     """Create a test client for the FastAPI app.
-
-    Args:
-        sic_data_path (Path): Path to the test SIC data file.
 
     Returns:
         TestClient: A test client for the FastAPI app.
     """
-    # Set the environment variable for the test data file
-    os.environ["SIC_DATA_FILE"] = str(sic_data_path)
 
     # Override the get_lookup_client function to use the test data
     def get_test_lookup_client() -> SICLookupClient:
-        return SICLookupClient(data_path=str(sic_data_path))
+        return SICLookupClient(data_path="tests/data/example_sic_lookup_data.csv")
 
     app.dependency_overrides[get_lookup_client] = get_test_lookup_client
 
