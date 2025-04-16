@@ -62,19 +62,20 @@ def test_sic_lookup_exact_match():
     """Test the SIC Lookup endpoint with an exact match.
 
     This test sends a GET request to the SIC Lookup endpoint with a specific
-    description ("electrician") and verifies:
+    description ("street lighting installation") and verifies:
     1. The response status code is HTTP 200 (OK).
-    2. The response JSON contains the expected keys: "code" and "description".
+    2. The response JSON contains the expected code "43210".
+    3. The response JSON contains the expected description "street lighting installation".
 
     Assertions:
     - The response status code is HTTPStatus.OK.
-    - The response JSON contains the "code" key.
-    - The response JSON contains the "description" key.
+    - The response JSON contains the correct "code" value.
+    - The response JSON contains the correct "description" value.
     """
-    response = client.get("/v1/survey-assist/sic-lookup?description=electrician")
+    response = client.get("/v1/survey-assist/sic-lookup?description=street%20lighting%20installation")
     assert response.status_code == HTTPStatus.OK
-    assert "code" in response.json()
-    assert "description" in response.json()
+    assert response.json()["code"] == "43210"
+    assert response.json()["description"] == "street lighting installation"
 
 
 @pytest.mark.api
