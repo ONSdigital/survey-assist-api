@@ -1518,15 +1518,17 @@ optional = false
 python-versions = "^3.12"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 pandas = "^2.2.3"
 pydantic = "^2.10.6"
 
 [package.source]
-type = "directory"
-url = "../sic-classification-library"
+type = "git"
+url = "https://github.com/ONSdigital/sic-classification-library.git"
+reference = "HEAD"
+resolved_reference = "1c527bc27daabff9a112613f1b2ad5250ebca723"
 
 [[package]]
 name = "six"
@@ -1718,5 +1720,5 @@ watchmedo = ["PyYAML (>=3.10)"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = "^3.12"
-content-hash = "141422129b23c37adb00ba55c6f502f6141b8fcaaffda3144d9816afb4baf756"
+python-versions = "3.12.4"
+content-hash = "3953defffb8cc693c2f57f20a54e1c580fb4a39cd8c0eb8dc0ea5072f3a3cdc9"
