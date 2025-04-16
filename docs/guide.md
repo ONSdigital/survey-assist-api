@@ -88,13 +88,14 @@ The OpenAPI specification is available at `/openapi.json`
 
 ## Configuration
 
-The API uses a flexible configuration system that supports:
-- Multiple LLM models
-- Different data stores
-- Version-specific settings
-- Customisable prompts
+## Configuration
 
-Configuration is managed through the `/config` endpoint and can be customised for different environments.
+The API provides a configuration system that currently allows viewing the active configuration.
+
+- The `/config` endpoint provides a read-only view of the current API configuration.
+- Currently, the LLM configuration is static and cannot be modified via the API.
+
+Configuration is managed through the `/config` endpoint and reflects the settings currently in use.
 
 ## Error Handling
 
