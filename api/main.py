@@ -13,7 +13,6 @@ app: FastAPI = FastAPI(
     title="Survey Assist API",
     description="API for interacting with backend data processing services such as classification",
     version="1.0.0",
-    contact={"name": "ONS Digital", "email": "steve.gibbard@ons.gov.uk"},
     openapi_url="/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
