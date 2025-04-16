@@ -72,7 +72,9 @@ def test_sic_lookup_exact_match():
     - The response JSON contains the correct "code" value.
     - The response JSON contains the correct "description" value.
     """
-    response = client.get("/v1/survey-assist/sic-lookup?description=street%20lighting%20installation")
+    response = client.get(
+        "/v1/survey-assist/sic-lookup?description=street%20lighting%20installation"
+    )
     assert response.status_code == HTTPStatus.OK
     assert response.json()["code"] == "43210"
     assert response.json()["description"] == "street lighting installation"
