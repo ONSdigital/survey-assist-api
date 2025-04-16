@@ -66,13 +66,3 @@ async def sic_lookup(description: str, similarity: bool = False):
         )
 
     return result
-
-
-@router.get("/test")
-async def test():
-    """Test endpoint for the SIC lookup service.
-
-    Returns:
-        dict: A test response.
-    """
-    return {"message": "SIC lookup service is running"}
