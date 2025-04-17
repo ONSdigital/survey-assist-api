@@ -27,10 +27,19 @@ class SICLookupClient:
                 knowledge base path will be used.
         """
         # Use the provided path or default path
-        resolved_path = data_path or (
-            "../sic-classification-library/src/industrial_classification/data/"
-            "sic_knowledge_base_utf8.csv"
-        )
+        if data_path is None:
+            # Get the absolute path to the project root
+            project_root = Path(__file__).parent.parent.parent
+            resolved_path = str(
+                project_root
+                / "sic-classification-library"
+                / "src"
+                / "industrial_classification"
+                / "data"
+                / "sic_knowledge_base_utf8.csv"
+            )
+        else:
+            resolved_path = data_path
 
         # Ensure the path is a string
         if isinstance(resolved_path, Path):

@@ -19,29 +19,25 @@ import logging
 from http import HTTPStatus
 
 import pytest
-from fastapi.testclient import TestClient
-
-from api.main import app  # Adjust the import based on your project structure
 
 logger = logging.getLogger(__name__)
-client = TestClient(app)  # Create a test client for your FastAPI app
 
 
 @pytest.mark.api
-def test_read_root():
+def test_read_root(test_client):
     """Test the root endpoint of the API.
 
     This test sends a GET request to the root endpoint ("/") and verifies:
     1. The response status code is HTTP 200 (OK).
     2. The response JSON contains the expected message indicating the API is running.
     """
-    response = client.get("/")
+    response = test_client.get("/")
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {"message": "Survey Assist API is running"}
 
 
 @pytest.mark.api
-def test_get_config():
+def test_get_config(test_client):
     """Test the `/v1/survey-assist/config` endpoint.
 
     This test verifies that the endpoint returns a successful HTTP status code
@@ -52,13 +48,13 @@ def test_get_config():
     - The response status code is HTTPStatus.OK.
     - The `llm_model` in the response JSON is set to "gpt-4".
     """
-    response = client.get("/v1/survey-assist/config")
+    response = test_client.get("/v1/survey-assist/config")
     assert response.status_code == HTTPStatus.OK
     assert response.json()["llm_model"] == "gpt-4"
 
 
 @pytest.mark.api
-def test_sic_lookup_exact_match():
+def test_sic_lookup_exact_match(test_client):
     """Test the SIC Lookup endpoint with an exact match.
 
     This test sends a GET request to the SIC Lookup endpoint with a specific
@@ -72,7 +68,7 @@ def test_sic_lookup_exact_match():
     - The response JSON contains the correct "code" value.
     - The response JSON contains the correct "description" value.
     """
-    response = client.get(
+    response = test_client.get(
         "/v1/survey-assist/sic-lookup?description=street%20lighting%20installation"
     )
     assert response.status_code == HTTPStatus.OK
@@ -81,7 +77,7 @@ def test_sic_lookup_exact_match():
 
 
 @pytest.mark.api
-def test_sic_lookup_similarity():
+def test_sic_lookup_similarity(test_client):
     """Test the SIC Lookup endpoint with similarity search enabled.
 
     This test sends a GET request to the SIC Lookup endpoint with the description
@@ -99,7 +95,7 @@ def test_sic_lookup_similarity():
     - The "descriptions" key is present within the "potential_matches" object in
       the response JSON.
     """
-    response = client.get(
+    response = test_client.get(
         "/v1/survey-assist/sic-lookup?description=electrician&similarity=true"
     )
     assert response.status_code == HTTPStatus.OK
@@ -108,7 +104,7 @@ def test_sic_lookup_similarity():
 
 
 @pytest.mark.api
-def test_sic_lookup_no_description():
+def test_sic_lookup_no_description(test_client):
     """Test the SIC Lookup endpoint to ensure it returns an error when the description
     parameter is missing.
 
@@ -121,7 +117,7 @@ def test_sic_lookup_no_description():
     - The response status code is HTTPStatus.UNPROCESSABLE_ENTITY.
     - The response JSON matches the expected validation error format.
     """
-    response = client.get("/v1/survey-assist/sic-lookup")
+    response = test_client.get("/v1/survey-assist/sic-lookup")
     assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
     assert response.json() == {
         "detail": [
