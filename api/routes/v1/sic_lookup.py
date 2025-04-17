@@ -4,38 +4,41 @@ This module contains the SIC lookup endpoint for the Survey Assist API.
 It defines the endpoint for looking up SIC codes based on descriptions.
 """
 
-import sys
-
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from api.services.sic_lookup_client import SICLookupClient
 
 router = APIRouter(tags=["SIC Lookup"])
 
 
-def get_lookup_client() -> SICLookupClient:
+def get_lookup_client(data_path: str | None = None) -> SICLookupClient:
     """Get a SIC lookup client instance.
+
+    Args:
+        data_path (str | None, optional): Path to the data file. Defaults to None.
 
     Returns:
         SICLookupClient: A SIC lookup client instance.
     """
-    # Use test data during tests, knowledge base in production
-    if "pytest" in sys.modules:
-        return SICLookupClient(data_path="tests/data/example_sic_lookup_data.csv")
-    return SICLookupClient()
+    return SICLookupClient(data_path=data_path)
 
 
-# Initialize the SIC Lookup Client
-lookup_client = get_lookup_client()
+# Define the dependency at module level
+lookup_client_dependency = Depends(get_lookup_client)
 
 
 @router.get("/sic-lookup")
-async def sic_lookup(description: str, similarity: bool = False):
+async def sic_lookup(
+    description: str,
+    similarity: bool = False,
+    lookup_client: SICLookupClient = lookup_client_dependency,
+):
     """Lookup the SIC code for a given description.
 
     Args:
         description (str): The description to look up.
         similarity (bool, optional): Whether to use similarity search. Defaults to False.
+        lookup_client (SICLookupClient): The SIC lookup client instance.
 
     Returns:
         dict: The SIC lookup result.

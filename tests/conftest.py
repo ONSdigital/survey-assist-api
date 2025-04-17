@@ -67,41 +67,19 @@ def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argumen
     logger.info("=== Test Session Finished with Status: %s ===", exitstatus)
 
 
-@pytest.fixture(scope="session")
-def test_data_directory():
-    """Return the path to the test data directory.
-
-    Returns:
-        Path: Path to the test data directory.
-    """
-    return Path(__file__).parent / "data"
+# Get the absolute path to the test data file
+TEST_DATA_PATH = str(Path(__file__).parent / "data" / "example_sic_lookup_data.csv")
 
 
-@pytest.fixture(scope="session")
-def sic_test_data_file(test_data_dir_path):
-    """Return the path to the test SIC data file.
-
-    Args:
-        test_data_dir_path (Path): Path to the test data directory.
-
-    Returns:
-        Path: Path to the test SIC data file.
-    """
-    return test_data_dir_path / "example_sic_lookup_data.csv"
-
-
-@pytest.fixture(scope="session")
+@pytest.fixture
 def test_client():
     """Create a test client for the FastAPI app.
 
     Returns:
         TestClient: A test client for the FastAPI app.
     """
-
-    # Override the get_lookup_client function to use the test data
-    def get_test_lookup_client() -> SICLookupClient:
-        return SICLookupClient(data_path="tests/data/example_sic_lookup_data.csv")
-
-    app.dependency_overrides[get_lookup_client] = get_test_lookup_client
-
+    # Override the SIC lookup client to use test data
+    app.dependency_overrides[get_lookup_client] = lambda: SICLookupClient(
+        data_path=TEST_DATA_PATH
+    )
     return TestClient(app)

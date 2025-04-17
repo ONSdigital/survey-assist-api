@@ -55,6 +55,8 @@ The API provides two types of interactive documentation:
    - Clean, readable format
    - Schema visualisation
 
+You can access these interactive documentation tools by ensuring your API is running and then navigating to the `/docs` or `/redoc` URL in a browser (e.g., http://127.0.0.1:8080/docs).
+
 ### API Specification
 The OpenAPI specification is available at `/openapi.json`
 
