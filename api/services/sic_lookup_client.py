@@ -32,11 +32,8 @@ class SICLookupClient:
             project_root = Path(__file__).parent.parent.parent
             resolved_path = str(
                 project_root
-                / "sic-classification-library"
-                / "src"
-                / "industrial_classification"
-                / "data"
-                / "sic_knowledge_base_utf8.csv"
+                / "sic-classification-library/src/industrial_classification"
+                / "data/sic_knowledge_base_utf8.csv"
             )
         else:
             resolved_path = data_path
