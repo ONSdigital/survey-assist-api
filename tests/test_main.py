@@ -174,7 +174,9 @@ async def test_get_status_connection_error():
     - The raised exception has the correct status code.
     - The error message contains the expected connection failure text.
     """
-    with patch("httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")
+    ):
         client = VectorStoreClient(base_url="http://nonexistent:8088")
         with pytest.raises(HTTPException) as exc_info:
             await client.get_status()
@@ -195,7 +197,9 @@ def test_embeddings_endpoint(test_client):
     - The response status code is HTTPStatus.OK.
     - The response JSON matches the expected status dictionary.
     """
-    with patch("api.services.vector_store_client.VectorStoreClient.get_status") as mock_get_status:
+    with patch(
+        "api.services.vector_store_client.VectorStoreClient.get_status"
+    ) as mock_get_status:
         mock_get_status.return_value = {"status": "ready"}
         response = test_client.get("/v1/survey-assist/embeddings")
         assert response.status_code == HTTPStatus.OK
