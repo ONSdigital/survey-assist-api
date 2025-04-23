@@ -10,6 +10,7 @@ The API is built using:
 - **FastAPI**: Modern, fast web framework for building APIs
 - **Pydantic**: Data validation and settings management
 - **SIC Classification Library**: Core classification functionality
+- **Vector Store Service**: Embeddings and semantic search capabilities
 
 ## API Endpoints
 
@@ -32,13 +33,27 @@ The API is built using:
   - Exact match (similarity=false)
   - Similarity search (similarity=true)
 
-## Integration with SIC Classification Library
+### Embeddings Endpoint
+- **Path**: `/v1/survey-assist/embeddings`
+- **Method**: GET
+- **Description**: Checks the status of the vector store service and its embeddings
+- **Response**: Returns the current status of the vector store service
+- **Error Handling**: Returns a 503 Service Unavailable status if the vector store service is not accessible
 
+## Integration with External Services
+
+### SIC Classification Library
 The API integrates with the SIC Classification Library to provide:
 - Standard Industrial Classification (SIC) code lookup
 - Similarity-based classification
 - Metadata for classifications
 - Code division information
+
+### Vector Store Service
+The API integrates with the Vector Store Service to provide:
+- Status checking for embeddings availability
+- Error handling for service unavailability
+- Asynchronous communication with the vector store
 
 ## Documentation
 
@@ -66,29 +81,70 @@ The OpenAPI specification is available at `/openapi.json`
 - Python 3.12
 - Poetry for dependency management
 - Access to the SIC Classification Library
+- Access to the Vector Store Service
 
 ### Setup
-1. Install dependencies:
+1. Clone the repositories:
    ```bash
+   # Clone survey-assist-api
+   git clone https://github.com/ONSdigital/survey-assist-api.git
+   cd survey-assist-api
+   poetry install
+
+   # Clone vector store service
+   git clone https://github.com/ONSdigital/sic-classification-vector-store.git
+   cd sic-classification-vector-store
    poetry install
    ```
 
-2. Run the API:
+2. Start both services (in separate terminal windows):
    ```bash
-   make run-api
-   ```
+   # Terminal 1 - Start the vector store service
+   cd sic-classification-vector-store
+   make run-vector-store
 
-3. View documentation:
-   ```bash
+   # Terminal 2 - Start the survey assist API
+   cd survey-assist-api
+   make run-api
    make run-docs
    ```
 
-### Testing
-- API tests: `make api-tests`
-- Unit tests: `make unit-tests`
-- All tests: `make all-tests`
+3. Access the services:
+   - Survey Assist API: http://localhost:8080
+   - Documentation: http://localhost:8000
+   - Vector Store: http://localhost:8088
 
-## Configuration
+Note: Both services must be running simultaneously for the embeddings endpoint to work. The vector store service must be started before making requests to the `/embeddings` endpoint.
+
+### Testing
+The project includes comprehensive test coverage:
+- API endpoint tests
+- Client service tests
+- Error handling tests
+- Integration tests with external services
+
+Tests can be run using:
+```bash
+make api-tests  # For API endpoint tests
+make unit-tests # For unit tests
+make all-tests  # For all tests
+```
+
+### Code Quality
+Code quality is maintained through:
+- Static type checking with mypy
+- Linting with pylint and ruff
+- Code formatting with black
+- Security checking with bandit
+- Documentation with mkdocs
+
+## Error Handling
+
+The API implements robust error handling:
+- Validation errors for invalid requests
+- Service unavailability errors for external services
+- Detailed error messages for debugging
+- Proper HTTP status codes for different error scenarios
 
 ## Configuration
 
@@ -98,15 +154,6 @@ The API provides a configuration system that currently allows viewing the active
 - Currently, the LLM configuration is static and cannot be modified via the API.
 
 Configuration is managed through the `/config` endpoint and reflects the settings currently in use.
-
-## Error Handling
-
-The API provides clear error responses for:
-- Missing required parameters
-- Invalid input
-- Internal server errors
-
-All errors follow a consistent format with appropriate HTTP status codes.
 
 ## Security
 
