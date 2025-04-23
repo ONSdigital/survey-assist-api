@@ -139,7 +139,16 @@ def test_sic_lookup_no_description(test_client):
 @pytest.mark.api
 @pytest.mark.asyncio
 async def test_get_status_success():
-    """Test successful status retrieval."""
+    """Test successful status retrieval from the vector store client.
+
+    This test mocks the HTTP client to simulate a successful response from the
+    vector store service. It verifies:
+    1. The response status code is HTTP 200 (OK).
+    2. The response JSON contains the expected status "ready".
+
+    Assertions:
+    - The response matches the expected status dictionary.
+    """
     mock_response = AsyncMock()
     mock_response.json.return_value = {"status": "ready"}
     mock_response.raise_for_status.return_value = None
@@ -153,10 +162,19 @@ async def test_get_status_success():
 @pytest.mark.api
 @pytest.mark.asyncio
 async def test_get_status_connection_error():
-    """Test error handling for connection failures."""
-    with patch(
-        "httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")
-    ):
+    """Test error handling for connection failures in the vector store client.
+
+    This test mocks the HTTP client to simulate a connection error when attempting
+    to reach the vector store service. It verifies:
+    1. The appropriate HTTPException is raised.
+    2. The exception status code is HTTP 503 (Service Unavailable).
+    3. The error message contains details about the connection failure.
+
+    Assertions:
+    - The raised exception has the correct status code.
+    - The error message contains the expected connection failure text.
+    """
+    with patch("httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")):
         client = VectorStoreClient(base_url="http://nonexistent:8088")
         with pytest.raises(HTTPException) as exc_info:
             await client.get_status()
@@ -166,10 +184,18 @@ async def test_get_status_connection_error():
 
 @pytest.mark.api
 def test_embeddings_endpoint(test_client):
-    """Test the embeddings endpoint."""
-    with patch(
-        "api.services.vector_store_client.VectorStoreClient.get_status"
-    ) as mock_get_status:
+    """Test the embeddings endpoint of the Survey Assist API.
+
+    This test mocks the vector store client to simulate a successful status check
+    and verifies the endpoint's response. It verifies:
+    1. The response status code is HTTP 200 (OK).
+    2. The response JSON contains the expected status "ready".
+
+    Assertions:
+    - The response status code is HTTPStatus.OK.
+    - The response JSON matches the expected status dictionary.
+    """
+    with patch("api.services.vector_store_client.VectorStoreClient.get_status") as mock_get_status:
         mock_get_status.return_value = {"status": "ready"}
         response = test_client.get("/v1/survey-assist/embeddings")
         assert response.status_code == HTTPStatus.OK
