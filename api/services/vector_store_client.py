@@ -4,8 +4,13 @@ This module provides a client for the vector store service, which is used to
 check the status of the embeddings.
 """
 
-from fastapi import HTTPException
+import logging
+from typing import Dict
+
 import httpx
+from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 
 class VectorStoreClient:
@@ -26,22 +31,23 @@ class VectorStoreClient:
         """
         self.base_url = base_url
 
-    async def get_status(self) -> dict:
+    async def get_status(self) -> Dict[str, str]:
         """Get the status of the vector store.
 
         Returns:
-            dict: A dictionary containing the status of the vector store.
+            Dict containing the status of the vector store.
 
         Raises:
             HTTPException: If the request to the vector store fails.
         """
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/status")
+                response = await client.get(f"{self.base_url}/vector-store/status")
                 response.raise_for_status()
                 return response.json()
         except httpx.HTTPError as e:
+            logger.error("Failed to connect to vector store: %s", str(e))
             raise HTTPException(
                 status_code=503,
                 detail=f"Failed to connect to vector store: {str(e)}",
-            ) 
+            ) from e 
