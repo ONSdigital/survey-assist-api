@@ -5,7 +5,7 @@ check the status of the embeddings.
 """
 
 import logging
-from typing import Dict
+from http import HTTPStatus
 
 import httpx
 from fastapi import HTTPException
@@ -13,7 +13,7 @@ from fastapi import HTTPException
 logger = logging.getLogger(__name__)
 
 
-class VectorStoreClient:
+class VectorStoreClient:  # pylint: disable=too-few-public-methods
     """Client for the vector store service.
 
     This class provides a client for the vector store service, which is used to
@@ -31,7 +31,7 @@ class VectorStoreClient:
         """
         self.base_url = base_url
 
-    async def get_status(self) -> Dict[str, str]:
+    async def get_status(self) -> dict[str, str]:
         """Get the status of the vector store.
 
         Returns:
@@ -48,6 +48,6 @@ class VectorStoreClient:
         except httpx.HTTPError as e:
             logger.error("Failed to connect to vector store: %s", str(e))
             raise HTTPException(
-                status_code=503,
-                detail=f"Failed to connect to vector store: {str(e)}",
-            ) from e 
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail=f"Failed to connect to vector store: {e!s}",
+            ) from e

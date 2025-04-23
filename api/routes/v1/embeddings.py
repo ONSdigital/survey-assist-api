@@ -4,7 +4,7 @@ This module contains the embeddings endpoint for the Survey Assist API.
 It defines the endpoint for checking the status of the embeddings in the vector store.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from api.services.vector_store_client import VectorStoreClient
 
@@ -44,4 +44,4 @@ async def get_embeddings_status(
         }
         ```
     """
-    return await vector_store_client.get_status() 
+    return await vector_store_client.get_status()

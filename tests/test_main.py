@@ -19,9 +19,9 @@ import logging
 from http import HTTPStatus
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 from fastapi import HTTPException
-import httpx
 
 from api.services.vector_store_client import VectorStoreClient
 
@@ -154,18 +154,22 @@ async def test_get_status_success():
 @pytest.mark.asyncio
 async def test_get_status_connection_error():
     """Test error handling for connection failures."""
-    with patch("httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")):
+    with patch(
+        "httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")
+    ):
         client = VectorStoreClient(base_url="http://nonexistent:8088")
         with pytest.raises(HTTPException) as exc_info:
             await client.get_status()
-        assert exc_info.value.status_code == 503
+        assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
         assert "Failed to connect to vector store" in str(exc_info.value.detail)
 
 
 @pytest.mark.api
 def test_embeddings_endpoint(test_client):
     """Test the embeddings endpoint."""
-    with patch("api.services.vector_store_client.VectorStoreClient.get_status") as mock_get_status:
+    with patch(
+        "api.services.vector_store_client.VectorStoreClient.get_status"
+    ) as mock_get_status:
         mock_get_status.return_value = {"status": "ready"}
         response = test_client.get("/v1/survey-assist/embeddings")
         assert response.status_code == HTTPStatus.OK
