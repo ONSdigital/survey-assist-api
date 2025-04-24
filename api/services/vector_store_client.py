@@ -44,7 +44,7 @@ class VectorStoreClient:  # pylint: disable=too-few-public-methods
             async with httpx.AsyncClient() as client:
                 response = await client.get(f"{self.base_url}/vector-store/status")
                 response.raise_for_status()
-                return response.json()
+                return await response.json()
         except httpx.HTTPError as e:
             logger.error("Failed to connect to vector store: %s", str(e))
             raise HTTPException(

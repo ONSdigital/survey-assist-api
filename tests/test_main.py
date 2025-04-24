@@ -150,10 +150,15 @@ async def test_get_status_success():
     - The response matches the expected status dictionary.
     """
     mock_response = AsyncMock()
-    mock_response.json.return_value = {"status": "ready"}
-    mock_response.raise_for_status.return_value = None
+    mock_response.json = AsyncMock(return_value={"status": "ready"})
+    mock_response.raise_for_status = AsyncMock()
 
-    with patch("httpx.AsyncClient.get", return_value=mock_response):
+    mock_client = AsyncMock()
+    mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__.return_value = None
+    mock_client.get.return_value = mock_response
+
+    with patch("httpx.AsyncClient", return_value=mock_client):
         client = VectorStoreClient(base_url="http://localhost:8088")
         response = await client.get_status()
         assert response == {"status": "ready"}
