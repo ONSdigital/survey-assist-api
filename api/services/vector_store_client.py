@@ -41,13 +41,24 @@ class VectorStoreClient:  # pylint: disable=too-few-public-methods
             HTTPException: If the request to the vector store fails.
         """
         try:
+            url = f"{self.base_url}/v1/sic-vector-store/status"
+            logger.info("Attempting to connect to vector store at: %s", url)
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.base_url}/vector-store/status")
+                response = await client.get(url)
+                logger.info("Vector store response status: %s", response.status_code)
                 response.raise_for_status()
-                return await response.json()
+                result = response.json()
+                logger.info("Vector store response: %s", result)
+                return result
         except httpx.HTTPError as e:
             logger.error("Failed to connect to vector store: %s", str(e))
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to connect to vector store: {e!s}",
+            ) from e
+        except Exception as e:
+            logger.error("Unexpected error connecting to vector store: %s", str(e))
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail=f"Unexpected error connecting to vector store: {e!s}",
             ) from e

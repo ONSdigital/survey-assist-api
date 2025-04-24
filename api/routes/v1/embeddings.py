@@ -44,4 +44,5 @@ async def get_embeddings_status(
         }
         ```
     """
-    return await vector_store_client.get_status()
+    status = await vector_store_client.get_status()
+    return status
