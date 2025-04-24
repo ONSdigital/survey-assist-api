@@ -17,7 +17,7 @@ Dependencies:
 
 import logging
 from http import HTTPStatus
-from unittest.mock import AsyncMock, patch, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
