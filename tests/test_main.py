@@ -17,7 +17,7 @@ Dependencies:
 
 import logging
 from http import HTTPStatus
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, Mock
 
 import httpx
 import pytest
@@ -150,7 +150,7 @@ async def test_get_status_success():
     - The response matches the expected status dictionary.
     """
     mock_response = AsyncMock()
-    mock_response.json = AsyncMock(return_value={"status": "ready"})
+    mock_response.json = Mock(return_value={"status": "ready"})
     mock_response.raise_for_status = AsyncMock()
 
     mock_client = AsyncMock()
