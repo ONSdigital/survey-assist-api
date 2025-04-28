@@ -13,7 +13,7 @@ from fastapi import HTTPException
 logger = logging.getLogger(__name__)
 
 
-class VectorStoreClient:  # pylint: disable=too-few-public-methods
+class SICVectorStoreClient:  # pylint: disable=too-few-public-methods
     """Client for the vector store service.
 
     This class provides a client for the vector store service, which is used to

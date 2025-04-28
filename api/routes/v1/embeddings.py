@@ -8,16 +8,16 @@ import os
 
 from fastapi import APIRouter, Depends
 
-from api.services.vector_store_client import VectorStoreClient
+from api.services.sic_vector_store_client import SICVectorStoreClient
 
 router = APIRouter(tags=["Embeddings"])
 
 
-def get_vector_store_client() -> VectorStoreClient:
+def get_vector_store_client() -> SICVectorStoreClient:
     """Get a vector store client instance.
 
     Returns:
-        VectorStoreClient: A vector store client instance.
+        SICVectorStoreClient: A vector store client instance.
     """
     # Default to local development URL
     base_url = "http://0.0.0.0:8088"
@@ -27,7 +27,7 @@ def get_vector_store_client() -> VectorStoreClient:
     if env_url and env_url.strip():
         base_url = env_url.strip()
 
-    return VectorStoreClient(base_url=base_url)
+    return SICVectorStoreClient(base_url=base_url)
 
 
 # Define the dependency at module level
@@ -36,7 +36,7 @@ vector_store_client_dependency = Depends(get_vector_store_client)
 
 @router.get("/embeddings")
 async def get_embeddings_status(
-    vector_store_client: VectorStoreClient = vector_store_client_dependency,
+    vector_store_client: SICVectorStoreClient = vector_store_client_dependency,
 ) -> dict:
     """Get the status of the embeddings in the vector store.
 

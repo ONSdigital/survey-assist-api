@@ -23,7 +23,7 @@ import httpx
 import pytest
 from fastapi import HTTPException
 
-from api.services.vector_store_client import VectorStoreClient
+from api.services.sic_vector_store_client import SICVectorStoreClient
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ async def test_get_status_success():
     mock_client.get.return_value = mock_response
 
     with patch("httpx.AsyncClient", return_value=mock_client):
-        client = VectorStoreClient(base_url="http://localhost:8088")
+        client = SICVectorStoreClient(base_url="http://localhost:8088")
         response = await client.get_status()
         assert response == {"status": "ready"}
 
@@ -182,7 +182,7 @@ async def test_get_status_connection_error():
     with patch(
         "httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")
     ):
-        client = VectorStoreClient(base_url="http://nonexistent:8088")
+        client = SICVectorStoreClient(base_url="http://nonexistent:8088")
         with pytest.raises(HTTPException) as exc_info:
             await client.get_status()
         assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
@@ -203,7 +203,7 @@ def test_embeddings_endpoint(test_client):
     - The response JSON matches the expected status dictionary.
     """
     with patch(
-        "api.services.vector_store_client.VectorStoreClient.get_status"
+        "api.services.sic_vector_store_client.SICVectorStoreClient.get_status"
     ) as mock_get_status:
         mock_get_status.return_value = {"status": "ready"}
         response = test_client.get("/v1/survey-assist/embeddings")
