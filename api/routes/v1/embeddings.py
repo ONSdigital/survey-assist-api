@@ -4,6 +4,8 @@ This module contains the embeddings endpoint for the Survey Assist API.
 It defines the endpoint for checking the status of the embeddings in the vector store.
 """
 
+import os
+
 from fastapi import APIRouter, Depends
 
 from api.services.vector_store_client import VectorStoreClient
@@ -17,7 +19,15 @@ def get_vector_store_client() -> VectorStoreClient:
     Returns:
         VectorStoreClient: A vector store client instance.
     """
-    return VectorStoreClient()
+    # Default to local development URL
+    base_url = "http://0.0.0.0:8088"
+
+    # Only use environment variable if it's set and not empty
+    env_url = os.getenv("SIC_VECTOR_STORE")
+    if env_url and env_url.strip():
+        base_url = env_url.strip()
+
+    return VectorStoreClient(base_url=base_url)
 
 
 # Define the dependency at module level
