@@ -20,7 +20,7 @@ class SICLookupClient:
     """
 
     def __init__(self, data_path: str | None = None) -> None:
-        """Initialize the SIC lookup client.
+        """Initialise the SIC lookup client.
 
         Args:
             data_path: Path to the SIC data file. If not provided, the default
@@ -42,7 +42,7 @@ class SICLookupClient:
         if isinstance(resolved_path, Path):
             resolved_path = str(resolved_path)
 
-        # Initialize the SIC lookup service
+        # Initialise the SIC lookup service
         self.lookup_service = SICLookup(resolved_path)
 
     def lookup(self, description: str) -> dict | None:

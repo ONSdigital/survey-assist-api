@@ -24,7 +24,7 @@ class SICVectorStoreClient:  # pylint: disable=too-few-public-methods
     """
 
     def __init__(self, base_url: str = "http://0.0.0.0:8088") -> None:
-        """Initialize the vector store client.
+        """Initialise the vector store client.
 
         Args:
             base_url: The base URL of the vector store service.
