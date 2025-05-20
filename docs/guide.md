@@ -23,6 +23,22 @@ The API is built using:
   - Classification prompts
   - Version-specific settings
 
+### Classification Endpoint
+- **Path**: `/v1/survey-assist/classify`
+- **Method**: POST
+- **Description**: Classifies job titles and descriptions into SIC codes using LLM models
+- **Request Body**:
+  - `llm` (required): The LLM model to use ("chat-gpt" or "gemini")
+  - `type` (required): Type of classification ("sic", "soc", or "sic_soc")
+  - `job_title` (required): Survey response for Job Title
+  - `job_description` (required): Survey response for Job Description
+  - `org_description` (optional): Survey response for Organisation/Industry Description
+- **Response**: Returns classification results including:
+  - SIC code and description
+  - List of potential SIC code candidates with likelihood scores
+  - Reasoning behind the classification
+  - Follow-up questions if needed
+
 ### SIC Lookup Endpoint
 - **Path**: `/v1/survey-assist/sic-lookup`
 - **Method**: GET
