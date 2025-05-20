@@ -3,8 +3,9 @@
 This module contains tests for the classification endpoint of the Survey Assist API.
 """
 
-import pytest
+from fastapi import status
 from fastapi.testclient import TestClient
+
 from api.main import app
 
 client = TestClient(app)
@@ -19,10 +20,10 @@ def test_classify_endpoint_success():
             "type": "sic",
             "job_title": "Electrician",
             "job_description": "Installing and maintaining electrical systems in buildings",
-            "org_description": "Electrical contracting company"
+            "org_description": "Electrical contracting company",
         },
     )
-    assert response.status_code == 200
+    assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "classified" in data
     assert "sic_code" in data
@@ -44,10 +45,10 @@ def test_classify_endpoint_empty_input():
             "type": "sic",
             "job_title": "",
             "job_description": "",
-            "org_description": "Electrical contracting company"
+            "org_description": "Electrical contracting company",
         },
     )
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
     assert response.json()["detail"] == "Job title and description cannot be empty"
 
 
@@ -57,7 +58,7 @@ def test_classify_endpoint_invalid_json():
         "/v1/survey-assist/classify",
         json={"invalid": "data"},
     )
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 def test_classify_endpoint_invalid_llm():
@@ -69,10 +70,10 @@ def test_classify_endpoint_invalid_llm():
             "type": "sic",
             "job_title": "Electrician",
             "job_description": "Installing and maintaining electrical systems",
-            "org_description": "Electrical contracting company"
+            "org_description": "Electrical contracting company",
         },
     )
-    assert response.status_code == 422
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 def test_classify_endpoint_invalid_type():
@@ -84,7 +85,7 @@ def test_classify_endpoint_invalid_type():
             "type": "invalid-type",
             "job_title": "Electrician",
             "job_description": "Installing and maintaining electrical systems",
-            "org_description": "Electrical contracting company"
+            "org_description": "Electrical contracting company",
         },
     )
-    assert response.status_code == 422 
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY

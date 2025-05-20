@@ -5,18 +5,21 @@ It defines the structure of the data that can be sent to and received from the e
 """
 
 from enum import Enum
-from typing import List, Optional
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
 class LLMModel(str, Enum):
     """Enum for LLM models."""
+
     CHAT_GPT = "chat-gpt"
     GEMINI = "gemini"
 
 
 class ClassificationType(str, Enum):
     """Enum for classification types."""
+
     SIC = "sic"
     SOC = "soc"
     SIC_SOC = "sic_soc"
@@ -64,15 +67,19 @@ class ClassificationResponse(BaseModel):
         followup (Optional[str]): Additional question to help classify.
         sic_code (str): The SIC code.
         sic_description (str): The SIC code description.
-        sic_candidates (List[SicCandidate]): List of potential SIC code candidates.
+        sic_candidates (list[SicCandidate]): List of potential SIC code candidates.
         reasoning (str): Reasoning behind the LLM's response.
     """
 
-    classified: bool = Field(..., description="Could the input be definitively classified?")
-    followup: Optional[str] = Field(None, description="Additional question to help classify")
+    classified: bool = Field(
+        ..., description="Could the input be definitively classified?"
+    )
+    followup: Optional[str] = Field(
+        None, description="Additional question to help classify"
+    )
     sic_code: str = Field(..., description="SIC code")
     sic_description: str = Field(..., description="SIC code description")
-    sic_candidates: List[SicCandidate] = Field(
+    sic_candidates: list[SicCandidate] = Field(
         ..., description="List of potential SIC code candidates"
     )
-    reasoning: str = Field(..., description="Reasoning behind the LLM's response") 
+    reasoning: str = Field(..., description="Reasoning behind the LLM's response")
