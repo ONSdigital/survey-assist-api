@@ -128,7 +128,7 @@ The OpenAPI specification is available at `/openapi.json`
 3. Access the services:
    - Survey Assist API: http://localhost:8080
    - Documentation: http://localhost:8000
-   - Vector Store: http://localhost:8088
+   - Vector Store: http://localhost:8088 (default port, configurable via SIC_VECTOR_STORE environment variable)
 
 Note: Both services must be running simultaneously for the embeddings endpoint to work. The vector store service must be started before making requests to the `/embeddings` endpoint.
 
