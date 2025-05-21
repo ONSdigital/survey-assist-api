@@ -5,6 +5,7 @@ It defines the classification endpoint and returns mocked classification results
 """
 
 from fastapi import APIRouter, HTTPException
+from survey_assist_utils.logging import get_logger
 
 from api.models.classify import (
     ClassificationRequest,
@@ -13,6 +14,7 @@ from api.models.classify import (
 )
 
 router: APIRouter = APIRouter(tags=["Classification"])
+logger = get_logger(__name__)
 
 
 @router.post("/classify", response_model=ClassificationResponse)
@@ -30,6 +32,7 @@ async def classify_text(request: ClassificationRequest) -> ClassificationRespons
     """
     # Validate input
     if not request.job_title.strip() or not request.job_description.strip():
+        logger.error("Empty job title or description provided in classification request")
         raise HTTPException(
             status_code=400, detail="Job title and description cannot be empty"
         )

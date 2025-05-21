@@ -5,10 +5,12 @@ It defines the configuration endpoint and returns the current configuration sett
 """
 
 from fastapi import APIRouter
+from survey_assist_utils.logging import get_logger
 
 from api.models.config import ClassificationModel, ConfigResponse, PromptModel
 
 router: APIRouter = APIRouter(tags=["Configuration"])
+logger = get_logger(__name__)
 
 # Mock configuration
 config_data: ConfigResponse = ConfigResponse(
@@ -87,4 +89,5 @@ async def get_config() -> ConfigResponse:
         }
         ```
     """
+    logger.info("Retrieving configuration")
     return config_data

@@ -7,10 +7,12 @@ It defines the endpoint for checking the status of the embeddings in the vector 
 import os
 
 from fastapi import APIRouter, Depends
+from survey_assist_utils.logging import get_logger
 
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
 router = APIRouter(tags=["Embeddings"])
+logger = get_logger(__name__)
 
 
 def get_vector_store_client() -> SICVectorStoreClient:
@@ -26,6 +28,9 @@ def get_vector_store_client() -> SICVectorStoreClient:
     env_url = os.getenv("SIC_VECTOR_STORE")
     if env_url and env_url.strip():
         base_url = env_url.strip()
+        logger.info(f"Using vector store URL from environment: {base_url}")
+    else:
+        logger.info("Using default vector store URL: http://0.0.0.0:8088")
 
     return SICVectorStoreClient(base_url=base_url)
 
@@ -54,5 +59,7 @@ async def get_embeddings_status(
         }
         ```
     """
+    logger.info("Checking embeddings status")
     status = await vector_store_client.get_status()
+    logger.info(f"Embeddings status: {status}")
     return status

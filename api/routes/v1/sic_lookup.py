@@ -5,10 +5,12 @@ It defines the endpoint for looking up SIC codes based on descriptions.
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from survey_assist_utils.logging import get_logger
 
 from api.services.sic_lookup_client import SICLookupClient
 
 router = APIRouter(tags=["SIC Lookup"])
+logger = get_logger(__name__)
 
 
 def get_lookup_client(data_path: str | None = None) -> SICLookupClient:
@@ -59,10 +61,12 @@ async def sic_lookup(
     ```
     """
     if not description:
+        logger.error("Empty description provided in SIC lookup request")
         raise HTTPException(status_code=400, detail="Description cannot be empty")
 
     result = lookup_client.get_result(description, similarity)
     if not result:
+        logger.error(f"No SIC code found for description: {description}")
         raise HTTPException(
             status_code=404,
             detail=f"No SIC code found for description: {description}",
