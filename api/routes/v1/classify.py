@@ -56,15 +56,23 @@ async def classify_text(request: ClassificationRequest) -> ClassificationRespons
         ),
     ]
 
+    # For this mock, we simulate a case needing more information
     return ClassificationResponse(
-        classified=True,
-        followup=None,
-        sic_code="43210",
-        sic_description="Electrical installation",
+        classified=False,
+        followup=(
+            "Could you please specify which type of installation work you primarily do? "
+            "Do you work with electrical systems, plumbing/heating systems, or other "
+            "types of installation?"
+        ),
+        sic_code=None,
+        sic_description=None,
         sic_candidates=mock_candidates,
         reasoning=(
-            "Based on the job title and description, this is clearly an electrical "
-            "installation role. The primary activities involve installing and "
-            "maintaining electrical systems in buildings, which aligns with SIC code 43210."
+            "Based on the job title and description, this appears to be an installation "
+            "role in the construction sector (SIC section 43). However, we need more "
+            "information to determine the specific type of installation work. The "
+            "candidates are all in the same section but represent different types of "
+            "installation work: electrical (43210), plumbing/heating (43220), and other "
+            "construction installation (43290)."
         ),
     )
