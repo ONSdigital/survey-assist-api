@@ -65,8 +65,8 @@ class ClassificationResponse(BaseModel):
     Attributes:
         classified (bool): Whether the input could be definitively classified.
         followup (Optional[str]): Additional question to help classify.
-        sic_code (str): The SIC code.
-        sic_description (str): The SIC code description.
+        sic_code (Optional[str]): The SIC code. Empty if classified=False.
+        sic_description (Optional[str]): The SIC code description. Empty if classified=False.
         sic_candidates (list[SicCandidate]): List of potential SIC code candidates.
         reasoning (str): Reasoning behind the LLM's response.
     """
@@ -77,8 +77,12 @@ class ClassificationResponse(BaseModel):
     followup: Optional[str] = Field(
         None, description="Additional question to help classify"
     )
-    sic_code: str = Field(..., description="SIC code")
-    sic_description: str = Field(..., description="SIC code description")
+    sic_code: Optional[str] = Field(
+        None, description="SIC code. Empty if classified=False"
+    )
+    sic_description: Optional[str] = Field(
+        None, description="SIC code description. Empty if classified=False"
+    )
     sic_candidates: list[SicCandidate] = Field(
         ..., description="List of potential SIC code candidates"
     )
