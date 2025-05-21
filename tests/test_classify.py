@@ -27,12 +27,15 @@ Dependencies:
     - fastapi.status: Provides standard HTTP status codes for assertions.
 """
 
+import logging
+
 from fastapi import status
 from fastapi.testclient import TestClient
 from pytest import mark
 
 from api.main import app
 
+logger = logging.getLogger(__name__)
 client = TestClient(app)
 
 
@@ -72,8 +75,10 @@ def test_classify_endpoint(request_data, expected_status_code):
     Assertions:
         - The response status code matches the expected value.
     """
+    logger.info("Testing classify endpoint with data: %s", request_data)
     response = client.post("/v1/survey-assist/classify", json=request_data)
     assert response.status_code == expected_status_code
+    logger.info("Received response with status code: %d", response.status_code)
 
 
 def test_classify_followup_question():
@@ -101,10 +106,12 @@ def test_classify_followup_question():
         "org_description": "Construction company",
     }
 
+    logger.info("Testing follow-up question with data: %s", request_data)
     response = client.post("/v1/survey-assist/classify", json=request_data)
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
+    logger.info("Received response data: %s", data)
     assert data["classified"] is False
     assert data["followup"] is not None
     assert data["sic_code"] is None
@@ -129,18 +136,22 @@ def test_classify_endpoint_success():
         - All required fields are present in the response.
         - The candidates list contains the expected structure.
     """
+    request_data = {
+        "llm": "chat-gpt",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems in buildings",
+        "org_description": "Electrical contracting company",
+    }
+
+    logger.info("Testing successful classification with data: %s", request_data)
     response = client.post(
         "/v1/survey-assist/classify",
-        json={
-            "llm": "chat-gpt",
-            "type": "sic",
-            "job_title": "Electrician",
-            "job_description": "Installing and maintaining electrical systems in buildings",
-            "org_description": "Electrical contracting company",
-        },
+        json=request_data,
     )
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
+    logger.info("Received response data: %s", data)
     assert "classified" in data
     assert "sic_code" in data
     assert "sic_description" in data
@@ -162,11 +173,14 @@ def test_classify_endpoint_invalid_json():
     Assertions:
         - The response status code is 422.
     """
+    request_data = {"invalid": "data"}
+    logger.info("Testing invalid JSON with data: %s", request_data)
     response = client.post(
         "/v1/survey-assist/classify",
-        json={"invalid": "data"},
+        json=request_data,
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    logger.info("Received expected 422 status code")
 
 
 def test_classify_endpoint_invalid_llm():
@@ -180,17 +194,21 @@ def test_classify_endpoint_invalid_llm():
     Assertions:
         - The response status code is 422.
     """
+    request_data = {
+        "llm": "invalid-model",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems",
+        "org_description": "Electrical contracting company",
+    }
+
+    logger.info("Testing invalid LLM model with data: %s", request_data)
     response = client.post(
         "/v1/survey-assist/classify",
-        json={
-            "llm": "invalid-model",
-            "type": "sic",
-            "job_title": "Electrician",
-            "job_description": "Installing and maintaining electrical systems",
-            "org_description": "Electrical contracting company",
-        },
+        json=request_data,
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    logger.info("Received expected 422 status code")
 
 
 def test_classify_endpoint_invalid_type():
@@ -204,14 +222,18 @@ def test_classify_endpoint_invalid_type():
     Assertions:
         - The response status code is 422.
     """
+    request_data = {
+        "llm": "chat-gpt",
+        "type": "invalid-type",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems",
+        "org_description": "Electrical contracting company",
+    }
+
+    logger.info("Testing invalid classification type with data: %s", request_data)
     response = client.post(
         "/v1/survey-assist/classify",
-        json={
-            "llm": "chat-gpt",
-            "type": "invalid-type",
-            "job_title": "Electrician",
-            "job_description": "Installing and maintaining electrical systems",
-            "org_description": "Electrical contracting company",
-        },
+        json=request_data,
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    logger.info("Received expected 422 status code")
