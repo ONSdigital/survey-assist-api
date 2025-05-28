@@ -39,6 +39,20 @@ The API is built using:
   - Reasoning behind the classification
   - Follow-up questions if needed
 
+### Result Endpoint
+- **Path**: `/v1/survey-assist/result`
+- **Method**: POST
+- **Description**: Stores classification results for later retrieval and analysis
+- **Request Body**:
+  - `user_id` (required): Unique identifier for the user
+  - `survey` (required): Name of the survey
+  - `job_title` (required): Survey response for Job Title
+  - `job_description` (required): Survey response for Job Description
+  - `org_description` (required): Survey response for Organisation/Industry Description
+- **Response**: Returns stored result information:
+  - `user_id`: The user ID from the request
+  - `survey`: The survey name from the request
+
 ### SIC Lookup Endpoint
 - **Path**: `/v1/survey-assist/sic-lookup`
 - **Method**: GET
