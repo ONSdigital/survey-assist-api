@@ -21,6 +21,7 @@ except ImportError:
 
         async def classify(self, **kwargs):
             """Mock classify method."""
+            _ = kwargs  # Silence unused-argument warning
             return type(
                 "obj",
                 (object,),
@@ -34,7 +35,20 @@ except ImportError:
                 },
             )()
 
-    ClassificationLLM = _MockClassificationLLM  # type: ignore
+        def get_mock_response(self) -> dict[str, Any]:
+            """Get the mock response data for testing.
+
+            Returns:
+                dict[str, Any]: A dictionary containing the mock response data.
+            """
+            return {
+                "classified": True,
+                "followup": None,
+                "sic_code": "43210",
+                "sic_description": "Electrical installation",
+                "reasoning": "Mock classification result",
+                "alt_candidates": [],
+            }
 
 
 from api.models.classify import (
