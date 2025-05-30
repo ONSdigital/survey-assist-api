@@ -22,7 +22,7 @@ def get_vector_store_client() -> SICVectorStoreClient:
         SICVectorStoreClient: A vector store client instance.
     """
     # Default to local development URL
-    base_url = "http://0.0.0.0:8088"
+    base_url = "http://localhost:8088"
 
     # Only use environment variable if it's set and not empty
     env_url = os.getenv("SIC_VECTOR_STORE")
@@ -30,7 +30,7 @@ def get_vector_store_client() -> SICVectorStoreClient:
         base_url = env_url.strip()
         logger.info(f"Using vector store URL from environment: {base_url}")
     else:
-        logger.info("Using default vector store URL: http://0.0.0.0:8088")
+        logger.info("Using default vector store URL: http://localhost:8088")
 
     return SICVectorStoreClient(base_url=base_url)
 
