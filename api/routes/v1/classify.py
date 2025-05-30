@@ -61,20 +61,20 @@ from api.models.classify import (
     LLMModel,
     SicCandidate,
 )
-from api.services.vector_store_client import VectorStoreClient
+from api.services.sic_vector_store_client import SICVectorStoreClient
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 std_logger = logging.getLogger(__name__)
 
 
-def get_vector_store_client() -> VectorStoreClient:
+def get_vector_store_client() -> SICVectorStoreClient:
     """Get a vector store client instance.
 
     Returns:
-        VectorStoreClient: A vector store client instance.
+        SICVectorStoreClient: A vector store client instance.
     """
-    return VectorStoreClient()
+    return SICVectorStoreClient()
 
 
 def get_llm_client() -> Any:  # type: ignore
@@ -109,14 +109,14 @@ llm_dependency = Depends(get_llm_client)
 @router.post("/classify", response_model=ClassificationResponse)
 async def classify_text(
     request: ClassificationRequest,
-    vector_store: VectorStoreClient = vector_store_dependency,
+    vector_store: SICVectorStoreClient = vector_store_dependency,
     llm: Any = llm_dependency,  # type: ignore
 ) -> ClassificationResponse:
     """Classify the provided text.
 
     Args:
         request (ClassificationRequest): The request containing the text to classify.
-        vector_store (VectorStoreClient): Vector store client instance.
+        vector_store (SICVectorStoreClient): Vector store client instance.
         llm (ClassificationLLM): LLM client instance.
 
     Returns:
