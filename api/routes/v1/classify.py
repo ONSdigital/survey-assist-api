@@ -6,33 +6,42 @@ the vector store and LLM.
 """
 
 import logging
-from fastapi import APIRouter, Depends, HTTPException
-from survey_assist_utils.logging import get_logger
 from typing import Any
+
+from fastapi import APIRouter, Depends, HTTPException
 from langchain_google_vertexai import VertexAI
+from survey_assist_utils.logging import get_logger
 
 try:
     from industrial_classification_utils.llm.llm import ClassificationLLM
 except ImportError:
     # Mock LLMClient for development/testing
-    # class LLMClient:
-    #     """Mock LLM client for development/testing."""
-    #     async def classify(self, **kwargs):
-    #         """Mock classify method."""
-    #         return type('obj', (object,), {
-    #             'classified': True,
-    #             'followup': None,
-    #             'sic_code': '43210',
-    #             'sic_description': 'Electrical installation',
-    #             'reasoning': 'Mock classification result'
-    #         })()
-    ClassificationLLM = None
+    class _MockClassificationLLM:
+        """Mock LLM client for development/testing."""
+
+        async def classify(self, **kwargs):
+            """Mock classify method."""
+            return type(
+                "obj",
+                (object,),
+                {
+                    "classified": True,
+                    "followup": None,
+                    "sic_code": "43210",
+                    "sic_description": "Electrical installation",
+                    "reasoning": "Mock classification result",
+                    "alt_candidates": [],
+                },
+            )()
+
+    ClassificationLLM = _MockClassificationLLM  # type: ignore
+
 
 from api.models.classify import (
     ClassificationRequest,
     ClassificationResponse,
-    SicCandidate,
     LLMModel,
+    SicCandidate,
 )
 from api.services.vector_store_client import VectorStoreClient
 
@@ -74,11 +83,16 @@ def get_vertex_ai_client(model_name: str) -> VertexAI:
     )
 
 
+# Define dependencies at module level
+vector_store_dependency = Depends(get_vector_store_client)
+llm_dependency = Depends(get_llm_client)
+
+
 @router.post("/classify", response_model=ClassificationResponse)
 async def classify_text(
     request: ClassificationRequest,
-    vector_store: VectorStoreClient = Depends(get_vector_store_client),
-    llm: Any = Depends(get_llm_client),  # type: ignore
+    vector_store: VectorStoreClient = vector_store_dependency,
+    llm: Any = llm_dependency,  # type: ignore
 ) -> ClassificationResponse:
     """Classify the provided text.
 
@@ -122,7 +136,8 @@ async def classify_text(
 
         # Configure LLM with the requested model
         model_name = "gemini-1.5-flash" if request.llm == LLMModel.GEMINI else "gpt-4"
-        llm.llm = get_vertex_ai_client(model_name)
+        vertex_client = get_vertex_ai_client(model_name)
+        llm.llm = vertex_client
 
         # Call the LLM using sa_rag_sic_code
         llm_response, _, _ = llm.sa_rag_sic_code(
@@ -138,7 +153,8 @@ async def classify_text(
                 sic_code=c.class_code,
                 sic_descriptive=c.class_descriptive,
                 likelihood=c.likelihood,
-            ) for c in getattr(llm_response, "alt_candidates", [])
+            )
+            for c in getattr(llm_response, "alt_candidates", [])
         ]
 
         return ClassificationResponse(
@@ -151,8 +167,8 @@ async def classify_text(
         )
 
     except Exception as e:
-        std_logger.error("Error during classification: %s", e, exc_info=True)
+        std_logger.error("Error during classification: %s", e)
         raise HTTPException(
             status_code=500,
-            detail=f"Error during classification: {str(e)}",
+            detail=f"Error during classification: {e!s}",
         ) from e

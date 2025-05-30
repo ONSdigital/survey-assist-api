@@ -28,10 +28,11 @@ Dependencies:
 """
 
 import logging
+from unittest.mock import AsyncMock, MagicMock, patch
+
 from fastapi import status
 from fastapi.testclient import TestClient
 from pytest import mark
-from unittest.mock import patch, MagicMock, AsyncMock
 
 from api.main import app
 
@@ -67,7 +68,9 @@ client = TestClient(app)
 @patch("api.routes.v1.classify.VertexAI")
 @patch("api.routes.v1.classify.VectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
-def test_classify_endpoint(mock_llm, mock_vector_store, mock_vertexai, request_data, expected_status_code):
+def test_classify_endpoint(
+    mock_llm, mock_vector_store, mock_vertexai, request_data, expected_status_code
+):
     """Test the classification endpoint with various inputs.
 
     This test verifies the endpoint's handling of both valid and invalid requests.
