@@ -66,7 +66,7 @@ client = TestClient(app)
     ],
 )
 @patch("api.routes.v1.classify.VertexAI")
-@patch("api.routes.v1.classify.VectorStoreClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 def test_classify_endpoint(
     mock_llm, mock_vector_store, mock_vertexai, request_data, expected_status_code
@@ -109,7 +109,7 @@ def test_classify_endpoint(
 
 
 @patch("api.routes.v1.classify.VertexAI")
-@patch("api.routes.v1.classify.VectorStoreClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 def test_classify_followup_question(mock_llm, mock_vector_store, mock_vertexai):
     """Test the follow-up question functionality of the classification endpoint.
@@ -180,7 +180,7 @@ def test_classify_followup_question(mock_llm, mock_vector_store, mock_vertexai):
 
 
 @patch("api.routes.v1.classify.VertexAI")
-@patch("api.routes.v1.classify.VectorStoreClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 def test_classify_endpoint_success(mock_llm, mock_vector_store, mock_vertexai):
     """Test the structure of a successful classification response.
