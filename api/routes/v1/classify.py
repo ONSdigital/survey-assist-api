@@ -57,6 +57,23 @@ def get_llm_client() -> Any:  # type: ignore
     return ClassificationLLM()
 
 
+def get_vertex_ai_client(model_name: str) -> VertexAI:
+    """Get a VertexAI client instance.
+
+    Args:
+        model_name (str): The name of the model to use.
+
+    Returns:
+        VertexAI: A VertexAI client instance.
+    """
+    return VertexAI(
+        model_name=model_name,
+        max_output_tokens=1600,
+        temperature=0.0,
+        location="us-central1",
+    )
+
+
 @router.post("/classify", response_model=ClassificationResponse)
 async def classify_text(
     request: ClassificationRequest,
@@ -105,12 +122,7 @@ async def classify_text(
 
         # Configure LLM with the requested model
         model_name = "gemini-1.5-flash" if request.llm == LLMModel.GEMINI else "gpt-4"
-        llm.llm = VertexAI(
-            model_name=model_name,
-            max_output_tokens=1600,
-            temperature=0.0,
-            location="us-central1",
-        )
+        llm.llm = get_vertex_ai_client(model_name)
 
         # Call the LLM using sa_rag_sic_code
         llm_response, _, _ = llm.sa_rag_sic_code(
