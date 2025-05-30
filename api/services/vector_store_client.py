@@ -47,7 +47,7 @@ class VectorStoreClient:
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.base_url}/v1/search-index",
+                    f"{self.base_url}/v1/sic-vector-store/search-index",
                     json={
                         "industry_descr": industry_descr,
                         "job_title": job_title,
