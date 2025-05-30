@@ -26,7 +26,7 @@ The API is built using:
 ### Classification Endpoint
 - **Path**: `/v1/survey-assist/classify`
 - **Method**: POST
-- **Description**: Classifies job titles and descriptions into SIC codes using LLM models
+- **Description**: Classifies job titles and descriptions into SIC codes using vector store similarity search and LLM models
 - **Request Body**:
   - `llm` (required): The LLM model to use ("chat-gpt" or "gemini")
   - `type` (required): Type of classification ("sic", "soc", or "sic_soc")
@@ -34,10 +34,21 @@ The API is built using:
   - `job_description` (required): Survey response for Job Description
   - `org_description` (optional): Survey response for Organisation/Industry Description
 - **Response**: Returns classification results including:
-  - SIC code and description
-  - List of potential SIC code candidates with likelihood scores
-  - Reasoning behind the classification
-  - Follow-up questions if needed
+  - `classified` (boolean): Whether the input could be definitively classified
+  - `followup` (string, optional): Additional question to help classify
+  - `sic_code` (string, optional): The SIC code (empty if classified=False)
+  - `sic_description` (string, optional): The SIC code description (empty if classified=False)
+  - `sic_candidates` (array): List of potential SIC code candidates with:
+    - `sic_code` (string): The SIC code
+    - `sic_descriptive` (string): The SIC code description
+    - `likelihood` (number): Confidence score between 0 and 1
+  - `reasoning` (string): Reasoning behind the classification
+
+The classification process works as follows:
+1. The input text is used to search the vector store for similar SIC codes
+2. The vector store returns a list of candidates with similarity scores
+3. The LLM analyzes the candidates and input to determine the final classification
+4. If the classification is ambiguous, a follow-up question is provided
 
 ### SIC Lookup Endpoint
 - **Path**: `/v1/survey-assist/sic-lookup`
