@@ -28,10 +28,10 @@ Dependencies:
 """
 
 import logging
-
 from fastapi import status
 from fastapi.testclient import TestClient
 from pytest import mark
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from api.main import app
 
@@ -64,7 +64,10 @@ client = TestClient(app)
         ),
     ],
 )
-def test_classify_endpoint(request_data, expected_status_code):
+@patch("api.routes.v1.classify.VertexAI")
+@patch("api.routes.v1.classify.VectorStoreClient")
+@patch("api.routes.v1.classify.ClassificationLLM")
+def test_classify_endpoint(mock_llm, mock_vector_store, mock_vertexai, request_data, expected_status_code):
     """Test the classification endpoint with various inputs.
 
     This test verifies the endpoint's handling of both valid and invalid requests.
@@ -75,13 +78,37 @@ def test_classify_endpoint(request_data, expected_status_code):
     Assertions:
         - The response status code matches the expected value.
     """
+    mock_vertexai.return_value = MagicMock()
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {"code": "43210", "title": "Electrical installation", "distance": 0.05}
+        ]
+    )
+    mock_llm_instance = MagicMock()
+    mock_llm_instance.sa_rag_sic_code.return_value = (
+        MagicMock(
+            classified=True,
+            followup=None,
+            class_code="43210",
+            class_descriptive="Electrical installation",
+            reasoning="Mocked reasoning",
+            alt_candidates=[],
+        ),
+        None,
+        None,
+    )
+    mock_llm.return_value = mock_llm_instance
+
     logger.info("Testing classify endpoint with data: %s", request_data)
     response = client.post("/v1/survey-assist/classify", json=request_data)
     assert response.status_code == expected_status_code
     logger.info("Received response with status code: %d", response.status_code)
 
 
-def test_classify_followup_question():
+@patch("api.routes.v1.classify.VertexAI")
+@patch("api.routes.v1.classify.VectorStoreClient")
+@patch("api.routes.v1.classify.ClassificationLLM")
+def test_classify_followup_question(mock_llm, mock_vector_store, mock_vertexai):
     """Test the follow-up question functionality of the classification endpoint.
 
     This test verifies that when additional information is needed for classification,
@@ -98,6 +125,33 @@ def test_classify_followup_question():
         - sic_code and sic_description are None.
         - The follow-up question contains relevant keywords.
     """
+    mock_vertexai.return_value = MagicMock()
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {"code": "43210", "title": "Electrical installation", "distance": 0.05}
+        ]
+    )
+    mock_llm_instance = MagicMock()
+    mock_llm_instance.sa_rag_sic_code.return_value = (
+        MagicMock(
+            classified=False,
+            followup="Please specify if this is electrical or plumbing installation.",
+            class_code=None,
+            class_descriptive=None,
+            reasoning="Mocked reasoning",
+            alt_candidates=[
+                MagicMock(
+                    class_code="43210",
+                    class_descriptive="Electrical installation",
+                    likelihood=0.8,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+    mock_llm.return_value = mock_llm_instance
+
     request_data = {
         "llm": "chat-gpt",
         "type": "sic",
@@ -122,7 +176,10 @@ def test_classify_followup_question():
     assert "plumbing" in data["followup"].lower()
 
 
-def test_classify_endpoint_success():
+@patch("api.routes.v1.classify.VertexAI")
+@patch("api.routes.v1.classify.VectorStoreClient")
+@patch("api.routes.v1.classify.ClassificationLLM")
+def test_classify_endpoint_success(mock_llm, mock_vector_store, mock_vertexai):
     """Test the structure of a successful classification response.
 
     This test verifies that a successful classification response contains all
@@ -136,6 +193,33 @@ def test_classify_endpoint_success():
         - All required fields are present in the response.
         - The candidates list contains the expected structure.
     """
+    mock_vertexai.return_value = MagicMock()
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {"code": "43210", "title": "Electrical installation", "distance": 0.05}
+        ]
+    )
+    mock_llm_instance = MagicMock()
+    mock_llm_instance.sa_rag_sic_code.return_value = (
+        MagicMock(
+            classified=True,
+            followup=None,
+            class_code="43210",
+            class_descriptive="Electrical installation",
+            reasoning="Mocked reasoning",
+            alt_candidates=[
+                MagicMock(
+                    class_code="43210",
+                    class_descriptive="Electrical installation",
+                    likelihood=0.9,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+    mock_llm.return_value = mock_llm_instance
+
     request_data = {
         "llm": "chat-gpt",
         "type": "sic",
