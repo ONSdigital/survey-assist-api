@@ -1,34 +1,80 @@
 """Module that provides the classification endpoint for the Survey Assist API.
 
 This module contains the classification endpoint for the Survey Assist API.
-It defines the classification endpoint and returns mocked classification results.
+It defines the classification endpoint and returns classification results using
+the vector store and LLM.
 """
 
-from fastapi import APIRouter, HTTPException
+import logging
+from fastapi import APIRouter, Depends, HTTPException
 from survey_assist_utils.logging import get_logger
+from typing import Any
+from langchain_google_vertexai import VertexAI
+
+try:
+    from industrial_classification_utils.llm.llm import ClassificationLLM
+except ImportError:
+    # Mock LLMClient for development/testing
+    # class LLMClient:
+    #     """Mock LLM client for development/testing."""
+    #     async def classify(self, **kwargs):
+    #         """Mock classify method."""
+    #         return type('obj', (object,), {
+    #             'classified': True,
+    #             'followup': None,
+    #             'sic_code': '43210',
+    #             'sic_description': 'Electrical installation',
+    #             'reasoning': 'Mock classification result'
+    #         })()
+    ClassificationLLM = None
 
 from api.models.classify import (
     ClassificationRequest,
     ClassificationResponse,
     SicCandidate,
+    LLMModel,
 )
+from api.services.vector_store_client import VectorStoreClient
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
+std_logger = logging.getLogger(__name__)
+
+
+def get_vector_store_client() -> VectorStoreClient:
+    """Get a vector store client instance.
+
+    Returns:
+        VectorStoreClient: A vector store client instance.
+    """
+    return VectorStoreClient()
+
+
+def get_llm_client() -> Any:  # type: ignore
+    """Get a ClassificationLLM instance."""
+    if ClassificationLLM is None:
+        raise ImportError("ClassificationLLM could not be imported.")
+    return ClassificationLLM()
 
 
 @router.post("/classify", response_model=ClassificationResponse)
-async def classify_text(request: ClassificationRequest) -> ClassificationResponse:
+async def classify_text(
+    request: ClassificationRequest,
+    vector_store: VectorStoreClient = Depends(get_vector_store_client),
+    llm: Any = Depends(get_llm_client),  # type: ignore
+) -> ClassificationResponse:
     """Classify the provided text.
 
     Args:
         request (ClassificationRequest): The request containing the text to classify.
+        vector_store (VectorStoreClient): Vector store client instance.
+        llm (ClassificationLLM): LLM client instance.
 
     Returns:
         ClassificationResponse: A response containing the classification results.
 
     Raises:
-        HTTPException: If the input is invalid.
+        HTTPException: If the input is invalid or classification fails.
     """
     # Validate input
     if not request.job_title.strip() or not request.job_description.strip():
@@ -39,40 +85,62 @@ async def classify_text(request: ClassificationRequest) -> ClassificationRespons
             status_code=400, detail="Job title and description cannot be empty"
         )
 
-    # Mock classification result
-    mock_candidates = [
-        SicCandidate(
-            sic_code="43210", sic_descriptive="Electrical installation", likelihood=0.95
-        ),
-        SicCandidate(
-            sic_code="43220",
-            sic_descriptive=("Plumbing, heat and air-conditioning installation"),
-            likelihood=0.03,
-        ),
-        SicCandidate(
-            sic_code="43290",
-            sic_descriptive=("Other construction installation"),
-            likelihood=0.02,
-        ),
-    ]
+    try:
+        # Get vector store search results
+        search_results = await vector_store.search(
+            industry_descr=request.org_description,
+            job_title=request.job_title,
+            job_description=request.job_description,
+        )
 
-    # For this mock, we simulate a case needing more information
-    return ClassificationResponse(
-        classified=False,
-        followup=(
-            "Could you please specify which type of installation work you primarily do? "
-            "Do you work with electrical systems, plumbing/heating systems, or other "
-            "types of installation?"
-        ),
-        sic_code=None,
-        sic_description=None,
-        sic_candidates=mock_candidates,
-        reasoning=(
-            "Based on the job title and description, this appears to be an installation "
-            "role in the construction sector (SIC section 43). However, we need more "
-            "information to determine the specific type of installation work. The "
-            "candidates are all in the same section but represent different types of "
-            "installation work: electrical (43210), plumbing/heating (43220), and other "
-            "construction installation (43290)."
-        ),
-    )
+        # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
+        short_list = [
+            {
+                "code": result["code"],
+                "title": result["title"],
+                "distance": result["distance"],
+            }
+            for result in search_results
+        ]
+
+        # Configure LLM with the requested model
+        model_name = "gemini-1.5-flash" if request.llm == LLMModel.GEMINI else "gpt-4"
+        llm.llm = VertexAI(
+            model_name=model_name,
+            max_output_tokens=1600,
+            temperature=0.0,
+            location="us-central1",
+        )
+
+        # Call the LLM using sa_rag_sic_code
+        llm_response, _, _ = llm.sa_rag_sic_code(
+            industry_descr=request.org_description or "",
+            job_title=request.job_title,
+            job_description=request.job_description,
+            short_list=short_list,
+        )
+
+        # Map LLM response to API response
+        candidates = [
+            SicCandidate(
+                sic_code=c.class_code,
+                sic_descriptive=c.class_descriptive,
+                likelihood=c.likelihood,
+            ) for c in getattr(llm_response, "alt_candidates", [])
+        ]
+
+        return ClassificationResponse(
+            classified=bool(getattr(llm_response, "classified", False)),
+            followup=getattr(llm_response, "followup", None),
+            sic_code=getattr(llm_response, "class_code", None),
+            sic_description=getattr(llm_response, "class_descriptive", None),
+            sic_candidates=candidates,
+            reasoning=getattr(llm_response, "reasoning", ""),
+        )
+
+    except Exception as e:
+        std_logger.error("Error during classification: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error during classification: {str(e)}",
+        ) from e
