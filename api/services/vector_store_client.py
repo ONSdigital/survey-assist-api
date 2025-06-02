@@ -19,7 +19,7 @@ class VectorStoreClient:
     """
 
     def __init__(self, base_url: str = "http://localhost:8088"):
-        """Initialize the vector store client.
+        """Initialise the vector store client.
 
         Args:
             base_url (str, optional): The base URL of the vector store service.
