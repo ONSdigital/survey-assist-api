@@ -25,7 +25,7 @@ check-python: ## Format the python code (auto fix)
 	poetry run ruff check . --fix
 	poetry run mypy --follow-untyped-imports  . 
 	poetry run pylint --verbose .
-	poetry run bandit .
+	poetry run bandit -r . --exclude ./tests
 
 check-python-nofix: ## Format the python code (no fix)
 	poetry run isort . --check --verbose
@@ -33,7 +33,7 @@ check-python-nofix: ## Format the python code (no fix)
 	poetry run ruff check .
 	poetry run mypy --follow-untyped-imports  . 
 	poetry run pylint --verbose .
-	poetry run bandit .
+	poetry run bandit -r . --exclude ./tests
 
 black: ## Run black
 	poetry run black .
