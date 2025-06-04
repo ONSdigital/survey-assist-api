@@ -34,10 +34,12 @@ def get_vector_store_client() -> SICVectorStoreClient:
     return SICVectorStoreClient()
 
 
-def get_llm_client() -> Any:  # type: ignore
+def get_llm_client(model_name: str = None) -> Any:  # type: ignore
     """Get a ClassificationLLM instance."""
     if ClassificationLLM is None:
         raise ImportError("ClassificationLLM could not be imported.")
+    if model_name:
+        return ClassificationLLM(model_name=model_name)
     return ClassificationLLM()
 
 
@@ -50,14 +52,12 @@ llm_dependency = Depends(get_llm_client)
 async def classify_text(
     request: ClassificationRequest,
     vector_store: SICVectorStoreClient = vector_store_dependency,
-    llm: Any = llm_dependency,  # type: ignore
 ) -> ClassificationResponse:
     """Classify the provided text.
 
     Args:
         request (ClassificationRequest): The request containing the text to classify.
         vector_store (SICVectorStoreClient): Vector store client instance.
-        llm (ClassificationLLM): LLM client instance.
 
     Returns:
         ClassificationResponse: A response containing the classification results.
@@ -95,13 +95,15 @@ async def classify_text(
         # Determine model name
         model_name = "gemini-1.5-flash" if request.llm == LLMModel.GEMINI else "gpt-4"
 
-        # Call LLM using sa_rag_sic_code, passing model_name so ClassificationLLM handles config
+        # Instantiate LLM with the correct model_name
+        llm = get_llm_client(model_name=model_name)
+
+        # Call LLM using sa_rag_sic_code (no model_name argument)
         llm_response, _, _ = llm.sa_rag_sic_code(
             industry_descr=request.org_description or "",
             job_title=request.job_title,
             job_description=request.job_description,
             short_list=short_list,
-            model_name=model_name,
         )
 
         # Map LLM response to API response
