@@ -9,51 +9,9 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from industrial_classification_utils.llm.llm import ClassificationLLM
 from langchain_google_vertexai import VertexAI
 from survey_assist_utils.logging import get_logger
-
-try:
-    from industrial_classification_utils.llm.llm import ClassificationLLM
-except ImportError:
-    # Mock LLMClient for development/testing
-    class _MockClassificationLLM:
-        """Mock LLM client for development/testing."""
-
-        async def classify(self, **kwargs):
-            """Mock classify method.
-
-            Args:
-                **kwargs: Keyword arguments that can override default mock values.
-                    Supported keys: classified, followup, sic_code, sic_description,
-                    reasoning, alt_candidates.
-            """
-            mock_data = {
-                "classified": True,
-                "followup": None,
-                "sic_code": "43210",
-                "sic_description": "Electrical installation",
-                "reasoning": "Mock classification result",
-                "alt_candidates": [],
-            }
-            # Allow test cases to override default mock values
-            mock_data.update(kwargs)
-            return type("obj", (object,), mock_data)()
-
-        def get_mock_response(self) -> dict[str, Any]:
-            """Get the mock response data for testing.
-
-            Returns:
-                dict[str, Any]: A dictionary containing the mock response data.
-            """
-            return {
-                "classified": True,
-                "followup": None,
-                "sic_code": "43210",
-                "sic_description": "Electrical installation",
-                "reasoning": "Mock classification result",
-                "alt_candidates": [],
-            }
-
 
 from api.models.classify import (
     ClassificationRequest,
