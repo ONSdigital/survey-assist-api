@@ -55,19 +55,16 @@ class TestClassifyEndpoint:
         self.mock_vector_store = None
         self.mock_vertexai = None
 
-    @patch("api.routes.v1.classify.VertexAI")
     @patch("api.routes.v1.classify.SICVectorStoreClient")
     @patch("api.routes.v1.classify.ClassificationLLM")
     @patch("google.auth.default")
-    def setup_method(self, mock_auth, mock_llm, mock_vector_store, mock_vertexai):
+    def setup_method(self, mock_auth, mock_llm, mock_vector_store):
         """Set up test fixtures."""
         self.mock_auth = mock_auth
         self.mock_llm = mock_llm
         self.mock_vector_store = mock_vector_store
-        self.mock_vertexai = mock_vertexai
 
         self.mock_auth.return_value = (MagicMock(), "test-project")
-        self.mock_vertexai.return_value = MagicMock()
         self.mock_vector_store.return_value.search = AsyncMock(
             return_value=[
                 {
@@ -134,13 +131,10 @@ class TestClassifyEndpoint:
         logger.info("Received response with status code: %d", response.status_code)
 
 
-@patch("api.routes.v1.classify.VertexAI")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 @patch("google.auth.default")
-def test_classify_followup_question(
-    mock_auth, mock_llm, mock_vector_store, mock_vertexai
-):
+def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
     """Test the follow-up question functionality of the classification endpoint.
 
     This test verifies that when additional information is needed for classification,
@@ -158,7 +152,6 @@ def test_classify_followup_question(
         - The follow-up question contains relevant keywords.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    mock_vertexai.return_value = MagicMock()
     mock_vector_store.return_value.search = AsyncMock(
         return_value=[
             {
@@ -213,13 +206,10 @@ def test_classify_followup_question(
     assert "plumbing" in data["followup"].lower()
 
 
-@patch("api.routes.v1.classify.VertexAI")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 @patch("google.auth.default")
-def test_classify_endpoint_success(
-    mock_auth, mock_llm, mock_vector_store, mock_vertexai
-):
+def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
     """Test the structure of a successful classification response.
 
     This test verifies that a successful classification response contains all
@@ -234,7 +224,6 @@ def test_classify_endpoint_success(
         - The candidates list contains the expected structure.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    mock_vertexai.return_value = MagicMock()
     mock_vector_store.return_value.search = AsyncMock(
         return_value=[
             {
@@ -289,13 +278,10 @@ def test_classify_endpoint_success(
     assert data["sic_candidates"][0]["likelihood"] == EXPECTED_LIKELIHOOD
 
 
-@patch("api.routes.v1.classify.VertexAI")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_json(
-    mock_auth, mock_llm, mock_vector_store, mock_vertexai
-):
+def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
     """Test the endpoint's handling of invalid JSON input.
 
     This test verifies that the endpoint correctly handles invalid JSON input by:
@@ -306,7 +292,6 @@ def test_classify_endpoint_invalid_json(
         - The response status code is 422.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    mock_vertexai.return_value = MagicMock()
     mock_vector_store.return_value.search = AsyncMock(
         return_value=[
             {
@@ -340,13 +325,10 @@ def test_classify_endpoint_invalid_json(
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-@patch("api.routes.v1.classify.VertexAI")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_llm(
-    mock_auth, mock_llm, mock_vector_store, mock_vertexai
-):
+def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
     """Test the endpoint's handling of invalid LLM model specifications.
 
     This test verifies that the endpoint correctly handles invalid LLM model
@@ -358,7 +340,6 @@ def test_classify_endpoint_invalid_llm(
         - The response status code is 422.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    mock_vertexai.return_value = MagicMock()
     mock_vector_store.return_value.search = AsyncMock(
         return_value=[
             {
@@ -399,13 +380,10 @@ def test_classify_endpoint_invalid_llm(
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-@patch("api.routes.v1.classify.VertexAI")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.routes.v1.classify.ClassificationLLM")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_type(
-    mock_auth, mock_llm, mock_vector_store, mock_vertexai
-):
+def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_vector_store):
     """Test the endpoint's handling of invalid classification types.
 
     This test verifies that the endpoint correctly handles invalid classification
@@ -417,7 +395,6 @@ def test_classify_endpoint_invalid_type(
         - The response status code is 422.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    mock_vertexai.return_value = MagicMock()
     mock_vector_store.return_value.search = AsyncMock(
         return_value=[
             {
