@@ -2,7 +2,7 @@
 
 This module contains the classification endpoint for the Survey Assist API.
 It defines the classification endpoint and returns classification results using
-the vector store and LLM.
+vector store and LLM.
 """
 
 import logging
@@ -10,7 +10,6 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from industrial_classification_utils.llm.llm import ClassificationLLM
-from langchain_google_vertexai import VertexAI
 from survey_assist_utils.logging import get_logger
 
 from api.models.classify import (
@@ -40,23 +39,6 @@ def get_llm_client() -> Any:  # type: ignore
     if ClassificationLLM is None:
         raise ImportError("ClassificationLLM could not be imported.")
     return ClassificationLLM()
-
-
-def get_vertex_ai_client(model_name: str) -> VertexAI:
-    """Get a VertexAI client instance.
-
-    Args:
-        model_name (str): The name of the model to use.
-
-    Returns:
-        VertexAI: A VertexAI client instance.
-    """
-    return VertexAI(
-        model_name=model_name,
-        max_output_tokens=1600,
-        temperature=0.0,
-        location="us-central1",
-    )
 
 
 # Define dependencies at module level
@@ -110,17 +92,16 @@ async def classify_text(
             for result in search_results
         ]
 
-        # Configure LLM with the requested model
+        # Determine model name
         model_name = "gemini-1.5-flash" if request.llm == LLMModel.GEMINI else "gpt-4"
-        vertex_client = get_vertex_ai_client(model_name)
-        llm.llm = vertex_client
 
-        # Call the LLM using sa_rag_sic_code
+        # Call LLM using sa_rag_sic_code, passing model_name so ClassificationLLM handles config
         llm_response, _, _ = llm.sa_rag_sic_code(
             industry_descr=request.org_description or "",
             job_title=request.job_title,
             job_description=request.job_description,
             short_list=short_list,
+            model_name=model_name,
         )
 
         # Map LLM response to API response
