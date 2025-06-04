@@ -6,7 +6,7 @@ vector store and LLM.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from industrial_classification_utils.llm.llm import ClassificationLLM
@@ -34,7 +34,7 @@ def get_vector_store_client() -> SICVectorStoreClient:
     return SICVectorStoreClient()
 
 
-def get_llm_client(model_name: str = None) -> Any:  # type: ignore
+def get_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
     """Get a ClassificationLLM instance."""
     if ClassificationLLM is None:
         raise ImportError("ClassificationLLM could not be imported.")
