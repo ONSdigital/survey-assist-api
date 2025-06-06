@@ -15,17 +15,17 @@ Dependencies:
     - http.HTTPStatus: Provides standard HTTP status codes for assertions.
 """
 
-import logging
 from http import HTTPStatus
 from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
 from fastapi import HTTPException
+from survey_assist_utils.logging import get_logger
 
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @pytest.mark.api

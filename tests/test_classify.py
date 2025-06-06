@@ -27,16 +27,16 @@ Dependencies:
     - fastapi.status: Provides standard HTTP status codes for assertions.
 """
 
-import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from pytest import mark
+from survey_assist_utils.logging import get_logger
 
 from api.main import app
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 client = TestClient(app)
 
 # Constants for test values
@@ -89,7 +89,7 @@ class TestClassifyEndpoint:
         )
         self.mock_llm.return_value = mock_llm_instance
 
-    @mark.parametrize(
+    @pytest.mark.parametrize(
         "request_data,expected_status_code",
         [
             (
@@ -125,10 +125,12 @@ class TestClassifyEndpoint:
         Assertions:
             - The response status code matches the expected value.
         """
-        logger.info("Testing classify endpoint with data: %s", request_data)
+        logger.info("Testing classify endpoint with data", request_data=request_data)
         response = client.post("/v1/survey-assist/classify", json=request_data)
         assert response.status_code == expected_status_code
-        logger.info("Received response with status code: %d", response.status_code)
+        logger.info(
+            "Received response with status code", status_code=response.status_code
+        )
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
@@ -190,12 +192,12 @@ def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
         "org_description": "Construction company",
     }
 
-    logger.info("Testing follow-up question with data: %s", request_data)
+    logger.info("Testing follow-up question with data", request_data=request_data)
     response = client.post("/v1/survey-assist/classify", json=request_data)
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
-    logger.info("Received response data: %s", data)
+    logger.info("Received response data", data=data)
     assert data["classified"] is False
     assert data["followup"] is not None
     assert data["sic_code"] is None
@@ -262,12 +264,14 @@ def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
         "org_description": "Electrical contracting company",
     }
 
-    logger.info("Testing successful classification with data: %s", request_data)
+    logger.info(
+        "Testing successful classification with data", request_data=request_data
+    )
     response = client.post("/v1/survey-assist/classify", json=request_data)
     assert response.status_code == status.HTTP_200_OK
 
     data = response.json()
-    logger.info("Received response data: %s", data)
+    logger.info("Received response data", data=data)
     assert data["classified"] is True
     assert data["followup"] is None
     assert data["sic_code"] == EXPECTED_SIC_CODE
@@ -317,7 +321,7 @@ def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
     mock_llm.return_value = mock_llm_instance
 
     request_data = {"invalid": "data"}
-    logger.info("Testing invalid JSON with data: %s", request_data)
+    logger.info("Testing invalid JSON with data", request_data=request_data)
     response = client.post(
         "/v1/survey-assist/classify",
         json=request_data,
@@ -372,7 +376,7 @@ def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
         "org_description": "Electrical contracting company",
     }
 
-    logger.info("Testing invalid LLM model with data: %s", request_data)
+    logger.info("Testing invalid LLM model with data", request_data=request_data)
     response = client.post(
         "/v1/survey-assist/classify",
         json=request_data,
@@ -427,7 +431,9 @@ def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_vector_store):
         "org_description": "Electrical contracting company",
     }
 
-    logger.info("Testing invalid classification type with data: %s", request_data)
+    logger.info(
+        "Testing invalid classification type with data", request_data=request_data
+    )
     response = client.post(
         "/v1/survey-assist/classify",
         json=request_data,

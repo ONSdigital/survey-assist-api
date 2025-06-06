@@ -4,14 +4,14 @@ This module provides a client for the vector store service, which is used to
 check the status of the embeddings.
 """
 
-import logging
 from http import HTTPStatus
 from typing import Any
 
 import httpx
 from fastapi import HTTPException
+from survey_assist_utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class SICVectorStoreClient:  # pylint: disable=too-few-public-methods
@@ -43,22 +43,25 @@ class SICVectorStoreClient:  # pylint: disable=too-few-public-methods
         """
         try:
             url = f"{self.base_url}/v1/sic-vector-store/status"
-            logger.info("Attempting to connect to vector store at: %s", url)
+            logger.info("Attempting to connect to vector store", url=url)
             async with httpx.AsyncClient() as client:
                 response = await client.get(url)
-                logger.info("Vector store response status: %s", response.status_code)
+                logger.info(
+                    "Vector store response status",
+                    status_code=str(response.status_code),
+                )
                 response.raise_for_status()
                 result = response.json()
-                logger.info("Vector store response: %s", result)
+                logger.info("Vector store response", result=str(result))
                 return result
         except httpx.HTTPError as e:
-            logger.error("Failed to connect to vector store: %s", str(e))
+            logger.error("Failed to connect to vector store", error=str(e))
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to connect to vector store: {e!s}",
             ) from e
         except Exception as e:
-            logger.error("Unexpected error connecting to vector store: %s", str(e))
+            logger.error("Unexpected error connecting to vector store", error=str(e))
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                 detail=f"Unexpected error connecting to vector store: {e!s}",
@@ -83,7 +86,7 @@ class SICVectorStoreClient:  # pylint: disable=too-few-public-methods
         """
         try:
             url = f"{self.base_url}/v1/sic-vector-store/search-index"
-            logger.info("Attempting to search vector store at: %s", url)
+            logger.info("Attempting to search vector store", url=url)
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url,
@@ -93,19 +96,22 @@ class SICVectorStoreClient:  # pylint: disable=too-few-public-methods
                         "job_description": job_description,
                     },
                 )
-                logger.info("Vector store response status: %s", response.status_code)
+                logger.info(
+                    "Vector store response status",
+                    status_code=str(response.status_code),
+                )
                 response.raise_for_status()
                 result = response.json()
-                logger.info("Vector store response: %s", result)
+                logger.info("Vector store response", result=str(result))
                 return result["results"]
         except httpx.HTTPError as e:
-            logger.error("Failed to search vector store: %s", str(e))
+            logger.error("Failed to search vector store", error=str(e))
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to search vector store: {e!s}",
             ) from e
         except Exception as e:
-            logger.error("Unexpected error searching vector store: %s", str(e))
+            logger.error("Unexpected error searching vector store", error=str(e))
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
                 detail=f"Unexpected error searching vector store: {e!s}",

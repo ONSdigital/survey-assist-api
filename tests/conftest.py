@@ -9,22 +9,18 @@ Functions:
     pytest_sessionfinish(session, exitstatus): Logs the end of a test session.
 """
 
-import logging
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from survey_assist_utils.logging import get_logger
 
 from api.main import app
 from api.routes.v1.sic_lookup import get_lookup_client
 from api.services.sic_lookup_client import SICLookupClient
 
 # Configure a global logger
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO,  # Adjust level as needed (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-)
+logger = get_logger(__name__)
 
 
 def pytest_configure(config):  # pylint: disable=unused-argument
@@ -38,7 +34,7 @@ def pytest_configure(config):  # pylint: disable=unused-argument
         config (pytest.Config): The pytest configuration object containing command-line
             options and plugin configurations.
     """
-    logger.info("=== Global Test Configuration Applied ===")
+    logger.info("Global Test Configuration Applied")
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -50,7 +46,7 @@ def pytest_sessionstart(session):  # pylint: disable=unused-argument
     Args:
         session: The pytest session object (not used in this implementation).
     """
-    logger.info("=== Test Session Started ===")
+    logger.info("Test Session Started")
 
 
 @pytest.hookimpl(trylast=True)
@@ -64,7 +60,7 @@ def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argumen
         session: The pytest session object (not used in this implementation).
         exitstatus: The exit status of the test session.
     """
-    logger.info("=== Test Session Finished with Status: %s ===", exitstatus)
+    logger.info(f"Test Session Finished with Status: {exitstatus}")
 
 
 # Get the absolute path to the test data file

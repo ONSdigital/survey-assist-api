@@ -16,19 +16,18 @@ Dependencies:
     - fastapi.status: Provides standard HTTP status codes for assertions.
 """
 
-import logging
-
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from pytest import mark
+from survey_assist_utils.logging import get_logger
 
 from api.main import app
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 client = TestClient(app)
 
 
-@mark.parametrize(
+@pytest.mark.parametrize(
     "request_data,expected_status_code",
     [
         (
@@ -76,7 +75,7 @@ def test_store_result(request_data, expected_status_code):
         - The response status code matches the expected value.
         - For successful requests, the response contains the expected fields.
     """
-    logger.info("Testing result endpoint with data: %s", request_data)
+    logger.info("Testing result endpoint with data", request_data=request_data)
     response = client.post("/v1/survey-assist/result", json=request_data)
     assert response.status_code == expected_status_code
 
@@ -87,7 +86,7 @@ def test_store_result(request_data, expected_status_code):
         assert response_data["user_id"] == request_data["user_id"]
         assert response_data["survey"] == request_data["survey"]
 
-    logger.info("Received response with status code: %d", response.status_code)
+    logger.info("Received response with status code", status_code=response.status_code)
 
 
 def test_store_result_invalid_data():
@@ -108,7 +107,7 @@ def test_store_result_invalid_data():
         "org_description": None,
     }
 
-    logger.info("Testing invalid result data with data: %s", request_data)
+    logger.info("Testing invalid result data with data", request_data=request_data)
     response = client.post("/v1/survey-assist/result", json=request_data)
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     logger.info("Received expected 422 status code")

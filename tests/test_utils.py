@@ -3,13 +3,12 @@
 Unit tests for endpoints and utility functions in the Survey Assist API.
 """
 
-import logging
-
 import pytest
+from survey_assist_utils.logging import get_logger
 
 from utils.survey import add_numbers
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @pytest.mark.utils

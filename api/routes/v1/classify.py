@@ -5,7 +5,6 @@ It defines the classification endpoint and returns classification results using
 vector store and LLM.
 """
 
-import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -22,7 +21,6 @@ from api.services.sic_vector_store_client import SICVectorStoreClient
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
-std_logger = logging.getLogger(__name__)
 
 
 def get_vector_store_client() -> SICVectorStoreClient:
@@ -126,7 +124,7 @@ async def classify_text(
         )
 
     except Exception as e:
-        std_logger.error("Error during classification: %s", e)
+        logger.error("Error in classify endpoint", error=str(e))
         raise HTTPException(
             status_code=500,
             detail=f"Error during classification: {e!s}",
