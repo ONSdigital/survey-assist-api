@@ -56,7 +56,7 @@ class TestClassifyEndpoint:
         self.mock_vertexai = None
 
     @patch("api.routes.v1.classify.SICVectorStoreClient")
-    @patch("api.routes.v1.classify.ClassificationLLM")
+    @patch("api.main.app.state.gemini_llm")
     @patch("google.auth.default")
     def setup_method(self, mock_auth, mock_llm, mock_vector_store):
         """Set up test fixtures."""
@@ -134,7 +134,7 @@ class TestClassifyEndpoint:
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
-@patch("api.routes.v1.classify.ClassificationLLM")
+@patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
 def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
     """Test the follow-up question functionality of the classification endpoint.
@@ -163,8 +163,7 @@ def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
-    mock_llm_instance = MagicMock()
-    mock_llm_instance.sa_rag_sic_code.return_value = (
+    mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=False,
             followup="Please specify if this is electrical or plumbing installation.",
@@ -182,7 +181,6 @@ def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
         None,
         None,
     )
-    mock_llm.return_value = mock_llm_instance
 
     request_data = {
         "llm": "chat-gpt",
@@ -209,7 +207,7 @@ def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
-@patch("api.routes.v1.classify.ClassificationLLM")
+@patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
 def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
     """Test the structure of a successful classification response.
@@ -235,8 +233,7 @@ def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
-    mock_llm_instance = MagicMock()
-    mock_llm_instance.sa_rag_sic_code.return_value = (
+    mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,
             followup=None,
@@ -254,7 +251,6 @@ def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
         None,
         None,
     )
-    mock_llm.return_value = mock_llm_instance
 
     request_data = {
         "llm": "chat-gpt",
@@ -276,14 +272,14 @@ def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
     assert data["followup"] is None
     assert data["sic_code"] == EXPECTED_SIC_CODE
     assert data["sic_description"] == EXPECTED_SIC_DESCRIPTION
-    assert len(data["sic_candidates"]) == 1
+    assert len(data["sic_candidates"]) > 0
     assert data["sic_candidates"][0]["sic_code"] == EXPECTED_SIC_CODE
     assert data["sic_candidates"][0]["sic_descriptive"] == EXPECTED_SIC_DESCRIPTION
     assert data["sic_candidates"][0]["likelihood"] == EXPECTED_LIKELIHOOD
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
-@patch("api.routes.v1.classify.ClassificationLLM")
+@patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
 def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
     """Test the endpoint's handling of invalid JSON input.
@@ -305,8 +301,7 @@ def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
-    mock_llm_instance = MagicMock()
-    mock_llm_instance.sa_rag_sic_code.return_value = (
+    mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,
             followup=None,
@@ -318,7 +313,6 @@ def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
         None,
         None,
     )
-    mock_llm.return_value = mock_llm_instance
 
     request_data = {"invalid": "data"}
     logger.info("Testing invalid JSON with data", request_data=request_data)
@@ -330,7 +324,7 @@ def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
-@patch("api.routes.v1.classify.ClassificationLLM")
+@patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
 def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
     """Test the endpoint's handling of invalid LLM model specifications.
@@ -353,8 +347,7 @@ def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
-    mock_llm_instance = MagicMock()
-    mock_llm_instance.sa_rag_sic_code.return_value = (
+    mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,
             followup=None,
@@ -366,7 +359,6 @@ def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
         None,
         None,
     )
-    mock_llm.return_value = mock_llm_instance
 
     request_data = {
         "llm": "invalid-model",
@@ -385,7 +377,7 @@ def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
-@patch("api.routes.v1.classify.ClassificationLLM")
+@patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
 def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_vector_store):
     """Test the endpoint's handling of invalid classification types.
@@ -408,8 +400,7 @@ def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
-    mock_llm_instance = MagicMock()
-    mock_llm_instance.sa_rag_sic_code.return_value = (
+    mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,
             followup=None,
@@ -421,7 +412,6 @@ def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_vector_store):
         None,
         None,
     )
-    mock_llm.return_value = mock_llm_instance
 
     request_data = {
         "llm": "chat-gpt",

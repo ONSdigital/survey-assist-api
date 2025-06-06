@@ -7,14 +7,13 @@ vector store and LLM.
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from industrial_classification_utils.llm.llm import ClassificationLLM
 from survey_assist_utils.logging import get_logger
 
 from api.models.classify import (
     ClassificationRequest,
     ClassificationResponse,
-    LLMModel,
     SicCandidate,
 )
 from api.services.sic_vector_store_client import SICVectorStoreClient
@@ -48,13 +47,15 @@ llm_dependency = Depends(get_llm_client)
 
 @router.post("/classify", response_model=ClassificationResponse)
 async def classify_text(
-    request: ClassificationRequest,
+    request: Request,
+    classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient = vector_store_dependency,
 ) -> ClassificationResponse:
     """Classify the provided text.
 
     Args:
-        request (ClassificationRequest): The request containing the text to classify.
+        request (Request): The FastAPI request object.
+        classification_request (ClassificationRequest): The request containing the text to classify.
         vector_store (SICVectorStoreClient): Vector store client instance.
 
     Returns:
@@ -64,7 +65,10 @@ async def classify_text(
         HTTPException: If the input is invalid or classification fails.
     """
     # Validate input
-    if not request.job_title.strip() or not request.job_description.strip():
+    if (
+        not classification_request.job_title.strip()
+        or not classification_request.job_description.strip()
+    ):
         logger.error(
             "Empty job title or description provided in classification request"
         )
@@ -75,9 +79,9 @@ async def classify_text(
     try:
         # Get vector store search results
         search_results = await vector_store.search(
-            industry_descr=request.org_description,
-            job_title=request.job_title,
-            job_description=request.job_description,
+            industry_descr=classification_request.org_description,
+            job_title=classification_request.job_title,
+            job_description=classification_request.job_description,
         )
 
         # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
@@ -90,17 +94,16 @@ async def classify_text(
             for result in search_results
         ]
 
-        # Determine model name
-        model_name = "gemini-1.5-flash" if request.llm == LLMModel.GEMINI else "gpt-4"
-
-        # Instantiate LLM with the correct model_name
-        llm = get_llm_client(model_name=model_name)
-
-        # Call LLM using sa_rag_sic_code (no model_name argument)
+        # Get LLM instance and call sa_rag_sic_code
+        if not hasattr(request.app.state, "gemini_llm"):
+            request.app.state.gemini_llm = ClassificationLLM(
+                model_name="gemini-1.5-flash"
+            )
+        llm = request.app.state.gemini_llm
         llm_response, _, _ = llm.sa_rag_sic_code(
-            industry_descr=request.org_description or "",
-            job_title=request.job_title,
-            job_description=request.job_description,
+            industry_descr=classification_request.org_description or "",
+            job_title=classification_request.job_title,
+            job_description=classification_request.job_description,
             short_list=short_list,
         )
 

@@ -10,9 +10,11 @@ Functions:
 """
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from industrial_classification_utils.llm.llm import ClassificationLLM
 from survey_assist_utils.logging import get_logger
 
 from api.main import app
@@ -34,6 +36,9 @@ def pytest_configure(config):  # pylint: disable=unused-argument
         config (pytest.Config): The pytest configuration object containing command-line
             options and plugin configurations.
     """
+    # Mock the LLM initialization
+    mock_llm = MagicMock(spec=ClassificationLLM)
+    app.state.gemini_llm = mock_llm
     logger.info("Global Test Configuration Applied")
 
 
