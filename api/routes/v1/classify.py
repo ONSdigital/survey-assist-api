@@ -95,10 +95,6 @@ async def classify_text(
         ]
 
         # Get LLM instance and call sa_rag_sic_code
-        if not hasattr(request.app.state, "gemini_llm"):
-            request.app.state.gemini_llm = ClassificationLLM(
-                model_name="gemini-1.5-flash"
-            )
         llm = request.app.state.gemini_llm
         llm_response, _, _ = llm.sa_rag_sic_code(
             industry_descr=classification_request.org_description or "",

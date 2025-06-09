@@ -4,13 +4,31 @@ This module contains the main entry point to the Survey Assist API.
 It defines the FastAPI application and the API endpoints.
 """
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from industrial_classification_utils.llm.llm import ClassificationLLM
 
 from api.routes.v1.classify import router as classify_router
 from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
+
+
+@asynccontextmanager
+async def lifespan(fastapi_app: FastAPI):
+    """Manage the application's lifespan.
+
+    This function handles startup and shutdown events for the FastAPI application.
+    It initialises the LLM model at startup.
+    """
+    # Startup
+    fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-1.5-flash")
+    yield
+    # Shutdown
+    # Add any cleanup code here if needed
+
 
 app: FastAPI = FastAPI(
     title="Survey Assist API",
@@ -19,6 +37,7 @@ app: FastAPI = FastAPI(
     openapi_url="/openapi.json",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # Include versioned routes
