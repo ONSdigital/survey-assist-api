@@ -64,18 +64,18 @@ def test_store_result_success():
                         "input": [
                             {
                                 "field": "job_title",
-                                "value": "Software Engineer"
+                                "value": "Electrician"
                             }
                         ],
                         "response": {
                             "classified": True,
-                            "code": "620100",
-                            "description": "Software developers",
+                            "code": "432100",
+                            "description": "Electrical installation",
                             "reasoning": "Based on job title and description",
                             "candidates": [
                                 {
-                                    "code": "620100",
-                                    "description": "Software developers",
+                                    "code": "432100",
+                                    "description": "Electrical installation",
                                     "likelihood": 0.95
                                 }
                             ],
@@ -159,18 +159,18 @@ def test_get_result():
                         "input": [
                             {
                                 "field": "job_title",
-                                "value": "Software Engineer"
+                                "value": "Electrician"
                             }
                         ],
                         "response": {
                             "classified": True,
-                            "code": "620100",
-                            "description": "Software developers",
+                            "code": "432100",
+                            "description": "Electrical installation",
                             "reasoning": "Based on job title and description",
                             "candidates": [
                                 {
-                                    "code": "620100",
-                                    "description": "Software developers",
+                                    "code": "432100",
+                                    "description": "Electrical installation",
                                     "likelihood": 0.95
                                 }
                             ],
@@ -237,18 +237,18 @@ def test_datetime_serialisation():
                         "input": [
                             {
                                 "field": "job_title",
-                                "value": "Software Engineer"
+                                "value": "Electrician"
                             }
                         ],
                         "response": {
                             "classified": True,
-                            "code": "620100",
-                            "description": "Software developers",
+                            "code": "432100",
+                            "description": "Electrical installation",
                             "reasoning": "Based on job title and description",
                             "candidates": [
                                 {
-                                    "code": "620100",
-                                    "description": "Software developers",
+                                    "code": "432100",
+                                    "description": "Electrical installation",
                                     "likelihood": 0.95
                                 }
                             ],

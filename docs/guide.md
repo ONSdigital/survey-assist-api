@@ -76,18 +76,18 @@ The classification process works as follows:
             "input": [
               {
                 "field": "job_title",
-                "value": "Software Engineer"
+                "value": "Electrician"
               }
             ],
             "response": {
               "classified": true,
-              "code": "620100",
-              "description": "Software developers",
+              "code": "432100",
+              "description": "Electrical installation",
               "reasoning": "Based on job title and description",
               "candidates": [
                 {
-                  "code": "620100",
-                  "description": "Software developers",
+                  "code": "432100",
+                  "description": "Electrical installation",
                   "likelihood": 0.95
                 }
               ],
@@ -142,18 +142,18 @@ curl -X POST "http://localhost:8080/v1/survey-assist/result" \
             "input": [
               {
                 "field": "job_title",
-                "value": "Software Engineer"
+                "value": "Electrician"
               }
             ],
             "response": {
               "classified": true,
-              "code": "620100",
-              "description": "Software developers",
+              "code": "432100",
+              "description": "Electrical installation",
               "reasoning": "Based on job title and description",
               "candidates": [
                 {
-                  "code": "620100",
-                  "description": "Software developers",
+                  "code": "432100",
+                  "description": "Electrical installation",
                   "likelihood": 0.95
                 }
               ],
