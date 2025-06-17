@@ -47,36 +47,129 @@ The API is built using:
 The classification process works as follows:
 1. The input text is used to search the vector store for similar SIC codes
 2. The vector store returns a list of candidates with similarity scores
-3. The LLM analyzes the candidates and input to determine the final classification
+3. The LLM analyses the candidates and input to determine the final classification
 4. If the classification is ambiguous, a follow-up question is provided
 
 ### Result Endpoint
+- **Base URL**: `http://localhost:8080`
 - **Path**: `/v1/survey-assist/result`
 - **Method**: POST
 - **Description**: Stores classification results for later retrieval and analysis
 - **Request Body**:
-  - `user_id` (required): Unique identifier for the user
-  - `survey` (required): Name of the survey
-  - `job_title` (required): Survey response for Job Title
-  - `job_description` (required): Survey response for Job Description
-  - `org_description` (required): Survey response for Organisation/Industry Description
+  ```json
+  {
+    "survey_id": "test-survey-123",
+    "case_id": "test-case-456",
+    "time_start": "2024-03-19T10:00:00Z",
+    "time_end": "2024-03-19T10:05:00Z",
+    "responses": [
+      {
+        "person_id": "person-1",
+        "time_start": "2024-03-19T10:00:00Z",
+        "time_end": "2024-03-19T10:01:00Z",
+        "survey_assist_interactions": [
+          {
+            "type": "classify",
+            "flavour": "sic",
+            "time_start": "2024-03-19T10:00:00Z",
+            "time_end": "2024-03-19T10:01:00Z",
+            "input": [
+              {
+                "field": "job_title",
+                "value": "Software Engineer"
+              }
+            ],
+            "response": {
+              "classified": true,
+              "code": "620100",
+              "description": "Software developers",
+              "reasoning": "Based on job title and description",
+              "candidates": [
+                {
+                  "code": "620100",
+                  "description": "Software developers",
+                  "likelihood": 0.95
+                }
+              ],
+              "follow_up": {
+                "questions": []
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+  ```
 - **Response**: Returns stored result information:
-  - `user_id`: The user ID from the request
-  - `survey`: The survey name from the request
+  ```json
+  {
+    "message": "Result stored successfully",
+    "result_id": "test-survey-123/test-case-456/19-03-2024_results.json"
+  }
+  ```
 
-### Result Endpoint
+### Get Result Endpoint
+- **Base URL**: `http://localhost:8080`
 - **Path**: `/v1/survey-assist/result`
-- **Method**: POST
-- **Description**: Stores classification results for later retrieval and analysis
-- **Request Body**:
-  - `user_id` (required): Unique identifier for the user
-  - `survey` (required): Name of the survey
-  - `job_title` (required): Survey response for Job Title
-  - `job_description` (required): Survey response for Job Description
-  - `org_description` (required): Survey response for Organisation/Industry Description
-- **Response**: Returns stored result information:
-  - `user_id`: The user ID from the request
-  - `survey`: The survey name from the request
+- **Method**: GET
+- **Description**: Retrieves stored classification results
+- **Query Parameters**:
+  - `result_id` (required): The ID of the result to retrieve (e.g., "test-survey-123/test-case-456/19-03-2024_results.json")
+- **Response**: Returns the stored result in the same format as the POST request body.
+
+### Example Usage
+```bash
+# Store a result
+curl -X POST "http://localhost:8080/v1/survey-assist/result" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "survey_id": "test-survey-123",
+    "case_id": "test-case-456",
+    "time_start": "2024-03-19T10:00:00Z",
+    "time_end": "2024-03-19T10:05:00Z",
+    "responses": [
+      {
+        "person_id": "person-1",
+        "time_start": "2024-03-19T10:00:00Z",
+        "time_end": "2024-03-19T10:01:00Z",
+        "survey_assist_interactions": [
+          {
+            "type": "classify",
+            "flavour": "sic",
+            "time_start": "2024-03-19T10:00:00Z",
+            "time_end": "2024-03-19T10:01:00Z",
+            "input": [
+              {
+                "field": "job_title",
+                "value": "Software Engineer"
+              }
+            ],
+            "response": {
+              "classified": true,
+              "code": "620100",
+              "description": "Software developers",
+              "reasoning": "Based on job title and description",
+              "candidates": [
+                {
+                  "code": "620100",
+                  "description": "Software developers",
+                  "likelihood": 0.95
+                }
+              ],
+              "follow_up": {
+                "questions": []
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }'
+
+# Retrieve a result
+curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey-123/test-case-456/19-03-2024_results.json"
+```
 
 ### SIC Lookup Endpoint
 - **Path**: `/v1/survey-assist/sic-lookup`
