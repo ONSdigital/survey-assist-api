@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def datetime_handler(obj):
-    """Handle datetime serialization for JSON."""
+    """Handle datetime serialisation for JSON."""
     if isinstance(obj, datetime):
         return obj.isoformat()
-    raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+    raise TypeError(f"Object of type {type(obj)} is not JSON serialisable")
 
 
 def store_result(result_data: Dict[str, Any], filename: str) -> None:
