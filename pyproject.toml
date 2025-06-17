@@ -12,6 +12,7 @@ python = "^3.12"
 fastapi = "^0.115.11"
 uvicorn = "^0.34.0"
 pydantic = "^2.10.6"
+pydantic-settings = "^2.2.1"
 pandas = "^2.1.4"
 google-cloud-logging = "^3.9.0"
 survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.1"}
