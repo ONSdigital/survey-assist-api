@@ -1,49 +1,61 @@
 """Module that provides the result endpoint for the Survey Assist API.
 
-This module contains the result endpoint for the Survey Assist API.
-It defines the endpoint for storing classification results.
+This module contains the result endpoint that allows storing and retrieving
+classification results. It provides functionality to store results in GCP
+and retrieve them using a unique identifier.
 """
 
 from fastapi import APIRouter, HTTPException
-from survey_assist_utils.logging import get_logger
+from api.models.result import SurveyAssistResult, ResultResponse
+from api.services.result_service import store_result, get_result
+from datetime import datetime
 
-from api.models.result import ResultRequest, ResultResponse
-
-router: APIRouter = APIRouter(tags=["Results"])
-logger = get_logger(__name__)
+router = APIRouter()
 
 
 @router.post("/result", response_model=ResultResponse)
-async def store_result(request: ResultRequest) -> ResultResponse:
-    """Store a classification result.
+async def store_survey_result(result: SurveyAssistResult) -> ResultResponse:
+    """Store a survey result in GCP.
 
     Args:
-        request (ResultRequest): The request containing the result data to store.
+        result (SurveyAssistResult): The survey result to store.
 
     Returns:
-        ResultResponse: A response containing the user ID and survey name.
+        ResultResponse: A response containing a success message and the result ID.
 
     Raises:
-        HTTPException: If the input is invalid or processing fails.
+        HTTPException: If there is an error storing the result.
     """
-    # Validate input
-    if not request.user_id.strip() or not request.survey.strip():
-        logger.error("Empty user_id or survey provided in result request")
-        raise HTTPException(
-            status_code=400, detail="User ID and survey name cannot be empty"
-        )
-
     try:
-        logger.info(
-            f"Storing result for user {request.user_id}, survey {request.survey}"
+        # Generate a filename based on survey_id, case_id, and current date
+        filename = f"{result.survey_id}/{result.case_id}/{datetime.now().strftime('%d-%m-%Y')}_results.json"
+        
+        # Store the result in GCP
+        store_result(result.model_dump(), filename)
+        
+        return ResultResponse(
+            message="Result stored successfully",
+            result_id=filename
         )
-
-        # Mock result storage - in a real implementation, this would store the result
-        # in a database or other persistent storage
-        return ResultResponse(user_id=request.user_id, survey=request.survey)
-
     except Exception as e:
-        logger.error(f"Failed to store result: {e!s}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to store result: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/result", response_model=SurveyAssistResult)
+async def get_survey_result(result_id: str) -> SurveyAssistResult:
+    """Retrieve a survey result from GCP.
+
+    Args:
+        result_id (str): The unique identifier of the result to retrieve.
+
+    Returns:
+        SurveyAssistResult: The retrieved survey result.
+
+    Raises:
+        HTTPException: If the result is not found or there is an error retrieving it.
+    """
+    try:
+        result_data = get_result(result_id)
+        return SurveyAssistResult(**result_data)
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
