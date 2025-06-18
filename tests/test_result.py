@@ -25,10 +25,10 @@ Dependencies:
     - fastapi.status: Provides standard HTTP status codes for assertions.
 """
 
-import pytest
+from datetime import datetime
+
 from fastapi import status
 from fastapi.testclient import TestClient
-from datetime import datetime
 from survey_assist_utils.logging import get_logger
 
 from api.main import app
@@ -61,12 +61,7 @@ def test_store_result_success():
                         "flavour": "sic",
                         "time_start": "2024-03-19T10:00:00Z",
                         "time_end": "2024-03-19T10:01:00Z",
-                        "input": [
-                            {
-                                "field": "job_title",
-                                "value": "Electrician"
-                            }
-                        ],
+                        "input": [{"field": "job_title", "value": "Electrician"}],
                         "response": {
                             "classified": True,
                             "code": "432100",
@@ -76,17 +71,15 @@ def test_store_result_success():
                                 {
                                     "code": "432100",
                                     "description": "Electrical installation",
-                                    "likelihood": 0.95
+                                    "likelihood": 0.95,
                                 }
                             ],
-                            "follow_up": {
-                                "questions": []
-                            }
-                        }
+                            "follow_up": {"questions": []},
+                        },
                     }
-                ]
+                ],
             }
-        ]
+        ],
     }
 
     response = client.post("/v1/survey-assist/result", json=test_data)
@@ -106,7 +99,7 @@ def test_store_result_empty_fields():
         "case_id": "test-case-456",
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
-        "responses": []
+        "responses": [],
     }
 
     response = client.post("/v1/survey-assist/result", json=test_data)
@@ -125,7 +118,7 @@ def test_store_result_invalid_data():
         "case_id": "test-case-456",
         "time_start": "invalid-date",
         "time_end": "2024-03-19T10:05:00Z",
-        "responses": []
+        "responses": [],
     }
 
     response = client.post("/v1/survey-assist/result", json=test_data)
@@ -156,12 +149,7 @@ def test_get_result():
                         "flavour": "sic",
                         "time_start": "2024-03-19T10:00:00Z",
                         "time_end": "2024-03-19T10:01:00Z",
-                        "input": [
-                            {
-                                "field": "job_title",
-                                "value": "Electrician"
-                            }
-                        ],
+                        "input": [{"field": "job_title", "value": "Electrician"}],
                         "response": {
                             "classified": True,
                             "code": "432100",
@@ -171,19 +159,17 @@ def test_get_result():
                                 {
                                     "code": "432100",
                                     "description": "Electrical installation",
-                                    "likelihood": 0.95
+                                    "likelihood": 0.95,
                                 }
                             ],
-                            "follow_up": {
-                                "questions": []
-                            }
-                        }
+                            "follow_up": {"questions": []},
+                        },
                     }
-                ]
+                ],
             }
-        ]
+        ],
     }
-    
+
     store_response = client.post("/v1/survey-assist/result", json=store_data)
     assert store_response.status_code == status.HTTP_200_OK
     result_id = store_response.json()["result_id"]
@@ -191,7 +177,7 @@ def test_get_result():
     # Then retrieve it
     get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
     assert get_response.status_code == status.HTTP_200_OK
-    
+
     response_data = get_response.json()
     assert response_data["survey_id"] == store_data["survey_id"]
     assert response_data["case_id"] == store_data["case_id"]
@@ -234,12 +220,7 @@ def test_datetime_serialisation():
                         "flavour": "sic",
                         "time_start": datetime.now().isoformat(),
                         "time_end": datetime.now().isoformat(),
-                        "input": [
-                            {
-                                "field": "job_title",
-                                "value": "Electrician"
-                            }
-                        ],
+                        "input": [{"field": "job_title", "value": "Electrician"}],
                         "response": {
                             "classified": True,
                             "code": "432100",
@@ -249,17 +230,15 @@ def test_datetime_serialisation():
                                 {
                                     "code": "432100",
                                     "description": "Electrical installation",
-                                    "likelihood": 0.95
+                                    "likelihood": 0.95,
                                 }
                             ],
-                            "follow_up": {
-                                "questions": []
-                            }
-                        }
+                            "follow_up": {"questions": []},
+                        },
                     }
-                ]
+                ],
             }
-        ]
+        ],
     }
 
     # Store the result
@@ -270,7 +249,7 @@ def test_datetime_serialisation():
     # Retrieve and verify the result
     get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
     assert get_response.status_code == status.HTTP_200_OK
-    
+
     response_data = get_response.json()
     assert response_data["survey_id"] == test_data["survey_id"]
     assert response_data["case_id"] == test_data["case_id"]

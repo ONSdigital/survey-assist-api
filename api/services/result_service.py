@@ -8,10 +8,9 @@ in a GCP bucket and retrieve them using a unique identifier.
 import json
 import logging
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any
 
 from google.cloud import storage
-from google.cloud.exceptions import GoogleCloudError
 
 from api.config import settings
 
@@ -25,11 +24,11 @@ def datetime_handler(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serialisable")
 
 
-def store_result(result_data: Dict[str, Any], filename: str) -> None:
+def store_result(result_data: dict[str, Any], filename: str) -> None:
     """Store a result in GCP.
 
     Args:
-        result_data (Dict[str, Any]): The result data to store.
+        result_data (dict[str, Any]): The result data to store.
         filename (str): The filename to store the result under.
 
     Raises:
@@ -39,28 +38,29 @@ def store_result(result_data: Dict[str, Any], filename: str) -> None:
         # Initialise GCP client
         client = storage.Client()
         bucket = client.bucket(settings.GCP_BUCKET_NAME)
-        
+
         # Create a new blob and upload the result data
         blob = bucket.blob(filename)
         blob.upload_from_string(
             json.dumps(result_data, indent=2, default=datetime_handler),
-            content_type='application/json'
+            content_type="application/json",
         )
-        
-        logger.info(f"Successfully stored result in {filename}")
+
+        logger.info("Successfully stored result in %s", filename)
     except Exception as e:
-        logger.error(f"Error storing result: {str(e)}")
-        raise Exception(f"Failed to store result: {str(e)}")
+        logger.error("Error storing result: %s", e)
+        # Raising a general exception here because storage errors can be varied and unpredictable.
+        raise RuntimeError(f"Failed to store result: {e!s}") from e
 
 
-def get_result(result_id: str) -> Dict[str, Any]:
+def get_result(result_id: str) -> dict[str, Any]:
     """Retrieve a result from GCP.
 
     Args:
         result_id (str): The unique identifier of the result to retrieve.
 
     Returns:
-        Dict[str, Any]: The retrieved result data.
+        dict[str, Any]: The retrieved result data.
 
     Raises:
         Exception: If the result is not found or there is an error retrieving it.
@@ -69,16 +69,17 @@ def get_result(result_id: str) -> Dict[str, Any]:
         # Initialise GCP client
         client = storage.Client()
         bucket = client.bucket(settings.GCP_BUCKET_NAME)
-        
+
         # Get the blob and download the result data
         blob = bucket.blob(result_id)
         if not blob.exists():
-            raise Exception(f"Result not found: {result_id}")
-            
+            raise FileNotFoundError(f"Result not found: {result_id}")
+
         result_data = json.loads(blob.download_as_string())
-        
-        logger.info(f"Successfully retrieved result from {result_id}")
+
+        logger.info("Successfully retrieved result from %s", result_id)
         return result_data
     except Exception as e:
-        logger.error(f"Error retrieving result: {str(e)}")
-        raise Exception(f"Failed to retrieve result: {str(e)}") 
+        logger.error("Error retrieving result: %s", e)
+        # Raising a general exception here because retrieval errors can be varied and unpredictable.
+        raise RuntimeError(f"Failed to retrieve result: {e!s}") from e

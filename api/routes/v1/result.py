@@ -5,10 +5,12 @@ classification results. It provides functionality to store results in GCP
 and retrieve them using a unique identifier.
 """
 
-from fastapi import APIRouter, HTTPException
-from api.models.result import SurveyAssistResult, ResultResponse
-from api.services.result_service import store_result, get_result
 from datetime import datetime
+
+from fastapi import APIRouter, HTTPException
+
+from api.models.result import ResultResponse, SurveyAssistResult
+from api.services.result_service import get_result, store_result
 
 router = APIRouter()
 
@@ -28,17 +30,15 @@ async def store_survey_result(result: SurveyAssistResult) -> ResultResponse:
     """
     try:
         # Generate a filename based on survey_id, case_id, and current date
-        filename = f"{result.survey_id}/{result.case_id}/{datetime.now().strftime('%d-%m-%Y')}_results.json"
-        
+        filename = f"{result.survey_id}/{result.case_id}/"
+        filename += f"{datetime.now().strftime('%d-%m-%Y')}_results.json"
+
         # Store the result in GCP
         store_result(result.model_dump(), filename)
-        
-        return ResultResponse(
-            message="Result stored successfully",
-            result_id=filename
-        )
+
+        return ResultResponse(message="Result stored successfully", result_id=filename)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/result", response_model=SurveyAssistResult)
@@ -58,4 +58,4 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
         result_data = get_result(result_id)
         return SurveyAssistResult(**result_data)
     except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
