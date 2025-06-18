@@ -23,9 +23,11 @@ Dependencies:
     - pytest: Used for marking and running test cases.
     - fastapi.testclient.TestClient: Used to simulate HTTP requests to the FastAPI app.
     - fastapi.status: Provides standard HTTP status codes for assertions.
+    - unittest.mock: Used for mocking Google Cloud Storage interactions.
 """
 
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 from fastapi import status
 from fastapi.testclient import TestClient
@@ -82,7 +84,12 @@ def test_store_result_success():
         ],
     }
 
-    response = client.post("/v1/survey-assist/result", json=test_data)
+    with patch("google.cloud.storage.Client") as mock_client:
+        mock_bucket = MagicMock()
+        mock_blob = MagicMock()
+        mock_client.return_value.bucket.return_value = mock_bucket
+        mock_bucket.blob.return_value = mock_blob
+        response = client.post("/v1/survey-assist/result", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     assert "result_id" in response.json()
     assert response.json()["message"] == "Result stored successfully"
@@ -170,20 +177,39 @@ def test_get_result():
         ],
     }
 
-    store_response = client.post("/v1/survey-assist/result", json=store_data)
-    assert store_response.status_code == status.HTTP_200_OK
-    result_id = store_response.json()["result_id"]
+    with patch("google.cloud.storage.Client") as mock_client:
+        mock_bucket = MagicMock()
+        mock_blob = MagicMock()
+        # Simulate storing and retrieving JSON
+        stored_json = {}
 
-    # Then retrieve it
-    get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
-    assert get_response.status_code == status.HTTP_200_OK
+        def upload_from_string(data, content_type=None):
+            _ = content_type  # Mark as used to silence linter
+            stored_json["data"] = data
 
-    response_data = get_response.json()
-    assert response_data["survey_id"] == store_data["survey_id"]
-    assert response_data["case_id"] == store_data["case_id"]
-    assert response_data["time_start"] == store_data["time_start"]
-    assert response_data["time_end"] == store_data["time_end"]
-    assert response_data["responses"] == store_data["responses"]
+        def download_as_string():
+            return stored_json["data"]
+
+        mock_blob.upload_from_string.side_effect = upload_from_string
+        mock_blob.download_as_string.side_effect = download_as_string
+        mock_blob.exists.return_value = True
+        mock_client.return_value.bucket.return_value = mock_bucket
+        mock_bucket.blob.return_value = mock_blob
+
+        store_response = client.post("/v1/survey-assist/result", json=store_data)
+        assert store_response.status_code == status.HTTP_200_OK
+        result_id = store_response.json()["result_id"]
+
+        # Then retrieve it
+        get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
+        assert get_response.status_code == status.HTTP_200_OK
+
+        response_data = get_response.json()
+        assert response_data["survey_id"] == store_data["survey_id"]
+        assert response_data["case_id"] == store_data["case_id"]
+        assert response_data["time_start"] == store_data["time_start"]
+        assert response_data["time_end"] == store_data["time_end"]
+        assert response_data["responses"] == store_data["responses"]
 
 
 def test_get_result_not_found():
@@ -192,9 +218,15 @@ def test_get_result_not_found():
     This test verifies that:
     1. Attempting to retrieve a non-existent result returns a 404 status code
     """
-    response = client.get("/v1/survey-assist/result?result_id=non-existent-result")
-    assert response.status_code == status.HTTP_404_NOT_FOUND
-    assert response.json()["detail"] == "Result not found"
+    with patch("google.cloud.storage.Client") as mock_client:
+        mock_bucket = MagicMock()
+        mock_blob = MagicMock()
+        mock_blob.exists.return_value = False
+        mock_client.return_value.bucket.return_value = mock_bucket
+        mock_bucket.blob.return_value = mock_blob
+        response = client.get("/v1/survey-assist/result?result_id=non-existent-result")
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Result not found"
 
 
 def test_datetime_serialisation():

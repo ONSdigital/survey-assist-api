@@ -79,6 +79,8 @@ def get_result(result_id: str) -> dict[str, Any]:
 
         logger.info(f"Successfully retrieved result from {result_id}")
         return result_data
+    except FileNotFoundError:
+        raise
     except Exception as e:
         logger.error(f"Error retrieving result: {e!s}")
         # Raising a general exception here because retrieval errors can be varied and unpredictable.

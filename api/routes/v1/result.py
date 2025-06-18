@@ -60,5 +60,7 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
     try:
         result_data = get_result(result_id)
         return SurveyAssistResult(**result_data)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail="Result not found") from e
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
