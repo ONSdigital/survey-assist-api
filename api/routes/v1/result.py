@@ -8,11 +8,14 @@ and retrieve them using a unique identifier.
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
+from survey_assist_utils.logging import get_logger
 
 from api.models.result import ResultResponse, SurveyAssistResult
 from api.services.result_service import get_result, store_result
 
 router = APIRouter()
+
+logger = get_logger(__name__)
 
 
 @router.post("/result", response_model=ResultResponse)

@@ -6,15 +6,15 @@ in a GCP bucket and retrieve them using a unique identifier.
 """
 
 import json
-import logging
 from datetime import datetime
 from typing import Any
 
 from google.cloud import storage
+from survey_assist_utils.logging import get_logger
 
 from api.config import settings
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def datetime_handler(obj):
@@ -46,9 +46,9 @@ def store_result(result_data: dict[str, Any], filename: str) -> None:
             content_type="application/json",
         )
 
-        logger.info("Successfully stored result in %s", filename)
+        logger.info(f"Successfully stored result in {filename}")
     except Exception as e:
-        logger.error("Error storing result: %s", e)
+        logger.error(f"Error storing result: {e!s}")
         # Raising a general exception here because storage errors can be varied and unpredictable.
         raise RuntimeError(f"Failed to store result: {e!s}") from e
 
@@ -77,9 +77,9 @@ def get_result(result_id: str) -> dict[str, Any]:
 
         result_data = json.loads(blob.download_as_string())
 
-        logger.info("Successfully retrieved result from %s", result_id)
+        logger.info(f"Successfully retrieved result from {result_id}")
         return result_data
     except Exception as e:
-        logger.error("Error retrieving result: %s", e)
+        logger.error(f"Error retrieving result: {e!s}")
         # Raising a general exception here because retrieval errors can be varied and unpredictable.
         raise RuntimeError(f"Failed to retrieve result: {e!s}") from e
