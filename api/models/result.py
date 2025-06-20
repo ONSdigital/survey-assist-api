@@ -125,6 +125,7 @@ class SurveyAssistResult(BaseModel):
 
     survey_id: str = Field(..., description="Identifier for the survey")
     case_id: str = Field(..., description="Identifier for the case")
+    user: str = Field(..., description="User identifier in format 'name.surname'")
     time_start: datetime = Field(..., description="Start time of the survey")
     time_end: datetime = Field(..., description="End time of the survey")
     responses: list[Response] = Field(..., description="List of responses")

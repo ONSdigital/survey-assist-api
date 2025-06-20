@@ -32,8 +32,8 @@ async def store_survey_result(result: SurveyAssistResult) -> ResultResponse:
         HTTPException: If there is an error storing the result.
     """
     try:
-        # Generate a filename based on survey_id, case_id, and current date
-        filename = f"{result.survey_id}/{result.case_id}/"
+        # Generate a filename based on TLFS_PoC, user, and current date
+        filename = f"TLFS_PoC/{result.user}/"
         filename += f"{datetime.now().strftime('%d-%m-%Y')}_results.json"
 
         # Store the result in GCP

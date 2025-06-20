@@ -50,6 +50,7 @@ def test_store_result_success():
     test_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
+        "user": "test.userSA187",
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
         "responses": [
@@ -143,6 +144,7 @@ def test_get_result():
     store_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
+        "user": "test.userSA187",
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
         "responses": [
@@ -239,6 +241,7 @@ def test_datetime_serialisation():
     test_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
+        "user": "test.userSA187",
         "time_start": datetime.now().isoformat(),
         "time_end": datetime.now().isoformat(),
         "responses": [
