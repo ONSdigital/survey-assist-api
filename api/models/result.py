@@ -123,11 +123,23 @@ class Response(BaseModel):
 class SurveyAssistResult(BaseModel):
     """Model for the complete survey assist result."""
 
-    survey_id: str = Field(..., description="Identifier for the survey")
-    case_id: str = Field(..., description="Identifier for the case")
-    user: str = Field(..., description="User identifier in format 'name.surname'")
-    time_start: datetime = Field(..., description="Start time of the survey")
-    time_end: datetime = Field(..., description="End time of the survey")
+    survey_id: str = Field(
+        ..., description="Identifier for the survey", examples=["test-survey-123"]
+    )
+    case_id: str = Field(
+        ..., description="Identifier for the case", examples=["test-case-456"]
+    )
+    user: str = Field(
+        ...,
+        description="User identifier in format 'name.surname'",
+        examples=["test.userSA187"],
+    )
+    time_start: datetime = Field(
+        ..., description="Start time of the survey", examples=["2024-03-19T10:00:00Z"]
+    )
+    time_end: datetime = Field(
+        ..., description="End time of the survey", examples=["2024-03-19T10:05:00Z"]
+    )
     responses: list[Response] = Field(..., description="List of responses")
 
 
