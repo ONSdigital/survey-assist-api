@@ -273,18 +273,37 @@ def test_datetime_serialisation():
         ],
     }
 
-    # Store the result
-    store_response = client.post("/v1/survey-assist/result", json=test_data)
-    assert store_response.status_code == status.HTTP_200_OK
-    result_id = store_response.json()["result_id"]
+    with patch("google.cloud.storage.Client") as mock_client:
+        mock_bucket = MagicMock()
+        mock_blob = MagicMock()
+        # Simulate storing and retrieving JSON
+        stored_json = {}
 
-    # Retrieve and verify the result
-    get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
-    assert get_response.status_code == status.HTTP_200_OK
+        def upload_from_string(data, content_type=None):
+            _ = content_type  # Mark as used to silence linter
+            stored_json["data"] = data
 
-    response_data = get_response.json()
-    assert response_data["survey_id"] == test_data["survey_id"]
-    assert response_data["case_id"] == test_data["case_id"]
-    assert response_data["time_start"] == test_data["time_start"]
-    assert response_data["time_end"] == test_data["time_end"]
-    assert response_data["responses"] == test_data["responses"]
+        def download_as_string():
+            return stored_json["data"]
+
+        mock_blob.upload_from_string.side_effect = upload_from_string
+        mock_blob.download_as_string.side_effect = download_as_string
+        mock_blob.exists.return_value = True
+        mock_client.return_value.bucket.return_value = mock_bucket
+        mock_bucket.blob.return_value = mock_blob
+
+        # Store the result
+        store_response = client.post("/v1/survey-assist/result", json=test_data)
+        assert store_response.status_code == status.HTTP_200_OK
+        result_id = store_response.json()["result_id"]
+
+        # Retrieve and verify the result
+        get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
+        assert get_response.status_code == status.HTTP_200_OK
+
+        response_data = get_response.json()
+        assert response_data["survey_id"] == test_data["survey_id"]
+        assert response_data["case_id"] == test_data["case_id"]
+        assert response_data["time_start"] == test_data["time_start"]
+        assert response_data["time_end"] == test_data["time_end"]
+        assert response_data["responses"] == test_data["responses"]
