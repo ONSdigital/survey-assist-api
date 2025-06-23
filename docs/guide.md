@@ -105,7 +105,7 @@ The classification process works as follows:
   ```json
   {
     "message": "Result stored successfully",
-    "result_id": "test-survey-123/test.userSA187/19-03-2024_results.json"
+    "result_id": "test-survey-123/test.userSA187/2024-03-19/10_30_15.json"
   }
   ```
 
@@ -115,7 +115,7 @@ The classification process works as follows:
 - **Method**: GET
 - **Description**: Retrieves stored classification results
 - **Query Parameters**:
-  - `result_id` (required): The ID of the result to retrieve (e.g., "test-survey-123/test.userSA187/19-03-2024_results.json")
+  - `result_id` (required): The ID of the result to retrieve (e.g., "test-survey-123/test.userSA187/2024-03-19/10_30_15.json")
 - **Response**: Returns the stored result in the same format as the POST request body.
 
 ### Example Usage
@@ -168,7 +168,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/result" \
   }'
 
 # Retrieve a result
-curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey-123/test.userSA187/19-03-2024_results.json"
+curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey-123/test.userSA187/2024-03-19/10_30_15.json"
 ```
 
 ### SIC Lookup Endpoint

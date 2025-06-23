@@ -449,8 +449,12 @@ def test_multiple_results_same_day():
         mock_bucket.blob.side_effect = blob_side_effect
 
         # Store both results
-        result_id_1 = store_and_verify(test_data_1, "test-survey-123/test.userSA187")
-        result_id_2 = store_and_verify(test_data_2, "test-survey-456/test.userSA188")
+        result_id_1 = store_and_verify(
+            test_data_1, "test-survey-123/test.userSA187/2024-03-19"
+        )
+        result_id_2 = store_and_verify(
+            test_data_2, "test-survey-456/test.userSA188/2024-03-19"
+        )
 
         # Verify the result IDs are different
         assert result_id_1 != result_id_2
