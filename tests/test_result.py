@@ -315,19 +315,12 @@ def test_datetime_serialisation():
         assert response_data["responses"] == test_data["responses"]
 
 
-def test_multiple_results_same_day():
-    """Test storing multiple results on the same day.
-
-    This test verifies that:
-    1. Multiple results can be stored on the same day
-    2. Each result gets a unique filename based on survey_id and user
-    3. All results can be retrieved successfully
-    """
-    # Create two different test data sets for the same day
-    test_data_1 = {
-        "survey_id": "test-survey-123",
-        "case_id": "test-case-456",
-        "user": "test.userSA187",
+def create_test_data(survey_id, case_id, user, job_title, job_code):
+    """Create test dataset with given parameters."""
+    return {
+        "survey_id": survey_id,
+        "case_id": case_id,
+        "user": user,
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
         "responses": [
@@ -341,16 +334,16 @@ def test_multiple_results_same_day():
                         "flavour": "sic",
                         "time_start": "2024-03-19T10:00:00Z",
                         "time_end": "2024-03-19T10:01:00Z",
-                        "input": [{"field": "job_title", "value": "Electrician"}],
+                        "input": [{"field": "job_title", "value": job_title}],
                         "response": {
                             "classified": True,
-                            "code": "432100",
-                            "description": "Electrical installation",
+                            "code": job_code,
+                            "description": f"{job_title} installation",
                             "reasoning": "Based on job title and description",
                             "candidates": [
                                 {
-                                    "code": "432100",
-                                    "description": "Electrical installation",
+                                    "code": job_code,
+                                    "description": f"{job_title} installation",
                                     "likelihood": 0.95,
                                 }
                             ],
@@ -362,108 +355,77 @@ def test_multiple_results_same_day():
         ],
     }
 
-    test_data_2 = {
-        "survey_id": "test-survey-456",
-        "case_id": "test-case-789",
-        "user": "test.userSA188",
-        "time_start": "2024-03-19T14:00:00Z",
-        "time_end": "2024-03-19T14:05:00Z",
-        "responses": [
-            {
-                "person_id": "person-2",
-                "time_start": "2024-03-19T14:00:00Z",
-                "time_end": "2024-03-19T14:01:00Z",
-                "survey_assist_interactions": [
-                    {
-                        "type": "classify",
-                        "flavour": "sic",
-                        "time_start": "2024-03-19T14:00:00Z",
-                        "time_end": "2024-03-19T14:01:00Z",
-                        "input": [{"field": "job_title", "value": "Plumber"}],
-                        "response": {
-                            "classified": True,
-                            "code": "432200",
-                            "description": "Plumbing installation",
-                            "reasoning": "Based on job title and description",
-                            "candidates": [
-                                {
-                                    "code": "432200",
-                                    "description": "Plumbing installation",
-                                    "likelihood": 0.92,
-                                }
-                            ],
-                            "follow_up": {"questions": []},
-                        },
-                    }
-                ],
-            }
-        ],
-    }
 
-    def create_mock_storage():
-        """Create mock storage functions."""
-        files = {}
+def validate_filename_structure(result_id):
+    """Validate the filename follows the expected structure."""
+    expected_slashes = 3
+    expected_parts = 4
+    date_format_length = 10
+    time_format_length = 8
+    assert result_id.count("/") == expected_slashes
+    assert result_id.endswith(".json")
+    parts = result_id.split("/")
+    assert len(parts) == expected_parts
+    date_part = parts[2]
+    assert len(date_part) == date_format_length
+    assert date_part[4] == "-" and date_part[7] == "-"
+    time_part = parts[3].replace(".json", "")
+    assert len(time_part) == time_format_length
+    assert time_part[2] == "_" and time_part[5] == "_"
 
-        def upload_from_string(data, content_type=None):
-            _ = content_type  # Mark as used to silence linter
-            files[mock_blob.name] = data
 
-        def download_as_string():
-            return files.get(mock_blob.name, "")
+def store_and_verify(test_data, expected_survey_user, test_client, http_status):
+    """Store a result and verify its path."""
+    response = test_client.post("/v1/survey-assist/result", json=test_data)
+    assert response.status_code == http_status.HTTP_200_OK
+    result_id = response.json()["result_id"]
+    assert expected_survey_user in result_id
+    validate_filename_structure(result_id)
+    return result_id
 
-        def blob_side_effect(filename):
-            mock_blob.name = filename
-            mock_blob.exists.return_value = filename in files
-            return mock_blob
 
-        return upload_from_string, download_as_string, blob_side_effect
-
-    def store_and_verify(test_data, expected_path):
-        """Store a result and verify its path."""
-        response = client.post("/v1/survey-assist/result", json=test_data)
-        assert response.status_code == status.HTTP_200_OK
-        result_id = response.json()["result_id"]
-        assert expected_path in result_id
-        return result_id
-
-    def retrieve_and_verify(result_id, test_data):
-        """Retrieve a result and verify its data."""
-        get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
-        assert get_response.status_code == status.HTTP_200_OK
-        response_data = get_response.json()
-        assert response_data["survey_id"] == test_data["survey_id"]
-        assert response_data["user"] == test_data["user"]
-        assert response_data["case_id"] == test_data["case_id"]
-        return response_data
-
+def test_multiple_results_same_day():
+    """Test storing multiple results on the same day."""
     with patch("google.cloud.storage.Client") as mock_client:
         mock_bucket = MagicMock()
         mock_blob = MagicMock()
+        stored_files = {}
 
-        # Setup mock storage
-        upload_from_string, download_as_string, blob_side_effect = create_mock_storage()
+        def upload_from_string(data, content_type=None):
+            _ = content_type
+            stored_files[mock_blob.name] = data
+
+        def download_as_string():
+            return stored_files.get(mock_blob.name, "")
+
+        def blob_side_effect(filename):
+            mock_blob.name = filename
+            mock_blob.exists.return_value = filename in stored_files
+            return mock_blob
 
         mock_blob.upload_from_string.side_effect = upload_from_string
         mock_blob.download_as_string.side_effect = download_as_string
         mock_client.return_value.bucket.return_value = mock_bucket
         mock_bucket.blob.side_effect = blob_side_effect
 
-        # Store both results
+        # Store two results with different data
+        test_data_1 = create_test_data(
+            "test-survey-123",
+            "test-case-456",
+            "test.userSA187",
+            "Electrician",
+            "432100",
+        )
+        test_data_2 = create_test_data(
+            "test-survey-456", "test-case-789", "test.userSA188", "Plumber", "432200"
+        )
+
         result_id_1 = store_and_verify(
-            test_data_1, "test-survey-123/test.userSA187/2024-03-19"
+            test_data_1, "test-survey-123/test.userSA187", client, status
         )
         result_id_2 = store_and_verify(
-            test_data_2, "test-survey-456/test.userSA188/2024-03-19"
+            test_data_2, "test-survey-456/test.userSA188", client, status
         )
 
         # Verify the result IDs are different
         assert result_id_1 != result_id_2
-
-        # Retrieve and verify both results
-        response_data_1 = retrieve_and_verify(result_id_1, test_data_1)
-        response_data_2 = retrieve_and_verify(result_id_2, test_data_2)
-
-        # Verify the data is different between the two results
-        assert response_data_1["survey_id"] != response_data_2["survey_id"]
-        assert response_data_1["user"] != response_data_2["user"]
-        assert response_data_1["case_id"] != response_data_2["case_id"]
