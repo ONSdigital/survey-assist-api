@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from google.api_core import exceptions as google_exceptions
 from google.cloud import storage
 from survey_assist_utils.logging import get_logger
 
@@ -47,6 +48,18 @@ def store_result(result_data: dict[str, Any], filename: str) -> None:
         )
 
         logger.info(f"Successfully stored result in {filename}")
+    except google_exceptions.NotFound as e:
+        logger.error(f"Bucket or blob not found: {e}")
+        raise ValueError(f"GCP bucket not found: {e!s}") from e
+    except google_exceptions.Forbidden as e:
+        logger.error(f"Permission denied when accessing bucket: {e}")
+        raise ValueError(f"Permission denied to access GCP bucket: {e!s}") from e
+    except google_exceptions.Conflict as e:
+        logger.error(f"Conflict occurred during storage: {e}")
+        raise RuntimeError(f"Conflict storing object to GCP bucket: {e!s}") from e
+    except google_exceptions.GoogleAPIError as e:
+        logger.error(f"GCP API error: {e}")
+        raise RuntimeError(f"GCP API error: {e!s}") from e
     except Exception as e:
         logger.error(f"Error storing result: {e!s}")
         # Raising a general exception here because storage errors can be varied and unpredictable.
@@ -81,6 +94,15 @@ def get_result(result_id: str) -> dict[str, Any]:
         return result_data
     except FileNotFoundError:
         raise
+    except google_exceptions.NotFound as e:
+        logger.error(f"Bucket or blob not found: {e}")
+        raise ValueError(f"GCP bucket not found: {e!s}") from e
+    except google_exceptions.Forbidden as e:
+        logger.error(f"Permission denied when accessing bucket: {e}")
+        raise ValueError(f"Permission denied to access GCP bucket: {e!s}") from e
+    except google_exceptions.GoogleAPIError as e:
+        logger.error(f"GCP API error: {e}")
+        raise RuntimeError(f"GCP API error: {e!s}") from e
     except Exception as e:
         logger.error(f"Error retrieving result: {e!s}")
         # Raising a general exception here because retrieval errors can be varied and unpredictable.
