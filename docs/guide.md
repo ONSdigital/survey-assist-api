@@ -18,10 +18,43 @@ The API is built using:
 - **Path**: `/v1/survey-assist/config`
 - **Method**: GET
 - **Description**: Returns the current configuration settings including:
-  - LLM model configuration
+  - LLM model configuration (`llm_model`)
+  - Vector store embedding model (`embedding_model`)
   - Data store settings
-  - Classification prompts
+  - Classification prompts (per version)
   - Version-specific settings
+  - Actual prompt used by the LLM (`actual_prompt`)
+- **Response Example**:
+  ```json
+  {
+    "llm_model": "gemini-1.5-flash",
+    "embedding_model": "all-MiniLM-L6-v2",
+    "data_store": "some_data_store",
+    "bucket_name": "my_bucket",
+    "actual_prompt": "You are a classification assistant. Given the following information: Job Title: Test job title...",
+    "v1v2": {
+      "classification": [
+        {
+          "type": "sic",
+          "prompts": [
+            { "name": "SA_SIC_PROMPT_RAG", "text": "my SIC RAG prompt" }
+          ]
+        }
+      ]
+    },
+    "v3": {
+      "classification": [
+        {
+          "type": "sic",
+          "prompts": [
+            { "name": "SIC_PROMPT_RERANKER", "text": "my reranker prompt" },
+            { "name": "SIC_PROMPT_UNAMBIGUOUS", "text": "my unambiguous prompt" }
+          ]
+        }
+      ]
+    }
+  }
+  ```
 
 ### Classification Endpoint
 - **Path**: `/v1/survey-assist/classify`
@@ -109,6 +142,7 @@ The classification process works as follows:
   }
   ```
 
+<<<<<<< HEAD
 ### Get Result Endpoint
 - **Base URL**: `http://localhost:8080`
 - **Path**: `/v1/survey-assist/result`
@@ -171,6 +205,8 @@ curl -X POST "http://localhost:8080/v1/survey-assist/result" \
 curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey-123/test.userSA187/2024-03-19/10_30_15.json"
 ```
 
+=======
+>>>>>>> e53e6fb (update config endpoint documentation to reflect dynamic data retrieval)
 ### SIC Lookup Endpoint
 - **Path**: `/v1/survey-assist/sic-lookup`
 - **Method**: GET
