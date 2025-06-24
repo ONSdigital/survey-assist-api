@@ -42,6 +42,8 @@ class ConfigResponse(BaseModel):
           A dictionary mapping v1 and 2 to their classifications.
         v3 (dict[str, list[ClassificationModel]]):
           A dictionary mapping v3 to its classifications.
+        embedding_model (str | None): The name of the embedding model (optional).
+        actual_prompt (str | None): The actual prompt used by the LLM (optional).
     """
 
     llm_model: str
@@ -49,3 +51,5 @@ class ConfigResponse(BaseModel):
     bucket_name: str
     v1v2: dict[str, list[ClassificationModel]]
     v3: dict[str, list[ClassificationModel]]
+    embedding_model: str | None = None
+    actual_prompt: str | None = None
