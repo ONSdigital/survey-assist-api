@@ -47,15 +47,27 @@ def test_get_config(test_client):
 
     This test verifies that the endpoint returns a successful HTTP status code
     and that the response JSON contains the expected configuration for the
-    `llm_model` key.
+    `llm_model` key, embedding model, and actual prompt.
 
     Assertions:
     - The response status code is HTTPStatus.OK.
-    - The `llm_model` in the response JSON is set to "gpt-4".
+    - The `llm_model` in the response JSON is set to "gemini-1.5-flash".
+    - The `embedding_model` field is present and is a string.
+    - The `actual_prompt` field is present and is a string.
     """
     response = test_client.get("/v1/survey-assist/config")
     assert response.status_code == HTTPStatus.OK
-    assert response.json()["llm_model"] == "gpt-4"
+    assert response.json()["llm_model"] == "gemini-1.5-flash"
+    assert "embedding_model" in response.json()
+    assert isinstance(response.json()["embedding_model"], str)
+    # In test environment, embedding_model might be "unknown" if vector store is not available
+    assert response.json()["embedding_model"] in [
+        "unknown",
+        "all-MiniLM-L6-v2",
+        "text-embedding-ada-002",
+    ]
+    assert "actual_prompt" in response.json()
+    assert isinstance(response.json()["actual_prompt"], str)
 
 
 @pytest.mark.api
