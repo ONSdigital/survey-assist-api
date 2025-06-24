@@ -38,6 +38,15 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     """
     # Mock the LLM initialization
     mock_llm = MagicMock(spec=ClassificationLLM)
+    mock_llm.model_name = "gemini-1.5-flash"  # Set the model name for config endpoint
+
+    # Mock the sa_rag_sic_code method to return expected values
+    mock_llm.sa_rag_sic_code.return_value = (
+        "43210",  # classification
+        0.95,  # confidence
+        "Test prompt for SIC classification",  # actual prompt
+    )
+
     app.state.gemini_llm = mock_llm
     logger.info("Global Test Configuration Applied")
 
