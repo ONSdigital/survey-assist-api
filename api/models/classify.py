@@ -69,6 +69,7 @@ class ClassificationResponse(BaseModel):
         sic_description (Optional[str]): The SIC code description. Empty if classified=False.
         sic_candidates (list[SicCandidate]): List of potential SIC code candidates.
         reasoning (str): Reasoning behind the LLM's response.
+        prompt_used (Optional[str]): The actual prompt that was sent to the LLM.
     """
 
     classified: bool = Field(
@@ -87,3 +88,6 @@ class ClassificationResponse(BaseModel):
         ..., description="List of potential SIC code candidates"
     )
     reasoning: str = Field(..., description="Reasoning behind the LLM's response")
+    prompt_used: Optional[str] = Field(
+        None, description="The actual prompt that was sent to the LLM"
+    )
