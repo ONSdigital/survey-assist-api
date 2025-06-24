@@ -96,7 +96,7 @@ async def classify_text(
 
         # Get LLM instance and call sa_rag_sic_code
         llm = request.app.state.gemini_llm
-        llm_response, _, _ = llm.sa_rag_sic_code(
+        llm_response, _, actual_prompt = llm.sa_rag_sic_code(
             industry_descr=classification_request.org_description or "",
             job_title=classification_request.job_title,
             job_description=classification_request.job_description,
@@ -120,6 +120,7 @@ async def classify_text(
             sic_description=getattr(llm_response, "class_descriptive", None),
             sic_candidates=candidates,
             reasoning=getattr(llm_response, "reasoning", ""),
+            prompt_used=actual_prompt,
         )
 
     except Exception as e:
