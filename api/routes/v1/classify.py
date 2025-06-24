@@ -120,7 +120,7 @@ async def classify_text(
             sic_description=getattr(llm_response, "class_descriptive", None),
             sic_candidates=candidates,
             reasoning=getattr(llm_response, "reasoning", ""),
-            prompt_used=actual_prompt,
+            prompt_used=str(actual_prompt) if actual_prompt else None,
         )
 
     except Exception as e:
