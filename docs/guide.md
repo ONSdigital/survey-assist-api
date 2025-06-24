@@ -20,6 +20,8 @@ The API is built using:
 - **Description**: Returns the current configuration settings including:
   - LLM model configuration (`llm_model`)
   - Vector store embedding model (`embedding_model`)
+  - LLM model configuration (`llm_model`)
+  - Vector store embedding model (`embedding_model`)
   - Data store settings
   - Classification prompts (per version)
   - Version-specific settings
