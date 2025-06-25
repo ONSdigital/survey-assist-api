@@ -31,37 +31,6 @@ def _is_valid_prompt(value: Any) -> bool:
     return isinstance(value, str) and bool(value)
 
 
-# Mock configuration
-config_data: ConfigResponse = ConfigResponse(
-    llm_model="gpt-4",
-    data_store="some_data_store",
-    bucket_name="my_bucket",
-    v1v2={
-        "classification": [
-            ClassificationModel(
-                type="sic",
-                prompts=[
-                    PromptModel(name="SA_SIC_PROMPT_RAG", text="my SIC RAG prompt"),
-                ],
-            )
-        ]
-    },
-    v3={
-        "classification": [
-            ClassificationModel(
-                type="sic",
-                prompts=[
-                    PromptModel(name="SIC_PROMPT_RERANKER", text="my reranker prompt"),
-                    PromptModel(
-                        name="SIC_PROMPT_UNAMBIGUOUS", text="my unambiguous prompt"
-                    ),
-                ],
-            )
-        ]
-    },
-)
-
-
 def get_vector_store_client() -> SICVectorStoreClient:
     """Get a vector store client instance.
 
@@ -141,6 +110,56 @@ def _get_actual_prompt(request: Request) -> str:
         return "Could not retrieve actual prompt"
 
 
+def _get_prompts_from_llm(request: Request) -> dict:
+    """Get actual prompts from the LLM instance.
+
+    Args:
+        request: The FastAPI request object.
+
+    Returns:
+        dict: Dictionary containing the actual prompts or fallback text.
+    """
+    try:
+        if hasattr(request.app.state, "gemini_llm"):
+            llm = request.app.state.gemini_llm
+            # Get the actual prompt templates from the LLM instance
+            sa_sic_prompt = getattr(llm, "sa_sic_prompt_rag", None)
+            sic_reranker_prompt = getattr(llm, "sic_prompt_reranker", None)
+            sic_unambiguous_prompt = getattr(llm, "sic_prompt_unambiguous", None)
+
+            # Extract the template text if available
+            sa_sic_text = (
+                str(sa_sic_prompt.template)
+                if sa_sic_prompt
+                else "[Core prompt] + [Survey Assist SIC RAG template]"
+            )
+            reranker_text = (
+                str(sic_reranker_prompt.template)
+                if sic_reranker_prompt
+                else "[Core prompt] + [SIC reranker template]"
+            )
+            unambiguous_text = (
+                str(sic_unambiguous_prompt.template)
+                if sic_unambiguous_prompt
+                else "[Core prompt] + [SIC unambiguous template]"
+            )
+
+            return {
+                "sa_sic_text": sa_sic_text,
+                "reranker_text": reranker_text,
+                "unambiguous_text": unambiguous_text,
+            }
+    except (AttributeError, TypeError, RuntimeError) as e:
+        logger.warning(f"Could not retrieve prompts from LLM: {e}")
+
+    # Fallback to placeholder text
+    return {
+        "sa_sic_text": "[Core prompt] + [Survey Assist SIC RAG template]",
+        "reranker_text": "[Core prompt] + [SIC reranker template]",
+        "unambiguous_text": "[Core prompt] + [SIC unambiguous template]",
+    }
+
+
 @router.get("/config", response_model=ConfigResponse)
 async def get_config(
     request: Request,
@@ -160,13 +179,42 @@ async def get_config(
     # Get actual prompt used by making a test classification call
     actual_prompt = _get_actual_prompt(request)
 
-    # Return config with actual model names and prompt
+    # Get actual prompts from LLM instance
+    prompts = _get_prompts_from_llm(request)
+
+    # Return config with actual model names and prompts
     return ConfigResponse(
         llm_model=actual_llm_model,
-        data_store=config_data.data_store,
-        bucket_name=config_data.bucket_name,
-        v1v2=config_data.v1v2,
-        v3=config_data.v3,
+        data_store="some_data_store",
+        bucket_name="my_bucket",
+        v1v2={
+            "classification": [
+                ClassificationModel(
+                    type="sic",
+                    prompts=[
+                        PromptModel(
+                            name="SA_SIC_PROMPT_RAG", text=prompts["sa_sic_text"]
+                        ),
+                    ],
+                )
+            ]
+        },
+        v3={
+            "classification": [
+                ClassificationModel(
+                    type="sic",
+                    prompts=[
+                        PromptModel(
+                            name="SIC_PROMPT_RERANKER", text=prompts["reranker_text"]
+                        ),
+                        PromptModel(
+                            name="SIC_PROMPT_UNAMBIGUOUS",
+                            text=prompts["unambiguous_text"],
+                        ),
+                    ],
+                )
+            ]
+        },
         embedding_model=embedding_model,
         actual_prompt=actual_prompt,
     )
