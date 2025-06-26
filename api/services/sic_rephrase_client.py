@@ -15,6 +15,9 @@ from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__)
 
+# Constants
+FOUR_DIGIT_SIC_CODE = 4
+
 
 class SICRephraseClient:
     """Client for applying rephrased SIC descriptions to classification responses."""
@@ -127,7 +130,19 @@ class SICRephraseClient:
         Returns:
             Optional[str]: The rephrased description if available, None otherwise.
         """
-        return self.rephrased_descriptions.get(str(sic_code).strip())
+        sic_code = str(sic_code).strip()
+
+        # Try exact match first
+        if sic_code in self.rephrased_descriptions:
+            return self.rephrased_descriptions[sic_code]
+
+        # Follow the same logic as SIC lookup: pad 4-digit codes to 5 digits
+        if len(sic_code) == FOUR_DIGIT_SIC_CODE:
+            sic_code_padded = f"0{sic_code}"
+            if sic_code_padded in self.rephrased_descriptions:
+                return self.rephrased_descriptions[sic_code_padded]
+
+        return None
 
     def get_rephrased_count(self) -> int:
         """Get the number of available rephrased descriptions.
