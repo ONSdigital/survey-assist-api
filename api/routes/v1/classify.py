@@ -16,8 +16,8 @@ from api.models.classify import (
     ClassificationResponse,
     SicCandidate,
 )
-from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.sic_rephrase_client import SICRephraseClient
+from api.services.sic_vector_store_client import SICVectorStoreClient
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
@@ -138,13 +138,17 @@ async def classify_text(
 
         # Apply rephrased descriptions to the response
         response_dict = response.model_dump()
-        rephrased_response_dict = rephrase_client.process_classification_response(response_dict)
-        
+        rephrased_response_dict = rephrase_client.process_classification_response(
+            response_dict
+        )
+
         # Convert back to ClassificationResponse model
         rephrased_response = ClassificationResponse(**rephrased_response_dict)
-        
-        logger.info(f"Applied rephrased descriptions to classification response. "
-                   f"Available rephrased descriptions: {rephrase_client.get_rephrased_count()}")
+
+        logger.info(
+            f"Applied rephrased descriptions to classification response. "
+            f"Available rephrased descriptions: {rephrase_client.get_rephrased_count()}"
+        )
 
         return rephrased_response
 

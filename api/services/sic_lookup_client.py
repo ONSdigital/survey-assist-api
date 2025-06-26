@@ -33,7 +33,7 @@ class SICLookupClient:
             resolved_path = str(
                 project_root
                 / "sic-classification-library/src/industrial_classification"
-                / "data/sic_knowledge_base_utf8.csv"
+                / "data/example_sic_lookup_data.csv"
             )
         else:
             resolved_path = data_path

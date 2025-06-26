@@ -4,165 +4,178 @@ This module provides a client for the SIC rephrase service, which is used to
 map standard SIC descriptions to user-friendly rephrased versions.
 """
 
+import importlib.util
 import os
-import pandas as pd
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
+import pandas as pd
+from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__)
 
 
 class SICRephraseClient:
-    """Client for the SIC rephrase service.
+    """Client for applying rephrased SIC descriptions to classification responses."""
 
-    This class provides a client for the SIC rephrase service, which is used to
-    map standard SIC descriptions to user-friendly rephrased versions.
-
-    Attributes:
-        rephrase_data: Dictionary mapping SIC codes to rephrased descriptions.
-    """
-
-    def __init__(self, data_path: Optional[str] = None) -> None:
+    def __init__(self, data_path: Optional[str] = None):
         """Initialise the SIC rephrase client.
 
         Args:
-            data_path: Path to the SIC rephrased descriptions CSV file. If not provided,
-                the default path will be used.
+            data_path (Optional[str]): Path to the rephrased SIC data file.
+                If None, uses default path from SIC classification library.
         """
         # Use the provided path or default path
-        if data_path is None:
-            resolved_path = self._get_default_path()
-        else:
-            resolved_path = data_path
+        resolved_path = self._get_default_path() if data_path is None else data_path
 
         # Ensure the path is a string
-        if isinstance(resolved_path, Path):
-            resolved_path = str(resolved_path)
+        if not isinstance(resolved_path, str):
+            raise ValueError("Data path must be a string")
 
-        # Load the rephrased descriptions data
-        self.rephrase_data = self._load_rephrase_data(resolved_path)
+        # Load the rephrased descriptions
+        self.rephrased_descriptions = self._load_rephrase_data(resolved_path)
 
     def _get_default_path(self) -> str:
-        """Get the default path for rephrased descriptions.
-        
-        Priority order:
-        1. Environment variable SIC_REPHRASE_DATA_PATH
-        2. SIC classification library (example_rephrased_sic_data.csv)
-        3. Local data directory (fallback)
-        
+        """Get the default path to the rephrased SIC data file.
+
         Returns:
-            str: The default path for rephrased descriptions.
+            str: Path to the rephrased SIC data file.
         """
-        # Check environment variable first
-        env_path = os.getenv("SIC_REPHRASE_DATA_PATH")
+        # Check for environment variable first
+        env_path = os.environ.get("SIC_REPHRASE_DATA_PATH")
         if env_path:
-            logger.info(f"Using rephrase data path from environment: {env_path}")
+            logger.info(f"Using rephrase data from environment variable: {env_path}")
             return env_path
 
-        # Try to find it in the SIC classification library
+        # Use the SIC classification library path
         try:
-            # Look for the sic-classification-library in the parent directory
-            parent_dir = Path(__file__).parent.parent.parent.parent
-            sic_library_path = (
-                parent_dir
-                / "sic-classification-library/src/industrial_classification"
-                / "data/example_rephrased_sic_data.csv"
-            )
-            
-            if sic_library_path.exists():
-                logger.info(f"Using rephrase data from SIC classification library: {sic_library_path}")
-                return str(sic_library_path)
-            else:
-                logger.info(f"SIC classification library path not found: {sic_library_path}")
-        except Exception as e:
-            logger.warning(f"Could not determine SIC classification library path: {e}")
+            # Just check if the module exists, we don't need to import the class
+            if importlib.util.find_spec("industrial_classification.lookup.sic_lookup"):
+                # Get the path from the SIC classification library
+                base_path = Path(__file__).parent.parent.parent
+                data_file = (
+                    "sic-classification-library/src/industrial_classification/data/"
+                    "example_rephrased_sic_data.csv"
+                )
+                local_path = base_path / data_file
+                logger.info(
+                    f"Using rephrase data from SIC classification library: {local_path}"
+                )
+                return str(local_path)
+            raise ImportError("Module not found")
+        except ImportError:
+            # Fallback to local path if SIC classification library is not available
+            local_path = Path(__file__).parent / "data/example_rephrased_sic_data.csv"
+            logger.info(f"Using rephrase data from local path: {local_path}")
+            return str(local_path)
 
-        # Fallback to local data directory
-        project_root = Path(__file__).parent.parent.parent
-        local_path = project_root / "data" / "sic_rephrased_descriptions.csv"
-        logger.info(f"Using local rephrase data path: {local_path}")
-        return str(local_path)
-
-    def _load_rephrase_data(self, data_path: str) -> Dict[str, str]:
+    def _load_rephrase_data(self, data_path: str) -> dict[str, str]:
         """Load rephrased descriptions from CSV file.
 
         Args:
-            data_path: Path to the CSV file containing rephrased descriptions.
+            data_path (str): Path to the CSV file containing rephrased descriptions.
 
         Returns:
-            Dictionary mapping SIC codes to rephrased descriptions.
+            dict[str, str]: Dictionary mapping SIC codes to rephrased descriptions.
+
+        Raises:
+            HTTPException: If the data file cannot be loaded.
         """
         try:
-            # Load CSV with SIC codes as strings to handle leading zeros
+            # Read the CSV file with explicit dtype for sic_code to ensure it's treated as string
             df = pd.read_csv(data_path, dtype={"sic_code": str})
-            
-            # Check if this is the new format (from sic-classification-library)
-            if "reviewed_description" in df.columns:
-                # Use the reviewed_description column from the existing file
-                rephrase_dict = df.set_index("sic_code")["reviewed_description"].to_dict()
-                logger.info(f"Loaded {len(rephrase_dict)} rephrased SIC descriptions from {data_path} (reviewed_description format)")
-            elif "reviewed_description" in df.columns:
-                # Fallback to the original format
-                rephrase_dict = df.set_index("sic_code")["reviewed_description"].to_dict()
-                logger.info(f"Loaded {len(rephrase_dict)} rephrased SIC descriptions from {data_path} (original format)")
-            else:
-                logger.warning(f"CSV file {data_path} does not contain expected columns. Available columns: {list(df.columns)}")
-                return {}
-            
-            return rephrase_dict
-            
+
+            # Validate required columns
+            required_columns = ["sic_code", "reviewed_description"]
+            if not all(col in df.columns for col in required_columns):
+                raise ValueError(f"CSV file must contain columns: {required_columns}")
+
+            # Create dictionary mapping SIC codes to rephrased descriptions
+            rephrased_dict = {}
+            for _, row in df.iterrows():
+                sic_code = str(row["sic_code"]).strip()
+                reviewed_description = str(row["reviewed_description"]).strip()
+
+                if sic_code and reviewed_description:
+                    rephrased_dict[sic_code] = reviewed_description
+
+            logger.info(
+                f"Loaded {len(rephrased_dict)} rephrased SIC descriptions from {data_path} "
+                f"(reviewed_description format)"
+            )
+            return rephrased_dict
+
         except FileNotFoundError:
-            logger.warning(f"Rephrased descriptions file not found at {data_path}. Using empty mapping.")
-            return {}
+            logger.error(f"Rephrased SIC data file not found: {data_path}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Rephrased SIC data file not found: {data_path}",
+            ) from None
         except Exception as e:
-            logger.error(f"Error loading rephrased descriptions from {data_path}: {e}")
-            return {}
+            logger.error(f"Error loading rephrased SIC data from {data_path}: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Error loading rephrased SIC data: {e}"
+            ) from e
 
     def get_rephrased_description(self, sic_code: str) -> Optional[str]:
         """Get the rephrased description for a given SIC code.
 
         Args:
-            sic_code: The SIC code to look up.
+            sic_code (str): The SIC code to look up.
 
         Returns:
-            The rephrased description if found, None otherwise.
+            Optional[str]: The rephrased description if available, None otherwise.
         """
-        # Ensure SIC code is a string and handle leading zeros
-        sic_code_str = str(sic_code).zfill(5)
-        return self.rephrase_data.get(sic_code_str)
+        return self.rephrased_descriptions.get(str(sic_code).strip())
 
-    def process_classification_response(self, response_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_rephrased_count(self) -> int:
+        """Get the number of available rephrased descriptions.
+
+        Returns:
+            int: Number of rephrased descriptions loaded.
+        """
+        return len(self.rephrased_descriptions)
+
+    def has_rephrased_description(self, sic_code: str) -> bool:
+        """Check if a rephrased description exists for a given SIC code.
+
+        Args:
+            sic_code (str): The SIC code to check.
+
+        Returns:
+            bool: True if a rephrased description exists, False otherwise.
+        """
+        return str(sic_code).strip() in self.rephrased_descriptions
+
+    def process_classification_response(
+        self, response_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process a classification response to include rephrased descriptions.
 
         Args:
-            response_data: The classification response data.
+            response_data (dict[str, Any]): The classification response data.
 
         Returns:
-            The response data with rephrased descriptions added.
+            dict[str, Any]: The processed response data with rephrased descriptions.
         """
-        # Process main SIC description
-        if response_data.get("sic_code"):
-            rephrased_desc = self.get_rephrased_description(response_data["sic_code"])
+        # Create a copy to avoid modifying the original
+        processed_response = response_data.copy()
+
+        # Apply rephrased description to the main SIC code if available
+        if processed_response.get("sic_code"):
+            sic_code = str(processed_response["sic_code"])
+            rephrased_desc = self.get_rephrased_description(sic_code)
             if rephrased_desc:
-                response_data["sic_description"] = rephrased_desc
-                logger.debug(f"Rephrased main SIC description for code {response_data['sic_code']}")
+                processed_response["sic_description"] = rephrased_desc
 
-        # Process SIC candidates
-        for candidate in response_data.get("sic_candidates", []):
-            if candidate.get("sic_code"):
-                rephrased_desc = self.get_rephrased_description(candidate["sic_code"])
-                if rephrased_desc:
-                    candidate["sic_descriptive"] = rephrased_desc
-                    logger.debug(f"Rephrased candidate description for code {candidate['sic_code']}")
+        # Apply rephrased descriptions to candidates if available
+        if processed_response.get("sic_candidates"):
+            for candidate in processed_response["sic_candidates"]:
+                if candidate.get("sic_code"):
+                    sic_code = str(candidate["sic_code"])
+                    rephrased_desc = self.get_rephrased_description(sic_code)
+                    if rephrased_desc:
+                        candidate["sic_descriptive"] = rephrased_desc
 
-        return response_data
-
-    def get_rephrased_count(self) -> int:
-        """Get the total number of rephrased descriptions available.
-
-        Returns:
-            int: The total number of rephrased descriptions available.
-        """
-        return len(self.rephrase_data) 
+        return processed_response
