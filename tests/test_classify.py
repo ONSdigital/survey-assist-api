@@ -54,15 +54,20 @@ class TestClassifyEndpoint:
         self.mock_llm = None
         self.mock_vector_store = None
         self.mock_vertexai = None
+        self.mock_rephrase_client = None
 
+    @patch("api.routes.v1.classify.SICRephraseClient")
     @patch("api.routes.v1.classify.SICVectorStoreClient")
     @patch("api.main.app.state.gemini_llm")
     @patch("google.auth.default")
-    def setup_method(self, mock_auth, mock_llm, mock_vector_store):
+    def setup_method(
+        self, mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+    ):
         """Set up test fixtures."""
         self.mock_auth = mock_auth
         self.mock_llm = mock_llm
         self.mock_vector_store = mock_vector_store
+        self.mock_rephrase_client = mock_rephrase_client
 
         self.mock_auth.return_value = (MagicMock(), "test-project")
         self.mock_vector_store.return_value.search = AsyncMock(
@@ -74,6 +79,21 @@ class TestClassifyEndpoint:
                 }
             ]
         )
+
+        # Mock the rephrase client
+        mock_rephrase_instance = MagicMock()
+        mock_rephrase_instance.process_classification_response.return_value = {
+            "classified": True,
+            "followup": None,
+            "sic_code": EXPECTED_SIC_CODE,
+            "sic_description": EXPECTED_SIC_DESCRIPTION,
+            "sic_candidates": [],
+            "reasoning": "Mocked reasoning",
+            "prompt_used": None,
+        }
+        mock_rephrase_instance.get_rephrased_count.return_value = 0
+        self.mock_rephrase_client.return_value = mock_rephrase_instance
+
         mock_llm_instance = MagicMock()
         mock_llm_instance.sa_rag_sic_code.return_value = (
             MagicMock(
@@ -133,10 +153,13 @@ class TestClassifyEndpoint:
         )
 
 
+@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
+def test_classify_followup_question(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
     """Test the follow-up question functionality of the classification endpoint.
 
     This test verifies that when additional information is needed for classification,
@@ -163,6 +186,27 @@ def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_instance.process_classification_response.return_value = {
+        "classified": False,
+        "followup": "Please specify if this is electrical or plumbing installation.",
+        "sic_code": None,
+        "sic_description": None,
+        "sic_candidates": [
+            {
+                "sic_code": EXPECTED_SIC_CODE,
+                "sic_descriptive": EXPECTED_SIC_DESCRIPTION,
+                "likelihood": 0.8,
+            }
+        ],
+        "reasoning": "Mocked reasoning",
+        "prompt_used": None,
+    }
+    mock_rephrase_instance.get_rephrased_count.return_value = 0
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=False,
@@ -206,10 +250,13 @@ def test_classify_followup_question(mock_auth, mock_llm, mock_vector_store):
     assert "plumbing" in data["followup"].lower()
 
 
+@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
+def test_classify_endpoint_success(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
     """Test the structure of a successful classification response.
 
     This test verifies that a successful classification response contains all
@@ -233,6 +280,27 @@ def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_instance.process_classification_response.return_value = {
+        "classified": True,
+        "followup": None,
+        "sic_code": EXPECTED_SIC_CODE,
+        "sic_description": EXPECTED_SIC_DESCRIPTION,
+        "sic_candidates": [
+            {
+                "sic_code": EXPECTED_SIC_CODE,
+                "sic_descriptive": EXPECTED_SIC_DESCRIPTION,
+                "likelihood": EXPECTED_LIKELIHOOD,
+            }
+        ],
+        "reasoning": "Mocked reasoning",
+        "prompt_used": None,
+    }
+    mock_rephrase_instance.get_rephrased_count.return_value = 0
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,
@@ -278,10 +346,13 @@ def test_classify_endpoint_success(mock_auth, mock_llm, mock_vector_store):
     assert data["sic_candidates"][0]["likelihood"] == EXPECTED_LIKELIHOOD
 
 
+@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
+def test_classify_endpoint_invalid_json(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
     """Test the endpoint's handling of invalid JSON input.
 
     This test verifies that the endpoint correctly handles invalid JSON input by:
@@ -301,6 +372,11 @@ def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,
@@ -323,10 +399,13 @@ def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_vector_store):
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
+@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
+def test_classify_endpoint_invalid_llm(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
     """Test the endpoint's handling of invalid LLM model specifications.
 
     This test verifies that the endpoint correctly handles invalid LLM model
@@ -347,6 +426,11 @@ def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,
@@ -376,10 +460,13 @@ def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_vector_store):
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
+@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_vector_store):
+def test_classify_endpoint_invalid_type(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
     """Test the endpoint's handling of invalid classification types.
 
     This test verifies that the endpoint correctly handles invalid classification
@@ -400,6 +487,11 @@ def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_vector_store):
             }
         ]
     )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=True,

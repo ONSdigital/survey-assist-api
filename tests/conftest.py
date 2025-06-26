@@ -36,7 +36,7 @@ def pytest_configure(config):  # pylint: disable=unused-argument
         config (pytest.Config): The pytest configuration object containing command-line
             options and plugin configurations.
     """
-    # Mock the LLM initialization
+    # Mock the LLM initialisation
     mock_llm = MagicMock(spec=ClassificationLLM)
     mock_llm.model_name = "gemini-1.5-flash"  # Set the model name for config endpoint
 
