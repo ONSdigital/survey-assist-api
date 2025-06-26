@@ -5,8 +5,11 @@ from unittest.mock import patch
 
 import pytest
 from fastapi import HTTPException
+from survey_assist_utils.logging import get_logger
 
 from api.services.sic_rephrase_client import SICRephraseClient
+
+logger = get_logger(__name__)
 
 
 class TestSICRephraseClient:
