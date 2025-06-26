@@ -17,6 +17,7 @@ from api.models.classify import (
     SicCandidate,
 )
 from api.services.sic_vector_store_client import SICVectorStoreClient
+from api.services.sic_rephrase_client import SICRephraseClient
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
@@ -31,6 +32,15 @@ def get_vector_store_client() -> SICVectorStoreClient:
     return SICVectorStoreClient()
 
 
+def get_rephrase_client() -> SICRephraseClient:
+    """Get a SIC rephrase client instance.
+
+    Returns:
+        SICRephraseClient: A SIC rephrase client instance.
+    """
+    return SICRephraseClient()
+
+
 def get_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
     """Get a ClassificationLLM instance."""
     if ClassificationLLM is None:
@@ -42,6 +52,7 @@ def get_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
 
 # Define dependencies at module level
 vector_store_dependency = Depends(get_vector_store_client)
+rephrase_dependency = Depends(get_rephrase_client)
 llm_dependency = Depends(get_llm_client)
 
 
@@ -50,6 +61,7 @@ async def classify_text(
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient = vector_store_dependency,
+    rephrase_client: SICRephraseClient = rephrase_dependency,
 ) -> ClassificationResponse:
     """Classify the provided text.
 
@@ -57,6 +69,7 @@ async def classify_text(
         request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The request containing the text to classify.
         vector_store (SICVectorStoreClient): Vector store client instance.
+        rephrase_client (SICRephraseClient): SIC rephrase client instance.
 
     Returns:
         ClassificationResponse: A response containing the classification results.
@@ -113,7 +126,7 @@ async def classify_text(
             for c in getattr(llm_response, "alt_candidates", [])
         ]
 
-        return ClassificationResponse(
+        response = ClassificationResponse(
             classified=bool(getattr(llm_response, "classified", False)),
             followup=getattr(llm_response, "followup", None),
             sic_code=getattr(llm_response, "class_code", None),
@@ -122,6 +135,18 @@ async def classify_text(
             reasoning=getattr(llm_response, "reasoning", ""),
             prompt_used=str(actual_prompt) if actual_prompt else None,
         )
+
+        # Apply rephrased descriptions to the response
+        response_dict = response.model_dump()
+        rephrased_response_dict = rephrase_client.process_classification_response(response_dict)
+        
+        # Convert back to ClassificationResponse model
+        rephrased_response = ClassificationResponse(**rephrased_response_dict)
+        
+        logger.info(f"Applied rephrased descriptions to classification response. "
+                   f"Available rephrased descriptions: {rephrase_client.get_rephrased_count()}")
+
+        return rephrased_response
 
     except Exception as e:
         logger.error("Error in classify endpoint", error=str(e))
