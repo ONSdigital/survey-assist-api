@@ -144,7 +144,6 @@ The classification process works as follows:
   }
   ```
 
-<<<<<<< HEAD
 ### Get Result Endpoint
 - **Base URL**: `http://localhost:8080`
 - **Path**: `/v1/survey-assist/result`
@@ -207,8 +206,6 @@ curl -X POST "http://localhost:8080/v1/survey-assist/result" \
 curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey-123/test.userSA187/2024-03-19/10_30_15.json"
 ```
 
-=======
->>>>>>> e53e6fb (update config endpoint documentation to reflect dynamic data retrieval)
 ### SIC Lookup Endpoint
 - **Path**: `/v1/survey-assist/sic-lookup`
 - **Method**: GET
