@@ -4,8 +4,6 @@ This module provides a client for the SIC rephrase service, which is used to
 map standard SIC descriptions to user-friendly rephrased versions.
 """
 
-import importlib.util
-import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -45,33 +43,17 @@ class SICRephraseClient:
         Returns:
             str: Path to the rephrased SIC data file.
         """
-        # Check for environment variable first
-        env_path = os.environ.get("SIC_REPHRASE_DATA_PATH")
-        if env_path:
-            logger.info(f"Using rephrase data from environment variable: {env_path}")
-            return env_path
-
-        # Use the SIC classification library path
-        try:
-            # Just check if the module exists, we don't need to import the class
-            if importlib.util.find_spec("industrial_classification.lookup.sic_lookup"):
-                # Get the path from the SIC classification library
-                base_path = Path(__file__).parent.parent.parent
-                data_file = (
-                    "sic-classification-library/src/industrial_classification/data/"
-                    "example_rephrased_sic_data.csv"
-                )
-                local_path = base_path / data_file
-                logger.info(
-                    f"Using rephrase data from SIC classification library: {local_path}"
-                )
-                return str(local_path)
-            raise ImportError("Module not found")
-        except ImportError:
-            # Fallback to local path if SIC classification library is not available
-            local_path = Path(__file__).parent / "data/example_rephrased_sic_data.csv"
-            logger.info(f"Using rephrase data from local path: {local_path}")
-            return str(local_path)
+        # Get the absolute path to the project root (one more parent)
+        project_root = Path(__file__).parent.parent.parent.parent
+        resolved_path = str(
+            project_root
+            / "sic-classification-library/src/industrial_classification"
+            / "data/example_rephrased_sic_data.csv"
+        )
+        logger.info(
+            f"Using rephrase data from SIC classification library: {resolved_path}"
+        )
+        return resolved_path
 
     def _load_rephrase_data(self, data_path: str) -> dict[str, str]:
         """Load rephrased descriptions from CSV file.
