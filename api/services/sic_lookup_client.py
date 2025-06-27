@@ -28,8 +28,8 @@ class SICLookupClient:
         """
         # Use the provided path or default path
         if data_path is None:
-            # Get the absolute path to the project root
-            project_root = Path(__file__).parent.parent.parent
+            # Get the absolute path to the project root (one more parent)
+            project_root = Path(__file__).parent.parent.parent.parent
             resolved_path = str(
                 project_root
                 / "sic-classification-library/src/industrial_classification"
