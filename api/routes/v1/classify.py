@@ -5,6 +5,8 @@ It defines the classification endpoint and returns classification results using
 vector store and LLM.
 """
 
+# mypy: disable-error-code="import-not-found,assignment,misc"
+
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -23,9 +25,14 @@ from api.models.soc_classify import SocCandidate, SocClassificationResponse
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
-from occupational_classification_utils.llm.llm import (
-    ClassificationLLM as SOCClassificationLLM,
-)
+
+# Import SOC classification LLM with fallback
+try:
+    from occupational_classification_utils.llm.llm import (
+        ClassificationLLM as SOCClassificationLLM,
+    )
+except ImportError:
+    SOCClassificationLLM = None
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
@@ -81,7 +88,6 @@ async def classify_text(
     request: Request,
     classification_request: ClassificationRequest,
     sic_vector_store: SICVectorStoreClient = sic_vector_store_dependency,
-    soc_vector_store: SOCVectorStoreClient = soc_vector_store_dependency,
     rephrase_client: SICRephraseClient = rephrase_dependency,
 ) -> Union[ClassificationResponse, SocClassificationResponse]:
     """Classify the provided text.
@@ -90,7 +96,6 @@ async def classify_text(
         request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The request containing the text to classify.
         sic_vector_store (SICVectorStoreClient): SIC vector store client instance.
-        soc_vector_store (SOCVectorStoreClient): SOC vector store client instance.
         rephrase_client (SICRephraseClient): SIC rephrase client instance.
 
     Returns:
@@ -119,7 +124,7 @@ async def classify_text(
             response = await _classify_sic(
                 request, classification_request, sic_vector_store
             )
-            
+
             # Apply rephrased descriptions to the SIC response
             response_dict = response.model_dump()
             rephrased_response_dict = rephrase_client.process_classification_response(
@@ -135,7 +140,7 @@ async def classify_text(
             )
 
             return rephrased_response
-            
+
         if classification_request.type == ClassificationType.SOC:
             return await _classify_soc(classification_request)
         logger.error(
@@ -227,6 +232,9 @@ async def _classify_soc(
     Returns:
         SocClassificationResponse: The SOC classification response.
     """
+    if SOCClassificationLLM is None:
+        raise ImportError("SOCClassificationLLM could not be imported.")
+
     # Create SOC LLM service without embedding handler for now
     # This will use direct classification instead of RAG
     soc_llm = SOCClassificationLLM()
