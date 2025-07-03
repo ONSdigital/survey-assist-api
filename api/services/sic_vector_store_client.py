@@ -14,7 +14,7 @@ from survey_assist_utils.logging import get_logger
 logger = get_logger(__name__)
 
 
-class SICVectorStoreClient:  # pylint: disable=too-few-public-methods
+class SICVectorStoreClient:  # pylint: disable=too-few-public-methods,duplicate-code
     """Client for the vector store service.
 
     This class provides a client for the vector store service, which is used to
