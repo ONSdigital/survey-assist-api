@@ -8,7 +8,9 @@ vector store and LLM.
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from industrial_classification_utils.llm.llm import ClassificationLLM
+from industrial_classification_utils.llm.llm import (
+    ClassificationLLM as SICClassificationLLM,
+)
 from survey_assist_utils.logging import get_logger
 
 from api.models.classify import (
@@ -17,11 +19,13 @@ from api.models.classify import (
     ClassificationType,
     SicCandidate,
 )
-from api.models.soc_classify import SocClassificationResponse
+from api.models.soc_classify import SocCandidate, SocClassificationResponse
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
-from api.services.soc_llm_service import SOCLLMService
 from api.services.soc_vector_store_client import SOCVectorStoreClient
+from occupational_classification_utils.llm.llm import (
+    ClassificationLLM as SOCClassificationLLM,
+)
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
@@ -56,11 +60,11 @@ def get_rephrase_client() -> SICRephraseClient:
 
 def get_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
     """Get a ClassificationLLM instance."""
-    if ClassificationLLM is None:
-        raise ImportError("ClassificationLLM could not be imported.")
+    if SICClassificationLLM is None:
+        raise ImportError("SICClassificationLLM could not be imported.")
     if model_name:
-        return ClassificationLLM(model_name=model_name)
-    return ClassificationLLM()
+        return SICClassificationLLM(model_name=model_name)
+    return SICClassificationLLM()
 
 
 # Define dependencies at module level
@@ -133,9 +137,7 @@ async def classify_text(
             return rephrased_response
             
         if classification_request.type == ClassificationType.SOC:
-            return await _classify_soc(
-                request, classification_request, soc_vector_store
-            )
+            return await _classify_soc(classification_request)
         logger.error(
             "Unsupported classification type", type=classification_request.type
         )
@@ -215,47 +217,45 @@ async def _classify_sic(
 
 
 async def _classify_soc(
-    request: Request,
     classification_request: ClassificationRequest,
-    vector_store: SOCVectorStoreClient,
 ) -> SocClassificationResponse:
     """Classify using SOC classification.
 
     Args:
-        request: The FastAPI request object.
         classification_request: The classification request.
-        vector_store: The SOC vector store client.
 
     Returns:
         SocClassificationResponse: The SOC classification response.
     """
-    # Get vector store search results
-    search_results = await vector_store.search(
-        industry_descr=classification_request.org_description,
+    # Create SOC LLM service without embedding handler for now
+    # This will use direct classification instead of RAG
+    soc_llm = SOCClassificationLLM()
+
+    # Call the SOC LLM service using direct classification
+    llm_response = soc_llm.get_soc_code(
         job_title=classification_request.job_title,
         job_description=classification_request.job_description,
+        level_of_education="Unknown",  # Default value
+        manage_others=False,  # Default value
+        industry_descr=classification_request.org_description or "",
     )
 
-    # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
-    short_list = [
-        {
-            "code": result["code"],
-            "title": result["title"],
-            "distance": result["distance"],
-        }
-        for result in search_results
+    # Map LLM response to API response
+    candidates = [
+        SocCandidate(
+            soc_code=c.soc_code,
+            soc_descriptive=c.soc_descriptive,
+            likelihood=c.likelihood,
+        )
+        for c in getattr(llm_response, "soc_candidates", [])
     ]
 
-    # Get LLM instance and create SOC service
-    llm = request.app.state.gemini_llm
-    soc_service = SOCLLMService(llm)
-
-    # Call SOC classification
-    llm_response, _, _ = soc_service.sa_rag_soc_code(
-        industry_descr=classification_request.org_description or "",
-        job_title=classification_request.job_title,
-        job_description=classification_request.job_description,
-        short_list=short_list,
+    return SocClassificationResponse(
+        classified=bool(getattr(llm_response, "codable", False)),
+        followup=None,  # Direct classification doesn't provide followup
+        soc_code=getattr(llm_response, "soc_code", None),
+        soc_description=getattr(llm_response, "soc_descriptive", None),
+        soc_candidates=candidates,
+        reasoning=getattr(llm_response, "reasoning", ""),
+        prompt_used=None,  # SOC LLM doesn't return the prompt
     )
-
-    return llm_response
