@@ -43,21 +43,31 @@ class Candidate(BaseModel):
     """Model for classification candidates."""
 
     code: str = Field(..., description="The classification code")
-    description: str = Field(..., description="The classification description")
+    descriptive: str = Field(..., description="The classification description")
     likelihood: float = Field(..., description="Confidence score between 0 and 1")
+
+
+class ClassificationResult(BaseModel):
+    """Model for a single classification result."""
+
+    type: str = Field(..., description="Type of classification (sic or soc)")
+    classified: bool = Field(..., description="Whether the input was classified")
+    followup: Optional[str] = Field(None, description="Follow-up question if needed")
+    code: Optional[str] = Field(None, description="The classification code")
+    description: Optional[str] = Field(None, description="The classification description")
+    candidates: list[Candidate] = Field(
+        ..., description="List of potential classifications"
+    )
+    reasoning: str = Field(..., description="Reasoning behind the classification")
 
 
 class ClassificationResponse(BaseModel):
     """Model for classification response."""
 
-    classified: bool = Field(..., description="Whether the input was classified")
-    code: str = Field(..., description="The classification code")
-    description: str = Field(..., description="The classification description")
-    reasoning: str = Field(..., description="Reasoning behind the classification")
-    candidates: list[Candidate] = Field(
-        ..., description="List of potential classifications"
+    requested_type: str = Field(..., description="The requested classification type")
+    results: list[ClassificationResult] = Field(
+        ..., description="List of classification results"
     )
-    follow_up: FollowUp = Field(..., description="Follow-up questions if needed")
 
 
 class PotentialDivision(BaseModel):
@@ -99,7 +109,7 @@ class SurveyAssistInteraction(BaseModel):
         pattern="^(classify|lookup)$",
     )
     flavour: str = Field(
-        ..., description="Classification flavour (sic or soc)", pattern="^(sic|soc)$"
+        ..., description="Classification flavour (sic, soc, or sic_soc)", pattern="^(sic|soc|sic_soc)$"
     )
     time_start: datetime = Field(..., description="Start time of the interaction")
     time_end: datetime = Field(..., description="End time of the interaction")
