@@ -45,6 +45,67 @@ class ClassificationRequest(BaseModel):
     )
 
 
+class Candidate(BaseModel):
+    """Generic model for a classification code candidate.
+
+    Attributes:
+        code (str): The classification code (SIC or SOC).
+        descriptive (str): The code description.
+        likelihood (float): The likelihood of the match.
+    """
+
+    code: str = Field(..., description="Classification code")
+    descriptive: str = Field(..., description="Code description")
+    likelihood: float = Field(ge=0.0, le=1.0, description="Likelihood of match")
+
+
+class ClassificationResult(BaseModel):
+    """Generic model for a classification result.
+
+    Attributes:
+        type (str): The type of classification (sic or soc).
+        classified (bool): Whether the input could be definitively classified.
+        followup (Optional[str]): Additional question to help classify.
+        code (Optional[str]): The classification code. Empty if classified=False.
+        description (Optional[str]): The code description. Empty if classified=False.
+        candidates (list[Candidate]): List of potential code candidates.
+        reasoning (str): Reasoning behind the LLM's response.
+    """
+
+    type: str = Field(..., description="Type of classification (sic or soc)")
+    classified: bool = Field(
+        ..., description="Could the input be definitively classified?"
+    )
+    followup: Optional[str] = Field(
+        None, description="Additional question to help classify"
+    )
+    code: Optional[str] = Field(
+        None, description="Classification code. Empty if classified=False"
+    )
+    description: Optional[str] = Field(
+        None, description="Code description. Empty if classified=False"
+    )
+    candidates: list[Candidate] = Field(
+        ..., description="List of potential code candidates"
+    )
+    reasoning: str = Field(..., description="Reasoning behind the LLM's response")
+
+
+class ClassificationResponse(BaseModel):
+    """Model for the classification response.
+
+    Attributes:
+        requested_type (str): The requested classification type.
+        results (list[ClassificationResult]): List of classification results.
+    """
+
+    requested_type: str = Field(..., description="The requested classification type")
+    results: list[ClassificationResult] = Field(
+        ..., description="List of classification results"
+    )
+
+
+# Legacy models for backward compatibility
 class SicCandidate(BaseModel):
     """Model for a SIC code candidate.
 
@@ -59,8 +120,8 @@ class SicCandidate(BaseModel):
     likelihood: float = Field(ge=0.0, le=1.0, description="Likelihood of match")
 
 
-class ClassificationResponse(BaseModel):
-    """Model for the classification response.
+class LegacyClassificationResponse(BaseModel):
+    """Legacy model for the classification response.
 
     Attributes:
         classified (bool): Whether the input could be definitively classified.
