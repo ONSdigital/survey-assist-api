@@ -18,8 +18,9 @@ from survey_assist_utils.logging import get_logger
 from api.models.classify import (
     ClassificationRequest,
     ClassificationResponse,
+    ClassificationResult,
+    Candidate,
     ClassificationType,
-    SicCandidate,
 )
 from api.models.soc_classify import SocCandidate, SocClassificationResponse
 from api.services.sic_rephrase_client import SICRephraseClient
@@ -81,15 +82,13 @@ rephrase_dependency = Depends(get_rephrase_client)
 llm_dependency = Depends(get_llm_client)
 
 
-@router.post(
-    "/classify", response_model=Union[ClassificationResponse, SocClassificationResponse]
-)
+@router.post("/classify", response_model=ClassificationResponse)
 async def classify_text(
     request: Request,
     classification_request: ClassificationRequest,
     sic_vector_store: SICVectorStoreClient = sic_vector_store_dependency,
     rephrase_client: SICRephraseClient = rephrase_dependency,
-) -> Union[ClassificationResponse, SocClassificationResponse]:
+) -> ClassificationResponse:
     """Classify the provided text.
 
     Args:
@@ -99,8 +98,7 @@ async def classify_text(
         rephrase_client (SICRephraseClient): SIC rephrase client instance.
 
     Returns:
-        Union[ClassificationResponse, SocClassificationResponse]: A response containing
-        the classification results.
+        ClassificationResponse: A response containing the classification results.
 
     Raises:
         HTTPException: If the input is invalid or classification fails.
@@ -119,36 +117,131 @@ async def classify_text(
         )
 
     try:
+        results = []
+        
         # Handle different classification types
         if classification_request.type == ClassificationType.SIC:
-            response = await _classify_sic(
+            sic_result = await _classify_sic(
                 request, classification_request, sic_vector_store
             )
-
+            
             # Apply rephrased descriptions to the SIC response
-            response_dict = response.model_dump()
-            rephrased_response_dict = rephrase_client.process_classification_response(
-                response_dict
+            sic_result_dict = sic_result.model_dump()
+            rephrased_result_dict = rephrase_client.process_classification_response(
+                sic_result_dict
             )
-
-            # Convert back to ClassificationResponse model
-            rephrased_response = ClassificationResponse(**rephrased_response_dict)
-
+            
+            # Convert rephrased result back to new format
+            sic_result = ClassificationResult(
+                type="sic",
+                classified=rephrased_result_dict["classified"],
+                followup=rephrased_result_dict["followup"],
+                code=rephrased_result_dict.get("sic_code"),
+                description=rephrased_result_dict.get("sic_description"),
+                candidates=[
+                    Candidate(
+                        code=c["sic_code"],
+                        descriptive=c["sic_descriptive"],
+                        likelihood=c["likelihood"],
+                    )
+                    for c in rephrased_result_dict.get("sic_candidates", [])
+                ],
+                reasoning=rephrased_result_dict["reasoning"],
+            )
+            results.append(sic_result)
+            
             logger.info(
                 f"Applied rephrased descriptions to classification response. "
                 f"Available rephrased descriptions: {rephrase_client.get_rephrased_count()}"
             )
 
-            return rephrased_response
+        elif classification_request.type == ClassificationType.SOC:
+            soc_result = await _classify_soc(classification_request)
+            
+            # Convert to generic format
+            generic_result = ClassificationResult(
+                type="soc",
+                classified=soc_result.classified,
+                followup=soc_result.followup,
+                code=soc_result.soc_code,
+                description=soc_result.soc_description,
+                candidates=[
+                    Candidate(
+                        code=c.soc_code,
+                        descriptive=c.soc_descriptive,
+                        likelihood=c.likelihood,
+                    )
+                    for c in soc_result.soc_candidates
+                ],
+                reasoning=soc_result.reasoning,
+            )
+            results.append(generic_result)
+            
+        elif classification_request.type == ClassificationType.SIC_SOC:
+            # Perform both SIC and SOC classifications
+            sic_result = await _classify_sic(
+                request, classification_request, sic_vector_store
+            )
+            
+            # Apply rephrased descriptions to the SIC response
+            sic_result_dict = sic_result.model_dump()
+            rephrased_result_dict = rephrase_client.process_classification_response(
+                sic_result_dict
+            )
+            
+            # Convert rephrased result back to new format
+            sic_result = ClassificationResult(
+                type="sic",
+                classified=rephrased_result_dict["classified"],
+                followup=rephrased_result_dict["followup"],
+                code=rephrased_result_dict.get("sic_code"),
+                description=rephrased_result_dict.get("sic_description"),
+                candidates=[
+                    Candidate(
+                        code=c["sic_code"],
+                        descriptive=c["sic_descriptive"],
+                        likelihood=c["likelihood"],
+                    )
+                    for c in rephrased_result_dict.get("sic_candidates", [])
+                ],
+                reasoning=rephrased_result_dict["reasoning"],
+            )
+            results.append(sic_result)
+            
+            # Perform SOC classification
+            soc_result = await _classify_soc(classification_request)
+            
+            # Convert SOC to generic format
+            soc_generic_result = ClassificationResult(
+                type="soc",
+                classified=soc_result.classified,
+                followup=soc_result.followup,
+                code=soc_result.soc_code,
+                description=soc_result.soc_description,
+                candidates=[
+                    Candidate(
+                        code=c.soc_code,
+                        descriptive=c.soc_descriptive,
+                        likelihood=c.likelihood,
+                    )
+                    for c in soc_result.soc_candidates
+                ],
+                reasoning=soc_result.reasoning,
+            )
+            results.append(soc_generic_result)
+            
+        else:
+            logger.error(
+                "Unsupported classification type", type=classification_request.type
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=(f"Unsupported classification type: {classification_request.type}"),
+            )
 
-        if classification_request.type == ClassificationType.SOC:
-            return await _classify_soc(classification_request)
-        logger.error(
-            "Unsupported classification type", type=classification_request.type
-        )
-        raise HTTPException(
-            status_code=400,
-            detail=(f"Unsupported classification type: {classification_request.type}"),
+        return ClassificationResponse(
+            requested_type=classification_request.type.value,
+            results=results,
         )
 
     except Exception as e:
@@ -163,7 +256,7 @@ async def _classify_sic(
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient,
-) -> ClassificationResponse:
+) -> ClassificationResult:
     """Classify using SIC classification.
 
     Args:
@@ -172,7 +265,7 @@ async def _classify_sic(
         vector_store: The SIC vector store client.
 
     Returns:
-        ClassificationResponse: The SIC classification response.
+        ClassificationResult: The SIC classification result.
     """
     # Get vector store search results
     search_results = await vector_store.search(
@@ -200,24 +293,24 @@ async def _classify_sic(
         short_list=short_list,
     )
 
-    # Map LLM response to API response
+    # Map LLM response to generic format
     candidates = [
-        SicCandidate(
-            sic_code=c.class_code,
-            sic_descriptive=c.class_descriptive,
+        Candidate(
+            code=c.class_code,
+            descriptive=c.class_descriptive,
             likelihood=c.likelihood,
         )
         for c in getattr(llm_response, "alt_candidates", [])
     ]
 
-    return ClassificationResponse(
+    return ClassificationResult(
+        type="sic",
         classified=bool(getattr(llm_response, "classified", False)),
         followup=getattr(llm_response, "followup", None),
-        sic_code=getattr(llm_response, "class_code", None),
-        sic_description=getattr(llm_response, "class_descriptive", None),
-        sic_candidates=candidates,
+        code=getattr(llm_response, "class_code", None),
+        description=getattr(llm_response, "class_descriptive", None),
+        candidates=candidates,
         reasoning=getattr(llm_response, "reasoning", ""),
-        prompt_used=str(actual_prompt) if actual_prompt else None,
     )
 
 
