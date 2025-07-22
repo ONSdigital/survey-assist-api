@@ -240,14 +240,19 @@ def test_classify_followup_question(
 
     data = response.json()
     logger.info("Received response data", data=data)
-    assert data["classified"] is False
-    assert data["followup"] is not None
-    assert data["sic_code"] is None
-    assert data["sic_description"] is None
-    assert len(data["sic_candidates"]) > 0
-    assert "installation" in data["followup"].lower()
-    assert "electrical" in data["followup"].lower()
-    assert "plumbing" in data["followup"].lower()
+    assert data["requested_type"] == "sic"
+    assert len(data["results"]) == 1
+    
+    result = data["results"][0]
+    assert result["type"] == "sic"
+    assert result["classified"] is False
+    assert result["followup"] is not None
+    assert result["code"] is None
+    assert result["description"] is None
+    assert len(result["candidates"]) > 0
+    assert "installation" in result["followup"].lower()
+    assert "electrical" in result["followup"].lower()
+    assert "plumbing" in result["followup"].lower()
 
 
 @patch("api.routes.v1.classify.SICRephraseClient")
@@ -336,14 +341,19 @@ def test_classify_endpoint_success(
 
     data = response.json()
     logger.info("Received response data", data=data)
-    assert data["classified"] is True
-    assert data["followup"] is None
-    assert data["sic_code"] == EXPECTED_SIC_CODE
-    assert data["sic_description"] == EXPECTED_SIC_DESCRIPTION
-    assert len(data["sic_candidates"]) > 0
-    assert data["sic_candidates"][0]["sic_code"] == EXPECTED_SIC_CODE
-    assert data["sic_candidates"][0]["sic_descriptive"] == EXPECTED_SIC_DESCRIPTION
-    assert data["sic_candidates"][0]["likelihood"] == EXPECTED_LIKELIHOOD
+    assert data["requested_type"] == "sic"
+    assert len(data["results"]) == 1
+    
+    result = data["results"][0]
+    assert result["type"] == "sic"
+    assert result["classified"] is True
+    assert result["followup"] is None
+    assert result["code"] == EXPECTED_SIC_CODE
+    assert result["description"] == EXPECTED_SIC_DESCRIPTION
+    assert len(result["candidates"]) > 0
+    assert result["candidates"][0]["code"] == EXPECTED_SIC_CODE
+    assert result["candidates"][0]["descriptive"] == EXPECTED_SIC_DESCRIPTION
+    assert result["candidates"][0]["likelihood"] == EXPECTED_LIKELIHOOD
 
 
 @patch("api.routes.v1.classify.SICRephraseClient")
