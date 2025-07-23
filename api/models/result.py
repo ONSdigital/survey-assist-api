@@ -54,7 +54,9 @@ class ClassificationResult(BaseModel):
     classified: bool = Field(..., description="Whether the input was classified")
     followup: Optional[str] = Field(None, description="Follow-up question if needed")
     code: Optional[str] = Field(None, description="The classification code")
-    description: Optional[str] = Field(None, description="The classification description")
+    description: Optional[str] = Field(
+        None, description="The classification description"
+    )
     candidates: list[Candidate] = Field(
         ..., description="List of potential classifications"
     )
@@ -109,7 +111,9 @@ class SurveyAssistInteraction(BaseModel):
         pattern="^(classify|lookup)$",
     )
     flavour: str = Field(
-        ..., description="Classification flavour (sic, soc, or sic_soc)", pattern="^(sic|soc|sic_soc)$"
+        ...,
+        description="Classification flavour (sic, soc, or sic_soc)",
+        pattern="^(sic|soc|sic_soc)$",
     )
     time_start: datetime = Field(..., description="Start time of the interaction")
     time_end: datetime = Field(..., description="End time of the interaction")

@@ -242,7 +242,7 @@ def test_classify_followup_question(
     logger.info("Received response data", data=data)
     assert data["requested_type"] == "sic"
     assert len(data["results"]) == 1
-    
+
     result = data["results"][0]
     assert result["type"] == "sic"
     assert result["classified"] is False
@@ -343,7 +343,7 @@ def test_classify_endpoint_success(
     logger.info("Received response data", data=data)
     assert data["requested_type"] == "sic"
     assert len(data["results"]) == 1
-    
+
     result = data["results"][0]
     assert result["type"] == "sic"
     assert result["classified"] is True

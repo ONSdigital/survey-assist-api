@@ -7,7 +7,7 @@ vector store and LLM.
 
 # mypy: disable-error-code="import-not-found,assignment,misc"
 
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from industrial_classification_utils.llm.llm import (
@@ -16,10 +16,10 @@ from industrial_classification_utils.llm.llm import (
 from survey_assist_utils.logging import get_logger
 
 from api.models.classify import (
+    Candidate,
     ClassificationRequest,
     ClassificationResponse,
     ClassificationResult,
-    Candidate,
     ClassificationType,
 )
 from api.models.soc_classify import SocCandidate, SocClassificationResponse
@@ -118,19 +118,19 @@ async def classify_text(
 
     try:
         results = []
-        
+
         # Handle different classification types
         if classification_request.type == ClassificationType.SIC:
             sic_result = await _classify_sic(
                 request, classification_request, sic_vector_store
             )
-            
+
             # Apply rephrased descriptions to the SIC response
             sic_result_dict = sic_result.model_dump()
             rephrased_result_dict = rephrase_client.process_classification_response(
                 sic_result_dict
             )
-            
+
             # Convert rephrased result back to new format
             sic_result = ClassificationResult(
                 type="sic",
@@ -149,7 +149,7 @@ async def classify_text(
                 reasoning=rephrased_result_dict["reasoning"],
             )
             results.append(sic_result)
-            
+
             logger.info(
                 f"Applied rephrased descriptions to classification response. "
                 f"Available rephrased descriptions: {rephrase_client.get_rephrased_count()}"
@@ -157,7 +157,7 @@ async def classify_text(
 
         elif classification_request.type == ClassificationType.SOC:
             soc_result = await _classify_soc(classification_request)
-            
+
             # Convert to generic format
             generic_result = ClassificationResult(
                 type="soc",
@@ -176,19 +176,19 @@ async def classify_text(
                 reasoning=soc_result.reasoning,
             )
             results.append(generic_result)
-            
+
         elif classification_request.type == ClassificationType.SIC_SOC:
             # Perform both SIC and SOC classifications
             sic_result = await _classify_sic(
                 request, classification_request, sic_vector_store
             )
-            
+
             # Apply rephrased descriptions to the SIC response
             sic_result_dict = sic_result.model_dump()
             rephrased_result_dict = rephrase_client.process_classification_response(
                 sic_result_dict
             )
-            
+
             # Convert rephrased result back to new format
             sic_result = ClassificationResult(
                 type="sic",
@@ -207,10 +207,10 @@ async def classify_text(
                 reasoning=rephrased_result_dict["reasoning"],
             )
             results.append(sic_result)
-            
+
             # Perform SOC classification
             soc_result = await _classify_soc(classification_request)
-            
+
             # Convert SOC to generic format
             soc_generic_result = ClassificationResult(
                 type="soc",
@@ -229,14 +229,16 @@ async def classify_text(
                 reasoning=soc_result.reasoning,
             )
             results.append(soc_generic_result)
-            
+
         else:
             logger.error(
                 "Unsupported classification type", type=classification_request.type
             )
             raise HTTPException(
                 status_code=400,
-                detail=(f"Unsupported classification type: {classification_request.type}"),
+                detail=(
+                    f"Unsupported classification type: {classification_request.type}"
+                ),
             )
 
         return ClassificationResponse(
@@ -286,7 +288,7 @@ async def _classify_sic(
 
     # Get LLM instance and call sa_rag_sic_code
     llm = request.app.state.gemini_llm
-    llm_response, _, actual_prompt = llm.sa_rag_sic_code(
+    llm_response, _, _ = llm.sa_rag_sic_code(
         industry_descr=classification_request.org_description or "",
         job_title=classification_request.job_title,
         job_description=classification_request.job_description,
