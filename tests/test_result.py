@@ -69,18 +69,24 @@ def test_store_result_success():
                         "time_end": "2024-03-19T10:01:00Z",
                         "input": [{"field": "job_title", "value": "Electrician"}],
                         "response": {
-                            "classified": True,
-                            "code": "432100",
-                            "description": "Electrical installation",
-                            "reasoning": "Based on job title and description",
-                            "candidates": [
+                            "requested_type": "sic",
+                            "results": [
                                 {
+                                    "type": "sic",
+                                    "classified": True,
                                     "code": "432100",
                                     "description": "Electrical installation",
-                                    "likelihood": 0.95,
+                                    "reasoning": "Based on job title and description",
+                                    "candidates": [
+                                        {
+                                            "code": "432100",
+                                            "descriptive": "Electrical installation",
+                                            "likelihood": 0.95,
+                                        }
+                                    ],
+                                    "followup": None,
                                 }
                             ],
-                            "follow_up": {"questions": []},
                         },
                     }
                 ],
@@ -163,18 +169,24 @@ def test_get_result():
                         "time_end": "2024-03-19T10:01:00Z",
                         "input": [{"field": "job_title", "value": "Electrician"}],
                         "response": {
-                            "classified": True,
-                            "code": "432100",
-                            "description": "Electrical installation",
-                            "reasoning": "Based on job title and description",
-                            "candidates": [
+                            "requested_type": "sic",
+                            "results": [
                                 {
+                                    "type": "sic",
+                                    "classified": True,
                                     "code": "432100",
                                     "description": "Electrical installation",
-                                    "likelihood": 0.95,
+                                    "reasoning": "Based on job title and description",
+                                    "candidates": [
+                                        {
+                                            "code": "432100",
+                                            "descriptive": "Electrical installation",
+                                            "likelihood": 0.95,
+                                        }
+                                    ],
+                                    "followup": None,
                                 }
                             ],
-                            "follow_up": {"questions": []},
                         },
                     }
                 ],
@@ -260,18 +272,24 @@ def test_datetime_serialisation():
                         "time_end": datetime.now().isoformat(),
                         "input": [{"field": "job_title", "value": "Electrician"}],
                         "response": {
-                            "classified": True,
-                            "code": "432100",
-                            "description": "Electrical installation",
-                            "reasoning": "Based on job title and description",
-                            "candidates": [
+                            "requested_type": "sic",
+                            "results": [
                                 {
+                                    "type": "sic",
+                                    "classified": True,
                                     "code": "432100",
                                     "description": "Electrical installation",
-                                    "likelihood": 0.95,
+                                    "reasoning": "Based on job title and description",
+                                    "candidates": [
+                                        {
+                                            "code": "432100",
+                                            "descriptive": "Electrical installation",
+                                            "likelihood": 0.95,
+                                        }
+                                    ],
+                                    "followup": None,
                                 }
                             ],
-                            "follow_up": {"questions": []},
                         },
                     }
                 ],
@@ -336,18 +354,24 @@ def create_test_data(survey_id, case_id, user, job_title, job_code):
                         "time_end": "2024-03-19T10:01:00Z",
                         "input": [{"field": "job_title", "value": job_title}],
                         "response": {
-                            "classified": True,
-                            "code": job_code,
-                            "description": f"{job_title} installation",
-                            "reasoning": "Based on job title and description",
-                            "candidates": [
+                            "requested_type": "sic",
+                            "results": [
                                 {
+                                    "type": "sic",
+                                    "classified": True,
                                     "code": job_code,
                                     "description": f"{job_title} installation",
-                                    "likelihood": 0.95,
+                                    "reasoning": "Based on job title and description",
+                                    "candidates": [
+                                        {
+                                            "code": job_code,
+                                            "descriptive": f"{job_title} installation",
+                                            "likelihood": 0.95,
+                                        }
+                                    ],
+                                    "followup": None,
                                 }
                             ],
-                            "follow_up": {"questions": []},
                         },
                     }
                 ],
