@@ -15,10 +15,12 @@ from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
 
-# type: ignore # mypy: disable-error-code="import-not-found"
+# pylint: disable=line-too-long
 from occupational_classification_utils.llm.llm import (
-    ClassificationLLM as SOCClassificationLLM,
+    ClassificationLLM as SOCClassificationLLM,  # type: ignore # mypy: disable-error-code="import-not-found"
 )
+
+# pylint: enable=line-too-long
 
 
 @asynccontextmanager
