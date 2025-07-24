@@ -15,9 +15,13 @@ from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
 
-from occupational_classification_utils.llm.llm import (  # type: ignore # isort: skip  # pylint: disable=wrong-import-order,import-error,no-name-in-module
-    ClassificationLLM as SOCLLM,  # mypy: disable-error-code="import-not-found"  # pylint: disable=line-too-long
-)
+try:
+    from occupational_classification_utils.llm.llm import (  # type: ignore # isort: skip  # pylint: disable=wrong-import-order,import-error,no-name-in-module
+        ClassificationLLM as SOCLLM,  # mypy: disable-error-code="import-not-found"  # pylint: disable=line-too-long
+    )
+except ImportError:
+    # Fallback: use the same ClassificationLLM for both SIC and SOC
+    SOCLLM = ClassificationLLM
 
 
 @asynccontextmanager
