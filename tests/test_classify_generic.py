@@ -48,21 +48,21 @@ def test_generic_classification_format(
     )
 
     # Mock LLM responses
+    mock_llm_response = MagicMock()
+    mock_llm_response.sic_code = "43210"
+    mock_llm_response.sic_descriptive = "Electrical installation"
+    mock_llm_response.reasoning = "Based on job title"
+    mock_llm_response.followup = None
+
+    mock_candidate = MagicMock()
+    mock_candidate.sic_code = "43210"
+    mock_candidate.sic_descriptive = "Electrical installation"
+    mock_candidate.likelihood = 0.95
+
+    mock_llm_response.sic_candidates = [mock_candidate]
+
     mock_llm.sa_rag_sic_code.return_value = (
-        MagicMock(
-            classified=True,
-            class_code="43210",
-            class_descriptive="Electrical installation",
-            reasoning="Based on job title",
-            followup=None,
-            alt_candidates=[
-                MagicMock(
-                    class_code="43210",
-                    class_descriptive="Electrical installation",
-                    likelihood=0.95,
-                )
-            ],
-        ),
+        mock_llm_response,
         None,
         None,
     )
