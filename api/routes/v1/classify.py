@@ -34,7 +34,9 @@ try:
         ClassificationLLM as SOCClassificationLLM,
     )
 except ImportError:
-    SOCClassificationLLM = None
+    # Fallback: use the same ClassificationLLM for both SIC and SOC
+    from industrial_classification_utils.llm.llm import ClassificationLLM
+    SOCClassificationLLM = ClassificationLLM
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
