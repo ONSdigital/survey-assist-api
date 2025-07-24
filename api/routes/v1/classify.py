@@ -132,20 +132,20 @@ async def classify_text(
             )
 
             # Convert rephrased result back to new format
+            # The rephrase client doesn't add a 'classified' field, so we need to determine it
+            # from the sic_code
+            is_classified = bool(
+                rephrased_result_dict.get("sic_code")
+                and rephrased_result_dict.get("sic_code") != "N/A"
+            )
             sic_result = ClassificationResult(
                 type="sic",
-                classified=rephrased_result_dict["classified"],
+                classified=is_classified,
                 followup=rephrased_result_dict["followup"],
                 code=rephrased_result_dict.get("sic_code"),
                 description=rephrased_result_dict.get("sic_description"),
-                candidates=[
-                    Candidate(
-                        code=c["sic_code"],
-                        descriptive=c["sic_descriptive"],
-                        likelihood=c["likelihood"],
-                    )
-                    for c in rephrased_result_dict.get("sic_candidates", [])
-                ],
+                # Use candidates from original LLM response, not rephrase client
+                candidates=sic_result.candidates,
                 reasoning=rephrased_result_dict["reasoning"],
             )
             results.append(sic_result)
@@ -190,20 +190,20 @@ async def classify_text(
             )
 
             # Convert rephrased result back to new format
+            # The rephrase client doesn't add a 'classified' field, so we need to determine it
+            # from the sic_code
+            is_classified = bool(
+                rephrased_result_dict.get("sic_code")
+                and rephrased_result_dict.get("sic_code") != "N/A"
+            )
             sic_result = ClassificationResult(
                 type="sic",
-                classified=rephrased_result_dict["classified"],
+                classified=is_classified,
                 followup=rephrased_result_dict["followup"],
                 code=rephrased_result_dict.get("sic_code"),
                 description=rephrased_result_dict.get("sic_description"),
-                candidates=[
-                    Candidate(
-                        code=c["sic_code"],
-                        descriptive=c["sic_descriptive"],
-                        likelihood=c["likelihood"],
-                    )
-                    for c in rephrased_result_dict.get("sic_candidates", [])
-                ],
+                # Use candidates from original LLM response, not rephrase client
+                candidates=sic_result.candidates,
                 reasoning=rephrased_result_dict["reasoning"],
             )
             results.append(sic_result)
@@ -296,21 +296,25 @@ async def _classify_sic(
     )
 
     # Map LLM response to generic format
+    # SurveyAssistSicResponse has sic_candidates, not alt_candidates
     candidates = [
         Candidate(
-            code=c.class_code,
-            descriptive=c.class_descriptive,
+            code=c.sic_code,
+            descriptive=c.sic_descriptive,
             likelihood=c.likelihood,
         )
-        for c in getattr(llm_response, "alt_candidates", [])
+        for c in getattr(llm_response, "sic_candidates", [])
     ]
 
     return ClassificationResult(
         type="sic",
-        classified=bool(getattr(llm_response, "classified", False)),
+        classified=bool(
+            getattr(llm_response, "sic_code", None)
+            and getattr(llm_response, "sic_code", "") != "N/A"
+        ),
         followup=getattr(llm_response, "followup", None),
-        code=getattr(llm_response, "class_code", None),
-        description=getattr(llm_response, "class_descriptive", None),
+        code=getattr(llm_response, "sic_code", None),
+        description=getattr(llm_response, "sic_descriptive", None),
         candidates=candidates,
         reasoning=getattr(llm_response, "reasoning", ""),
     )
