@@ -14,7 +14,8 @@ from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
-from occupational_classification_utils.llm.llm import (
+
+from occupational_classification_utils.llm.llm import (  # isort: skip
     ClassificationLLM as SOCLLM,  # type: ignore # mypy: disable-error-code="import-not-found"  # pylint: disable=line-too-long
 )
 
