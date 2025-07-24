@@ -14,9 +14,12 @@ from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
-from occupational_classification_utils.llm.llm import (
-    ClassificationLLM as SOCClassificationLLM,  # type: ignore # mypy: disable-error-code="import-not-found"  # pylint: disable=line-too-long
-)
+
+# Import SOC LLM with fallback
+try:
+    from occupational_classification_utils.llm.llm import ClassificationLLM as SOCLLM
+except ImportError:
+    SOCLLM = None  # type: ignore
 
 
 @asynccontextmanager
@@ -28,7 +31,7 @@ async def lifespan(fastapi_app: FastAPI):
     """
     # Startup
     fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-1.5-flash")
-    fastapi_app.state.soc_llm = SOCClassificationLLM(model_name="gemini-1.5-flash")
+    fastapi_app.state.soc_llm = SOCLLM(model_name="gemini-1.5-flash")
     yield
     # Shutdown
     # Add any cleanup code here if needed
