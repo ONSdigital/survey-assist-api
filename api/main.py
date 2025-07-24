@@ -8,6 +8,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from industrial_classification_utils.llm.llm import ClassificationLLM
+from occupational_classification_utils.llm.llm import (
+    ClassificationLLM as SOCClassificationLLM,
+)
 
 from api.routes.v1.classify import router as classify_router
 from api.routes.v1.config import router as config_router
@@ -25,6 +28,7 @@ async def lifespan(fastapi_app: FastAPI):
     """
     # Startup
     fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-1.5-flash")
+    fastapi_app.state.soc_llm = SOCClassificationLLM(model_name="gemini-1.5-flash")
     yield
     # Shutdown
     # Add any cleanup code here if needed
