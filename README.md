@@ -84,18 +84,23 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
   "results": [
     {
       "type": "sic",
-      "classified": true,
-      "followup": null,
-      "code": "43210",
-      "description": "Electrical installation",
+      "classified": false,
+      "followup": "Does the company primarily undertake new electrical installations or focus more on maintenance and repair work?",
+      "code": null,
+      "description": null,
       "candidates": [
         {
           "code": "43210",
           "descriptive": "Electrical installation",
           "likelihood": 0.9
+        },
+        {
+          "code": "71129",
+          "descriptive": "Other engineering activities",
+          "likelihood": 0.3
         }
       ],
-      "reasoning": "The respondent's data indicates an electrical contracting company with a job title of 'Electrician' and job description involving 'Installing and maintaining electrical systems in buildings'. This directly aligns with SIC code 43210: Electrical installation, which covers electrical installation work in buildings and construction projects."
+      "reasoning": "The company's main activity is described as 'Electrical contracting company', and the job description involves 'Installing and maintaining electrical systems in buildings'.  This strongly aligns with SIC code 43210, 'Electrical installation'. SIC code 71129 is considered a less likely alternative because while it includes electrical installation, it's a broader category encompassing other engineering activities.  Further clarification on the company's focus (new installations vs. maintenance) will help refine the classification."
     }
   ]
 }
@@ -129,10 +134,10 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
         {
           "code": "5241",
           "descriptive": "Electricians and electrical fitters",
-          "likelihood": 0.9
+          "likelihood": 1
         }
       ],
-      "reasoning": "The job title 'Electrician' and job description mentioning 'Installing and maintaining electrical systems in buildings' directly corresponds to SOC code 5241: Electricians and electrical fitters. This code specifically covers electrical installation and maintenance work in buildings and construction projects."
+      "reasoning": "The respondent's job title is Electrician and the job description involves installing and maintaining electrical systems in buildings.  The company's main activity is electrical contracting. This directly matches SOC code 5241: Electricians and electrical fitters. Therefore, a likelihood of 1.0 is assigned."
     }
   ]
 }
@@ -158,18 +163,23 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
   "results": [
     {
       "type": "sic",
-      "classified": true,
-      "followup": null,
-      "code": "43210",
-      "description": "Electrical installation",
+      "classified": false,
+      "followup": "Does the company primarily undertake new electrical installations or focus more on maintenance and repair work?",
+      "code": null,
+      "description": null,
       "candidates": [
         {
           "code": "43210",
           "descriptive": "Electrical installation",
           "likelihood": 0.9
+        },
+        {
+          "code": "71129",
+          "descriptive": "Other engineering activities",
+          "likelihood": 0.3
         }
       ],
-      "reasoning": "The respondent's data indicates an electrical contracting company with a job title of 'Electrician' and job description involving 'Installing and maintaining electrical systems in buildings'. This directly aligns with SIC code 43210: Electrical installation, which covers electrical installation work in buildings and construction projects."
+      "reasoning": "The company's main activity is described as 'Electrical contracting company', and the job description involves 'Installing and maintaining electrical systems in buildings'.  This strongly aligns with SIC code 43210, 'Electrical installation'. SIC code 71129 is considered a less likely alternative because while it includes electrical installation, it's a broader category encompassing other engineering activities.  Further clarification on the company's focus (new installations vs. maintenance) will help refine the classification."
     },
     {
       "type": "soc",
@@ -181,10 +191,10 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
         {
           "code": "5241",
           "descriptive": "Electricians and electrical fitters",
-          "likelihood": 0.9
+          "likelihood": 1
         }
       ],
-      "reasoning": "The job title 'Electrician' and job description mentioning 'Installing and maintaining electrical systems in buildings' directly corresponds to SOC code 5241: Electricians and electrical fitters. This code specifically covers electrical installation and maintenance work in buildings and construction projects."
+      "reasoning": "The respondent's job title is Electrician and the job description involves installing and maintaining electrical systems in buildings.  The company's main activity is electrical contracting. This directly matches SOC code 5241: Electricians and electrical fitters. Therefore, a likelihood of 1.0 is assigned."
     }
   ]
 }
