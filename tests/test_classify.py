@@ -209,15 +209,14 @@ def test_classify_followup_question(
 
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
-            classified=False,
+            sic_code=None,
+            sic_descriptive=None,
             followup="Please specify if this is electrical or plumbing installation.",
-            class_code=None,
-            class_descriptive=None,
             reasoning="Mocked reasoning",
-            alt_candidates=[
+            sic_candidates=[
                 MagicMock(
-                    class_code=EXPECTED_SIC_CODE,
-                    class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
                     likelihood=0.8,
                 )
             ],
@@ -308,15 +307,14 @@ def test_classify_endpoint_success(
 
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
-            classified=True,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
             followup=None,
-            class_code=EXPECTED_SIC_CODE,
-            class_descriptive=EXPECTED_SIC_DESCRIPTION,
             reasoning="Mocked reasoning",
-            alt_candidates=[
+            sic_candidates=[
                 MagicMock(
-                    class_code=EXPECTED_SIC_CODE,
-                    class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
                     likelihood=EXPECTED_LIKELIHOOD,
                 )
             ],
@@ -389,12 +387,11 @@ def test_classify_endpoint_invalid_json(
 
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
-            classified=True,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
             followup=None,
-            class_code=EXPECTED_SIC_CODE,
-            class_descriptive=EXPECTED_SIC_DESCRIPTION,
             reasoning="Mocked reasoning",
-            alt_candidates=[],
+            sic_candidates=[],
         ),
         None,
         None,
