@@ -14,12 +14,9 @@ from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
-
-# Import SOC LLM with fallback
-try:
-    from occupational_classification_utils.llm.llm import ClassificationLLM as SOCLLM
-except ImportError:
-    SOCLLM = None  # type: ignore
+from occupational_classification_utils.llm.llm import (
+    ClassificationLLM as SOCLLM,  # type: ignore # mypy: disable-error-code="import-not-found"  # pylint: disable=line-too-long
+)
 
 
 @asynccontextmanager
