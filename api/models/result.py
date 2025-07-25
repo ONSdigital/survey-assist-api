@@ -47,6 +47,14 @@ class Candidate(BaseModel):
     likelihood: float = Field(..., description="Confidence score between 0 and 1")
 
 
+class GenericCandidate(BaseModel):
+    """Model for generic classification candidates that can be SIC or SOC."""
+
+    code: str = Field(..., description="The classification code")
+    descriptive: str = Field(..., description="The classification description")
+    likelihood: float = Field(..., description="Confidence score between 0 and 1")
+
+
 class ClassificationResponse(BaseModel):
     """Model for classification response."""
 
@@ -58,6 +66,22 @@ class ClassificationResponse(BaseModel):
         ..., description="List of potential classifications"
     )
     follow_up: FollowUp = Field(..., description="Follow-up questions if needed")
+
+
+class GenericClassificationResult(BaseModel):
+    """Model for generic classification result that can be SIC or SOC."""
+
+    type: str = Field(..., description="Type of classification (sic, soc)")
+    classified: bool = Field(..., description="Whether the input was classified")
+    followup: Optional[str] = Field(None, description="Follow-up question if needed")
+    code: Optional[str] = Field(None, description="The classification code")
+    description: Optional[str] = Field(
+        None, description="The classification description"
+    )
+    candidates: list[GenericCandidate] = Field(
+        ..., description="List of potential classifications"
+    )
+    reasoning: str = Field(..., description="Reasoning behind the classification")
 
 
 class PotentialDivision(BaseModel):
@@ -109,6 +133,27 @@ class SurveyAssistInteraction(BaseModel):
     )
 
 
+class GenericSurveyAssistInteraction(BaseModel):
+    """Model for generic survey assist interaction that can handle SIC or SOC."""
+
+    type: str = Field(
+        ...,
+        description="Interaction type (classify or lookup)",
+        pattern="^(classify|lookup)$",
+    )
+    flavour: str = Field(
+        ...,
+        description="Classification flavour (sic, soc, or sic_soc)",
+        pattern="^(sic|soc|sic_soc)$",
+    )
+    time_start: datetime = Field(..., description="Start time of the interaction")
+    time_end: datetime = Field(..., description="End time of the interaction")
+    input: list[InputField] = Field(..., description="Input data for the interaction")
+    response: Union[list[GenericClassificationResult], LookupResponse] = Field(
+        ..., description="Response from the interaction"
+    )
+
+
 class Response(BaseModel):
     """Model for a single response."""
 
@@ -116,6 +161,17 @@ class Response(BaseModel):
     time_start: datetime = Field(..., description="Start time of the response")
     time_end: datetime = Field(..., description="End time of the response")
     survey_assist_interactions: list[SurveyAssistInteraction] = Field(
+        ..., description="List of survey assist interactions"
+    )
+
+
+class GenericResponse(BaseModel):
+    """Model for a single generic response that can handle SIC or SOC."""
+
+    person_id: str = Field(..., description="Identifier for the person")
+    time_start: datetime = Field(..., description="Start time of the response")
+    time_end: datetime = Field(..., description="End time of the response")
+    survey_assist_interactions: list[GenericSurveyAssistInteraction] = Field(
         ..., description="List of survey assist interactions"
     )
 
@@ -141,6 +197,29 @@ class SurveyAssistResult(BaseModel):
         ..., description="End time of the survey", examples=["2024-03-19T10:05:00Z"]
     )
     responses: list[Response] = Field(..., description="List of responses")
+
+
+class GenericSurveyAssistResult(BaseModel):
+    """Model for the complete generic survey assist result that can handle SIC or SOC."""
+
+    survey_id: str = Field(
+        ..., description="Identifier for the survey", examples=["test-survey-123"]
+    )
+    case_id: str = Field(
+        ..., description="Identifier for the case", examples=["test-case-456"]
+    )
+    user: str = Field(
+        ...,
+        description="User identifier in format 'name.surname'",
+        examples=["test.userSA187"],
+    )
+    time_start: datetime = Field(
+        ..., description="Start time of the survey", examples=["2024-03-19T10:00:00Z"]
+    )
+    time_end: datetime = Field(
+        ..., description="End time of the survey", examples=["2024-03-19T10:05:00Z"]
+    )
+    responses: list[GenericResponse] = Field(..., description="List of responses")
 
 
 class ResultResponse(BaseModel):
