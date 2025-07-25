@@ -83,7 +83,7 @@ soc_llm_dependency = Depends(get_soc_llm_client)
 async def classify_text(
     request: Request,
     classification_request: ClassificationRequest,
-    vector_store: SICVectorStoreClient = sic_vector_store_dependency,
+    vector_store: SICVectorStoreClient = sic_vector_store_dependency,  # pylint: disable=unused-argument
     rephrase_client: SICRephraseClient = rephrase_dependency,
 ) -> ClassificationResponse:
     """Classify the provided text.
