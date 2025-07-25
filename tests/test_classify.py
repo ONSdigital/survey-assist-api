@@ -43,6 +43,9 @@ client = TestClient(app)
 EXPECTED_LIKELIHOOD = 0.9
 EXPECTED_SIC_CODE = "43210"
 EXPECTED_SIC_DESCRIPTION = "Electrical installation"
+EXPECTED_SOC_CODE = "9111"
+EXPECTED_SOC_DESCRIPTION = "Farm workers"
+EXPECTED_COMBINED_RESULTS_COUNT = 2  # SIC + SOC results
 
 
 class TestClassifyEndpoint:
@@ -211,13 +214,13 @@ def test_classify_followup_question(
         MagicMock(
             classified=False,
             followup="Please specify if this is electrical or plumbing installation.",
-            class_code=None,
-            class_descriptive=None,
+            sic_code=None,
+            sic_descriptive=None,
             reasoning="Mocked reasoning",
-            alt_candidates=[
+            sic_candidates=[
                 MagicMock(
-                    class_code=EXPECTED_SIC_CODE,
-                    class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
                     likelihood=0.8,
                 )
             ],
@@ -305,13 +308,13 @@ def test_classify_endpoint_success(
         MagicMock(
             classified=True,
             followup=None,
-            class_code=EXPECTED_SIC_CODE,
-            class_descriptive=EXPECTED_SIC_DESCRIPTION,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
             reasoning="Mocked reasoning",
-            alt_candidates=[
+            sic_candidates=[
                 MagicMock(
-                    class_code=EXPECTED_SIC_CODE,
-                    class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
                     likelihood=EXPECTED_LIKELIHOOD,
                 )
             ],
@@ -521,3 +524,319 @@ def test_classify_endpoint_invalid_type(
         json=request_data,
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+# Tests for the new generic classification endpoint (/classify/v2)
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_v2_sic_only(
+    mock_auth,
+    mock_llm,
+    mock_sic_vector_store,
+    mock_soc_vector_store,
+    mock_rephrase_client,
+):
+    """Test the new generic classification endpoint with SIC only classification.
+
+    This test verifies that the v2 endpoint correctly handles SIC classification
+    and returns the expected generic response format.
+
+    Assertions:
+        - The response status code is 200.
+        - The response has the correct generic structure.
+        - Only SIC classification is performed when type is 'sic'.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+
+    # Mock SIC vector store
+    mock_sic_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock SOC vector store (should not be called for SIC only)
+    mock_soc_vector_store.return_value.search = AsyncMock()
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    # Mock LLM response
+    mock_llm.sa_rag_sic_code.return_value = (
+        MagicMock(
+            classified=True,
+            followup=None,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+            reasoning="Mocked SIC reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    likelihood=EXPECTED_LIKELIHOOD,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+
+    request_data = {
+        "llm": "gemini",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems",
+        "org_description": "Electrical contracting company",
+    }
+
+    logger.info("Testing classify v2 SIC only with data", request_data=request_data)
+    response = client.post("/v1/survey-assist/classify/v2", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    logger.info("Received v2 response data", data=data)
+
+    # Check generic response structure
+    assert data["requested_type"] == "sic"
+    assert len(data["results"]) == 1
+
+    sic_result = data["results"][0]
+    assert sic_result["type"] == "sic"
+    assert sic_result["classified"] is True
+    assert sic_result["code"] == EXPECTED_SIC_CODE
+    assert sic_result["description"] == EXPECTED_SIC_DESCRIPTION
+    assert len(sic_result["candidates"]) > 0
+    assert sic_result["candidates"][0]["code"] == EXPECTED_SIC_CODE
+    assert sic_result["candidates"][0]["descriptive"] == EXPECTED_SIC_DESCRIPTION
+    assert sic_result["candidates"][0]["likelihood"] == EXPECTED_LIKELIHOOD
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_v2_soc_only(  # pylint: disable=unused-argument
+    mock_auth,
+    mock_llm,  # pylint: disable=unused-argument
+    mock_sic_vector_store,
+    mock_soc_vector_store,
+    mock_rephrase_client,
+):
+    """Test the new generic classification endpoint with SOC only classification.
+
+    This test verifies that the v2 endpoint correctly handles SOC classification
+    and returns the expected generic response format.
+
+    Assertions:
+        - The response status code is 200.
+        - The response has the correct generic structure.
+        - Only SOC classification is performed when type is 'soc'.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+
+    # Mock SIC vector store (should not be called for SOC only)
+    mock_sic_vector_store.return_value.search = AsyncMock()
+
+    # Mock SOC vector store
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SOC_CODE,
+                "title": EXPECTED_SOC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    request_data = {
+        "llm": "gemini",
+        "type": "soc",
+        "job_title": "Farm Hand",
+        "job_description": "Crop management and general farm maintenance",
+        "org_description": "Farming",
+    }
+
+    logger.info("Testing classify v2 SOC only with data", request_data=request_data)
+    response = client.post("/v1/survey-assist/classify/v2", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    logger.info("Received v2 response data", data=data)
+
+    # Check generic response structure
+    assert data["requested_type"] == "soc"
+    assert len(data["results"]) == 1
+
+    soc_result = data["results"][0]
+    assert soc_result["type"] == "soc"
+    assert soc_result["classified"] is True
+    assert soc_result["code"] == EXPECTED_SOC_CODE
+    assert soc_result["description"] == EXPECTED_SOC_DESCRIPTION
+    assert len(soc_result["candidates"]) > 0
+    assert soc_result["candidates"][0]["code"] == EXPECTED_SOC_CODE
+    assert soc_result["candidates"][0]["descriptive"] == EXPECTED_SOC_DESCRIPTION
+    assert soc_result["candidates"][0]["likelihood"] == 1.0
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_v2_sic_soc_combined(
+    mock_auth,
+    mock_llm,
+    mock_sic_vector_store,
+    mock_soc_vector_store,
+    mock_rephrase_client,
+):
+    """Test the new generic classification endpoint with combined SIC and SOC classification.
+
+    This test verifies that the v2 endpoint correctly handles combined classification
+    and returns both SIC and SOC results in the expected generic response format.
+
+    Assertions:
+        - The response status code is 200.
+        - The response has the correct generic structure.
+        - Both SIC and SOC classification are performed when type is 'sic_soc'.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+
+    # Mock SIC vector store
+    mock_sic_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock SOC vector store
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SOC_CODE,
+                "title": EXPECTED_SOC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    # Mock LLM response for SIC
+    mock_llm.sa_rag_sic_code.return_value = (
+        MagicMock(
+            classified=True,
+            followup=None,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+            reasoning="Mocked SIC reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    likelihood=EXPECTED_LIKELIHOOD,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+
+    request_data = {
+        "llm": "gemini",
+        "type": "sic_soc",
+        "job_title": "Farm Hand",
+        "job_description": "Crop management and general farm maintenance",
+        "org_description": "Farming",
+    }
+
+    logger.info(
+        "Testing classify v2 SIC+SOC combined with data", request_data=request_data
+    )
+    response = client.post("/v1/survey-assist/classify/v2", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    logger.info("Received v2 response data", data=data)
+
+    # Check generic response structure
+    assert data["requested_type"] == "sic_soc"
+    assert len(data["results"]) == EXPECTED_COMBINED_RESULTS_COUNT
+
+    # Check SIC result
+    sic_result = next((r for r in data["results"] if r["type"] == "sic"), None)
+    assert sic_result is not None
+    assert sic_result["classified"] is True
+    assert sic_result["code"] == EXPECTED_SIC_CODE
+    assert sic_result["description"] == EXPECTED_SIC_DESCRIPTION
+
+    # Check SOC result
+    soc_result = next((r for r in data["results"] if r["type"] == "soc"), None)
+    assert soc_result is not None
+    assert soc_result["classified"] is True
+    assert soc_result["code"] == EXPECTED_SOC_CODE
+    assert soc_result["description"] == EXPECTED_SOC_DESCRIPTION
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_v2_invalid_input(  # pylint: disable=unused-argument
+    mock_auth,
+    mock_llm,  # pylint: disable=unused-argument
+    mock_sic_vector_store,
+    mock_soc_vector_store,
+    mock_rephrase_client,
+):
+    """Test the new generic classification endpoint with invalid input.
+
+    This test verifies that the v2 endpoint correctly handles invalid input
+    and returns appropriate error responses.
+
+    Assertions:
+        - The response status code is 400 for empty job title/description.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+
+    # Mock vector stores
+    mock_sic_vector_store.return_value.search = AsyncMock()
+    mock_soc_vector_store.return_value.search = AsyncMock()
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    request_data = {
+        "llm": "gemini",
+        "type": "sic",
+        "job_title": "",
+        "job_description": "",
+        "org_description": "test",
+    }
+
+    logger.info(
+        "Testing classify v2 invalid input with data", request_data=request_data
+    )
+    response = client.post("/v1/survey-assist/classify/v2", json=request_data)
+    assert response.status_code == status.HTTP_400_BAD_REQUEST

@@ -198,7 +198,7 @@ async def test_get_status_connection_error():
         with pytest.raises(HTTPException) as exc_info:
             await client.get_status()
         assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
-        assert "Failed to connect to vector store" in str(exc_info.value.detail)
+        assert "Failed to check SIC vector store status" in str(exc_info.value.detail)
 
 
 @pytest.mark.api
