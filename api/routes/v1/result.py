@@ -11,7 +11,6 @@ from fastapi import APIRouter, HTTPException
 from survey_assist_utils.logging import get_logger
 
 from api.models.result import (
-    GenericSurveyAssistResult,
     ResultResponse,
     SurveyAssistResult,
 )
@@ -65,59 +64,6 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
     try:
         result_data = get_result(result_id)
         return SurveyAssistResult(**result_data)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail="Result not found") from e
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-
-
-@router.post("/result/v2", response_model=ResultResponse)
-async def store_generic_survey_result(
-    result: GenericSurveyAssistResult,
-) -> ResultResponse:
-    """Store a generic survey result in GCP that can handle SIC and SOC classification.
-
-    Args:
-        result (GenericSurveyAssistResult): The generic survey result to store.
-
-    Returns:
-        ResultResponse: A response containing a success message and the result ID.
-
-    Raises:
-        HTTPException: If there is an error storing the result.
-    """
-    try:
-        # Generate a filename based on survey_id, user, date, and timestamp
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        time_str = datetime.now().strftime("%H_%M_%S")
-        filename = f"{result.survey_id}/{result.user}/{date_str}/{time_str}_v2.json"
-
-        # Store the result in GCP
-        store_result(result.model_dump(), filename)
-
-        return ResultResponse(
-            message="Generic result stored successfully", result_id=filename
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
-
-
-@router.get("/result/v2", response_model=GenericSurveyAssistResult)
-async def get_generic_survey_result(result_id: str) -> GenericSurveyAssistResult:
-    """Retrieve a generic survey result from GCP.
-
-    Args:
-        result_id (str): The unique identifier of the result to retrieve.
-
-    Returns:
-        GenericSurveyAssistResult: The retrieved generic survey result.
-
-    Raises:
-        HTTPException: If the result is not found or there is an error retrieving it.
-    """
-    try:
-        result_data = get_result(result_id)
-        return GenericSurveyAssistResult(**result_data)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail="Result not found") from e
     except Exception as e:
