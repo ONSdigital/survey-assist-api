@@ -15,11 +15,9 @@ from survey_assist_utils.logging import get_logger
 
 from api.models.classify import (
     ClassificationRequest,
-    ClassificationResponse,
     GenericCandidate,
     GenericClassificationResponse,
     GenericClassificationResult,
-    SicCandidate,
 )
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
@@ -79,121 +77,15 @@ sic_llm_dependency = Depends(get_sic_llm_client)
 soc_llm_dependency = Depends(get_soc_llm_client)
 
 
-@router.post("/classify", response_model=ClassificationResponse)
+@router.post("/classify", response_model=GenericClassificationResponse)
 async def classify_text(
-    request: Request,
-    classification_request: ClassificationRequest,
-    vector_store: SICVectorStoreClient = sic_vector_store_dependency,  # pylint: disable=unused-argument
-    rephrase_client: SICRephraseClient = rephrase_dependency,
-) -> ClassificationResponse:
-    """Classify the provided text.
-
-    Args:
-        request (Request): The FastAPI request object.
-        classification_request (ClassificationRequest): The request containing the text to classify.
-        vector_store (SICVectorStoreClient): Vector store client instance.
-        rephrase_client (SICRephraseClient): SIC rephrase client instance.
-
-    Returns:
-        ClassificationResponse: A response containing the classification results.
-
-    Raises:
-        HTTPException: If the input is invalid or classification fails.
-    """
-    # Validate input
-    if (
-        not classification_request.job_title.strip()
-        or not classification_request.job_description.strip()
-    ):
-        logger.error(
-            "Empty job title or description provided in classification request"
-        )
-        raise HTTPException(
-            status_code=400, detail="Job title and description cannot be empty"
-        )
-
-    try:
-        # Get vector store search results
-        search_results = await vector_store.search(
-            industry_descr=classification_request.org_description,
-            job_title=classification_request.job_title,
-            job_description=classification_request.job_description,
-        )
-
-        # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
-        short_list = [
-            {
-                "code": result["code"],
-                "title": result["title"],
-                "distance": result["distance"],
-            }
-            for result in search_results
-        ]
-
-        # Get LLM instance and call sa_rag_sic_code
-        llm = request.app.state.gemini_llm
-        llm_response, _, actual_prompt = (
-            llm.sa_rag_sic_code(  # pylint: disable=unused-variable
-                industry_descr=classification_request.org_description or "",
-                job_title=classification_request.job_title,
-                job_description=classification_request.job_description,
-                short_list=short_list,
-            )
-        )
-
-        # Map LLM response to API response
-        candidates = [
-            SicCandidate(
-                sic_code=c.sic_code,
-                sic_descriptive=c.sic_descriptive,
-                likelihood=c.likelihood,
-            )
-            for c in getattr(llm_response, "sic_candidates", [])
-        ]
-
-        response = ClassificationResponse(
-            classified=bool(getattr(llm_response, "sic_code", None) is not None),
-            followup=getattr(llm_response, "followup", None),
-            sic_code=getattr(llm_response, "sic_code", None),
-            sic_description=getattr(llm_response, "sic_descriptive", None),
-            sic_candidates=candidates,
-            reasoning=getattr(llm_response, "reasoning", ""),
-            prompt_used=str(actual_prompt) if actual_prompt else None,
-        )
-
-        # Apply rephrased descriptions to the response
-        response_dict = response.model_dump()
-        rephrased_response_dict = rephrase_client.process_classification_response(
-            response_dict
-        )
-
-        # Convert back to ClassificationResponse model
-        rephrased_response = ClassificationResponse(**rephrased_response_dict)
-
-        logger.info(
-            f"Applied rephrased descriptions to classification response. "
-            f"Available rephrased descriptions: {rephrase_client.get_rephrased_count()}"
-        )
-
-        return rephrased_response
-
-    except Exception as e:
-        logger.error("Error in classify endpoint", error=str(e))
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error during classification: {e!s}",
-        ) from e
-
-
-@router.post("/classify/v2", response_model=GenericClassificationResponse)
-async def classify_text_v2(
     request: Request,
     classification_request: ClassificationRequest,
     sic_vector_store: SICVectorStoreClient = sic_vector_store_dependency,
     soc_vector_store: SOCVectorStoreClient = soc_vector_store_dependency,
     rephrase_client: SICRephraseClient = rephrase_dependency,
 ) -> GenericClassificationResponse:
-    """Classify the provided text using the new generic response format.
+    """Classify the provided text using the generic response format.
 
     Args:
         request (Request): The FastAPI request object.
@@ -203,7 +95,8 @@ async def classify_text_v2(
         rephrase_client (SICRephraseClient): SIC rephrase client instance.
 
     Returns:
-        GenericClassificationResponse: A response containing the classification results in generic format.  # pylint: disable=line-too-long
+        GenericClassificationResponse: A response containing the classification results in
+        generic format.
 
     Raises:
         HTTPException: If the input is invalid or classification fails.
@@ -243,7 +136,7 @@ async def classify_text_v2(
         )
 
     except Exception as e:
-        logger.error("Error in classify v2 endpoint", error=str(e))
+        logger.error("Error in classify endpoint", error=str(e))
         raise HTTPException(
             status_code=500,
             detail=f"Error during classification: {e!s}",
