@@ -147,7 +147,7 @@ async def _classify_sic(  # pylint: disable=unused-argument
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient,
-    rephrase_client: SICRephraseClient,  # pylint: disable=unused-argument
+    rephrase_client: SICRephraseClient,
 ) -> GenericClassificationResult:
     """Classify using SIC classification.
 
@@ -208,9 +208,28 @@ async def _classify_sic(  # pylint: disable=unused-argument
         reasoning=getattr(llm_response, "reasoning", ""),
     )
 
-    # Note: rephrase_client currently expects SIC-specific field names
-    # This would need to be updated to handle generic format
-    # For now, we'll skip rephrasing in the generic format
+    # Rephrase SIC candidates using the rephrase client
+    if rephrase_client and candidates:
+        try:
+            rephrased_candidates = []
+            for candidate in candidates:
+                rephrased_text = rephrase_client.get_rephrased_description(
+                    candidate.code
+                )
+                if rephrased_text:
+                    rephrased_candidates.append(
+                        GenericCandidate(
+                            code=candidate.code,
+                            descriptive=rephrased_text,
+                            likelihood=candidate.likelihood,
+                        )
+                    )
+                else:
+                    # Keep original description if no rephrased version available
+                    rephrased_candidates.append(candidate)
+            result.candidates = rephrased_candidates
+        except Exception as e:  # pylint: disable=broad-except
+            logger.warning(f"Failed to rephrase SIC candidates: {e}")
 
     return result
 
