@@ -25,6 +25,20 @@ class ClassificationType(str, Enum):
     SIC_SOC = "sic_soc"
 
 
+class ClassificationOptions(BaseModel):
+    """Model for classification options.
+
+    Attributes:
+        rephrased (bool): Whether to apply rephrasing to classification results.
+            Defaults to True to maintain backward compatibility.
+    """
+
+    rephrased: bool = Field(
+        default=True,
+        description="Whether to apply rephrasing to classification results",
+    )
+
+
 class ClassificationRequest(BaseModel):
     """Model for the classification request.
 
@@ -34,6 +48,7 @@ class ClassificationRequest(BaseModel):
         job_title (str): Survey response for Job Title.
         job_description (str): Survey response for Job Description.
         org_description (Optional[str]): Survey response for Organisation / Industry Description.
+        options (Optional[ClassificationOptions]): Optional classification options.
     """
 
     llm: LLMModel
@@ -42,6 +57,9 @@ class ClassificationRequest(BaseModel):
     job_description: str = Field(..., description="Survey response for Job Description")
     org_description: Optional[str] = Field(
         None, description="Survey response for Organisation / Industry Description"
+    )
+    options: Optional[ClassificationOptions] = Field(
+        None, description="Optional classification options"
     )
 
 
