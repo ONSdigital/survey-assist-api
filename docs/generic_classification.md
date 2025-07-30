@@ -32,9 +32,32 @@ Retrieve survey results using a result ID.
   "type": "sic|soc|sic_soc",
   "job_title": "string",
   "job_description": "string",
-  "org_description": "string (optional)"
+  "org_description": "string (optional)",
+  "options": {
+    "rephrased": true|false
+  }
 }
 ```
+
+**Request Parameters:**
+
+- `llm` (required): The LLM model to use for classification
+- `type` (required): Type of classification (`sic`, `soc`, or `sic_soc`)
+- `job_title` (required): Survey response for Job Title
+- `job_description` (required): Survey response for Job Description  
+- `org_description` (optional): Survey response for Organisation / Industry Description
+- `options` (optional): Classification options
+  - `rephrased` (optional): Whether to apply rephrasing to classification results. Defaults to `true` for backward compatibility.
+
+**Rephrasing Feature:**
+
+The rephrasing feature maps standard SIC descriptions to user-friendly rephrased versions. This can be controlled via the `options.rephrased` flag:
+
+- **Default behaviour** (no `options` field): Rephrasing is **enabled**
+- **`"rephrased": true`**: Rephrasing is **enabled** (explicit)
+- **`"rephrased": false`**: Rephrasing is **disabled**
+
+This allows developers to toggle the rephrasing feature for testing purposes without deploying new code.
 
 #### Response Format
 
@@ -212,6 +235,139 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   ]
 }
 ```
+
+### Rephrasing Toggle Examples
+
+The rephrasing feature can be controlled via the `options.rephrased` flag. Here are practical examples using agricultural SIC codes, which have rephrased versions available in the data:
+
+**Note:** The rephrase data currently contains primarily agricultural SIC codes (01xxx series). Industrial and construction codes (like electrical installation) may not have rephrased versions available, so they will show original descriptions even when rephrasing is enabled.
+
+#### Example 1: Default Behaviour (Rephrasing Enabled)
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini-1.5-flash",
+    "type": "sic",
+    "job_title": "Farmer",
+    "job_description": "Growing cereals and crops",
+    "org_description": "Agricultural farm"
+  }'
+```
+
+**Response:** (Rephrased descriptions will be returned)
+```json
+{
+  "requested_type": "sic",
+  "results": [
+    {
+      "type": "sic",
+      "classified": true,
+      "code": "01110",
+      "description": "Growing of cereals (except rice), leguminous crops and oil seeds",
+      "candidates": [
+        {
+          "code": "01110",
+          "descriptive": "Crop growing",  // User-friendly rephrased version
+          "likelihood": 0.8
+        }
+      ],
+      "reasoning": "The respondent's data clearly indicates agricultural crop growing..."
+    }
+  ]
+}
+```
+
+#### Example 2: Explicitly Enable Rephrasing
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini-1.5-flash",
+    "type": "sic",
+    "job_title": "Farmer",
+    "job_description": "Growing cereals and crops",
+    "org_description": "Agricultural farm",
+    "options": {
+      "rephrased": true
+    }
+  }'
+```
+
+**Response:** (Same as default - rephrased descriptions)
+```json
+{
+  "requested_type": "sic",
+  "results": [
+    {
+      "type": "sic",
+      "classified": true,
+      "code": "01110",
+      "description": "Growing of cereals (except rice), leguminous crops and oil seeds",
+      "candidates": [
+        {
+          "code": "01110",
+          "descriptive": "Crop growing",  // User-friendly rephrased version
+          "likelihood": 0.8
+        }
+      ],
+      "reasoning": "The respondent's data clearly indicates agricultural crop growing..."
+    }
+  ]
+}
+```
+
+#### Example 3: Disable Rephrasing
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini-1.5-flash",
+    "type": "sic",
+    "job_title": "Farmer",
+    "job_description": "Growing cereals and crops",
+    "org_description": "Agricultural farm",
+    "options": {
+      "rephrased": false
+    }
+  }'
+```
+
+**Response:** (Original standard descriptions)
+```json
+{
+  "requested_type": "sic",
+  "results": [
+    {
+      "type": "sic",
+      "classified": true,
+      "code": "01110",
+      "description": "Growing of cereals (except rice), leguminous crops and oil seeds",
+      "candidates": [
+        {
+          "code": "01110",
+          "descriptive": "Growing of cereals (except rice), leguminous crops and oil seeds",  // Original standard description
+          "likelihood": 0.8
+        }
+      ],
+      "reasoning": "The respondent's data clearly indicates agricultural crop growing..."
+    }
+  ]
+}
+```
+
+**Use Cases:**
+
+- **Testing**: Disable rephrasing to test with original descriptions
+- **Development**: Toggle between rephrased and original descriptions during development
+- **Production**: Use default (enabled) for user-friendly descriptions
+- **Backward Compatibility**: Existing API calls continue to work without changes
 
 ### Result Storage Examples
 
