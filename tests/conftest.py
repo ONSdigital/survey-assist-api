@@ -42,9 +42,23 @@ def pytest_configure(config):  # pylint: disable=unused-argument
 
     # Mock the sa_rag_sic_code method to return expected values
     mock_llm.sa_rag_sic_code.return_value = (
-        "43210",  # classification
-        0.95,  # confidence
-        "Test prompt for SIC classification",  # actual prompt
+        MagicMock(
+            classified=True,
+            codable=True,
+            followup=None,
+            sic_code="43210",
+            sic_descriptive="Electrical installation",
+            reasoning="Mocked reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code="43210",
+                    sic_descriptive="Electrical installation",
+                    likelihood=0.95,
+                )
+            ],
+        ),
+        None,
+        None,
     )
 
     app.state.gemini_llm = mock_llm

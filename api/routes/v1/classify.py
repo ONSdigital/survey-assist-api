@@ -200,7 +200,7 @@ async def _classify_sic(  # pylint: disable=unused-argument
 
     result = GenericClassificationResult(
         type="sic",
-        classified=bool(getattr(llm_response, "sic_code", None) is not None),
+        classified=getattr(llm_response, "codable", False),
         followup=getattr(llm_response, "followup", None),
         code=getattr(llm_response, "sic_code", None),
         description=getattr(llm_response, "sic_descriptive", None),

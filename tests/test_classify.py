@@ -101,6 +101,7 @@ class TestClassifyEndpoint:
         mock_llm_instance.sa_rag_sic_code.return_value = (
             MagicMock(
                 classified=True,
+                codable=True,
                 followup=None,
                 class_code=EXPECTED_SIC_CODE,
                 class_descriptive=EXPECTED_SIC_DESCRIPTION,
@@ -213,6 +214,7 @@ def test_classify_followup_question(
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
             classified=False,
+            codable=False,
             followup="Please specify if this is electrical or plumbing installation.",
             sic_code=None,
             sic_descriptive=None,
