@@ -528,3 +528,314 @@ def test_classify_endpoint_invalid_type(
         json=request_data,
     )
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_endpoint_rephrasing_enabled(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
+    """Test the endpoint with rephrasing explicitly enabled.
+
+    This test verifies that when rephrasing is explicitly enabled via options,
+    the rephrase client is called and rephrased descriptions are applied.
+
+    Assertions:
+        - The response status code is 200.
+        - The rephrase client is called.
+        - The response contains rephrased descriptions.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock the rephrase client with rephrased descriptions
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_instance.get_rephrased_description.return_value = "Crop growing"
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    mock_llm.sa_rag_sic_code.return_value = (
+        MagicMock(
+            codable=True,
+            followup=None,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+            reasoning="Mocked reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    likelihood=0.9,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+
+    request_data = {
+        "llm": "chat-gpt",
+        "type": "sic",
+        "job_title": "Farmer",
+        "job_description": "Growing cereals and crops",
+        "org_description": "Agricultural farm",
+        "options": {"rephrased": True},
+    }
+
+    logger.info("Testing rephrasing enabled with data", request_data=request_data)
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json=request_data,
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    response_data = response.json()
+
+    # Verify rephrase client was called
+    mock_rephrase_instance.get_rephrased_description.assert_called_once_with(
+        EXPECTED_SIC_CODE
+    )
+
+    # Verify response structure
+    assert response_data["requested_type"] == "sic"
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["type"] == "sic"
+    assert response_data["results"][0]["classified"] is True
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_endpoint_rephrasing_disabled(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
+    """Test the endpoint with rephrasing explicitly disabled.
+
+    This test verifies that when rephrasing is explicitly disabled via options,
+    the rephrase client is not called and original descriptions are preserved.
+
+    Assertions:
+        - The response status code is 200.
+        - The rephrase client is not called.
+        - The response contains original descriptions.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    mock_llm.sa_rag_sic_code.return_value = (
+        MagicMock(
+            codable=True,
+            followup=None,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+            reasoning="Mocked reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    likelihood=0.9,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+
+    request_data = {
+        "llm": "chat-gpt",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems",
+        "org_description": "Electrical contracting company",
+        "options": {"rephrased": False},
+    }
+
+    logger.info("Testing rephrasing disabled with data", request_data=request_data)
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json=request_data,
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    response_data = response.json()
+
+    # Verify rephrase client was not called
+    mock_rephrase_instance.get_rephrased_description.assert_not_called()
+
+    # Verify response structure
+    assert response_data["requested_type"] == "sic"
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["type"] == "sic"
+    assert response_data["results"][0]["classified"] is True
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_endpoint_rephrasing_default(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
+    """Test the endpoint with no options provided (default rephrasing enabled).
+
+    This test verifies that when no options are provided, rephrasing defaults to enabled
+    for backward compatibility.
+
+    Assertions:
+        - The response status code is 200.
+        - The rephrase client is called (default behaviour).
+        - The response contains rephrased descriptions.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock the rephrase client with rephrased descriptions
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_instance.get_rephrased_description.return_value = "Crop growing"
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    mock_llm.sa_rag_sic_code.return_value = (
+        MagicMock(
+            codable=True,
+            followup=None,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+            reasoning="Mocked reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    likelihood=0.9,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+
+    request_data = {
+        "llm": "chat-gpt",
+        "type": "sic",
+        "job_title": "Farmer",
+        "job_description": "Growing cereals and crops",
+        "org_description": "Agricultural farm",
+    }
+
+    logger.info(
+        "Testing rephrasing default (no options) with data", request_data=request_data
+    )
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json=request_data,
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    response_data = response.json()
+
+    # Verify rephrase client was called (default behaviour)
+    mock_rephrase_instance.get_rephrased_description.assert_called_once_with(
+        EXPECTED_SIC_CODE
+    )
+
+    # Verify response structure
+    assert response_data["requested_type"] == "sic"
+    assert len(response_data["results"]) == 1
+    assert response_data["results"][0]["type"] == "sic"
+    assert response_data["results"][0]["classified"] is True
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_endpoint_rephrasing_options_validation(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
+    """Test the endpoint with invalid options structure.
+
+    This test verifies that the endpoint correctly handles invalid options
+    by returning a validation error.
+
+    Assertions:
+        - The response status code is 422.
+    """
+    mock_auth.return_value = (MagicMock(), "test-project")
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    mock_llm.sa_rag_sic_code.return_value = (
+        MagicMock(
+            codable=True,
+            followup=None,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+            reasoning="Mocked reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    likelihood=0.9,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+
+    request_data = {
+        "llm": "chat-gpt",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems",
+        "org_description": "Electrical contracting company",
+        "options": {"rephrased": "invalid_value"},  # Should be boolean
+    }
+
+    logger.info("Testing invalid options with data", request_data=request_data)
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json=request_data,
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
