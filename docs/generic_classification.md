@@ -1,24 +1,34 @@
 # Generic Classification API
 
-This document describes the new generic classification functionality that supports both SIC (Standard Industrial Classification) and SOC (Standard Occupational Classification) in a unified API.
+This document describes the generic classification functionality that supports both SIC (Standard Industrial Classification) and SOC (Standard Occupational Classification) in a unified API.
 
 ## Overview
 
-The Survey Assist API has been enhanced to support generic classification responses that can handle both SIC and SOC classification types. This allows for more flexible and extensible classification capabilities while maintaining backward compatibility.
+The Survey Assist API supports generic classification responses that can handle both SIC and SOC classification types. This allows for more flexible and extensible classification capabilities while maintaining backward compatibility.
 
-## New Endpoints
+## Endpoints
 
 ### Generic Classification Endpoint
 
-**POST** `/v1/survey-assist/classify/v2`
+**POST** `/v1/survey-assist/classify`
 
-This endpoint provides the new generic classification functionality that can handle SIC, SOC, or combined SIC+SOC classification.
+This endpoint provides generic classification functionality that can handle SIC, SOC, or combined SIC+SOC classification.
+
+### Result Storage Endpoints
+
+**POST** `/v1/survey-assist/result`
+
+Store survey results that can contain SIC and/or SOC classification data.
+
+**GET** `/v1/survey-assist/result`
+
+Retrieve survey results using a result ID.
 
 #### Request Format
 
 ```json
 {
-  "llm": "gemini",
+  "llm": "gemini-1.5-flash",
   "type": "sic|soc|sic_soc",
   "job_title": "string",
   "job_description": "string",
@@ -59,29 +69,21 @@ The response follows a generic structure that can accommodate multiple classific
 - **`soc`**: Perform SOC classification only  
 - **`sic_soc`**: Perform both SIC and SOC classification
 
-### Generic Result Storage Endpoints
-
-**POST** `/v1/survey-assist/result/v2`
-
-Store generic survey results that can contain SIC and/or SOC classification data.
-
-**GET** `/v1/survey-assist/result/v2`
-
-Retrieve generic survey results.
-
 ## Examples
 
 ### SIC Classification Only
 
 **Request:**
-```json
-{
-  "llm": "gemini",
-  "type": "sic",
-  "job_title": "Farm Hand",
-  "job_description": "I work on a farm tending crops that are harvested and sold to wholesalers",
-  "org_description": "A farm that grows and harvests crops to be sold to wholesalers"
-}
+```bash
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini-1.5-flash",
+    "type": "sic",
+    "job_title": "Electrician",
+    "job_description": "Installing and maintaining electrical systems in buildings",
+    "org_description": "Electrical contracting company"
+  }'
 ```
 
 **Response:**
@@ -92,22 +94,22 @@ Retrieve generic survey results.
     {
       "type": "sic",
       "classified": false,
-      "followup": "What types of crops does the farm primarily grow and harvest?",
-      "code": "01110",
-      "description": "Growing of cereals (except rice), legumes and oil seeds",
+      "followup": "Please specify if this is electrical or plumbing installation.",
+      "code": null,
+      "description": null,
       "candidates": [
         {
-          "code": "01110",
-          "descriptive": "Growing of cereals (except rice), legumes and oil seeds",
-          "likelihood": 0.7
+          "code": "43210",
+          "descriptive": "Electrical installation",
+          "likelihood": 0.8
         },
         {
-          "code": "01120",
-          "descriptive": "Growing of rice",
-          "likelihood": 0.1
+          "code": "43220",
+          "descriptive": "Plumbing, heat and air-conditioning installation",
+          "likelihood": 0.2
         }
       ],
-      "reasoning": "The respondent's data indicates a farm growing and harvesting crops for sale to wholesalers..."
+      "reasoning": "The respondent's data indicates electrical work but needs clarification on specific installation type..."
     }
   ]
 }
@@ -116,14 +118,16 @@ Retrieve generic survey results.
 ### SOC Classification Only
 
 **Request:**
-```json
-{
-  "llm": "gemini",
-  "type": "soc",
-  "job_title": "Farm Hand",
-  "job_description": "I work on a farm tending crops that are harvested and sold to wholesalers",
-  "org_description": "A farm that grows and harvests crops to be sold to wholesalers"
-}
+```bash
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini-1.5-flash",
+    "type": "soc",
+    "job_title": "Farm Worker",
+    "job_description": "Growing crops and vegetables",
+    "org_description": "Agricultural farm"
+  }'
 ```
 
 **Response:**
@@ -144,7 +148,7 @@ Retrieve generic survey results.
           "likelihood": 1.0
         }
       ],
-      "reasoning": "The respondent's data indicates..."
+      "reasoning": "The respondent's data clearly indicates farm work activities..."
     }
   ]
 }
@@ -153,14 +157,16 @@ Retrieve generic survey results.
 ### Combined SIC and SOC Classification
 
 **Request:**
-```json
-{
-  "llm": "gemini",
-  "type": "sic_soc",
-  "job_title": "Farm Hand",
-  "job_description": "I work on a farm tending crops that are harvested and sold to wholesalers",
-  "org_description": "A farm that grows and harvests crops to be sold to wholesalers"
-}
+```bash
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini-1.5-flash",
+    "type": "sic_soc",
+    "job_title": "Farm Worker",
+    "job_description": "Growing crops and vegetables",
+    "org_description": "Agricultural farm"
+  }'
 ```
 
 **Response:**
@@ -170,18 +176,23 @@ Retrieve generic survey results.
   "results": [
     {
       "type": "sic",
-      "classified": false,
-      "followup": "What types of crops does the farm primarily grow and harvest?",
+      "classified": true,
+      "followup": null,
       "code": "01110",
       "description": "Growing of cereals (except rice), legumes and oil seeds",
       "candidates": [
         {
           "code": "01110",
           "descriptive": "Growing of cereals (except rice), legumes and oil seeds",
-          "likelihood": 0.7
+          "likelihood": 0.9
+        },
+        {
+          "code": "01130",
+          "descriptive": "Growing of vegetables and melons, roots and tubers",
+          "likelihood": 0.8
         }
       ],
-      "reasoning": "The respondent's data indicates a farm growing and harvesting crops..."
+      "reasoning": "The respondent's data indicates crop growing activities..."
     },
     {
       "type": "soc",
@@ -196,15 +207,185 @@ Retrieve generic survey results.
           "likelihood": 1.0
         }
       ],
-      "reasoning": "The respondent's data indicates..."
+      "reasoning": "The respondent's data clearly indicates farm work activities..."
     }
   ]
 }
 ```
 
-## Backward Compatibility
+### Result Storage Examples
 
-The original classification endpoint (`/v1/survey-assist/classify`) remains unchanged and continues to work as before. The new generic functionality is available through the `/v1/survey-assist/classify/v2` endpoint.
+#### Store Survey Result
+
+**POST** `/v1/survey-assist/result`
+
+**Request:**
+```bash
+curl -X POST "http://localhost:8080/v1/survey-assist/result" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "survey_id": "test-survey-123",
+    "case_id": "test-case-456",
+    "user": "test.userSA187",
+    "time_start": "2024-03-19T10:00:00Z",
+    "time_end": "2024-03-19T10:05:00Z",
+    "responses": [
+      {
+        "person_id": "person-001",
+        "time_start": "2024-03-19T10:00:00Z",
+        "time_end": "2024-03-19T10:02:00Z",
+        "survey_assist_interactions": [
+          {
+            "type": "classify",
+            "flavour": "sic_soc",
+            "time_start": "2024-03-19T10:00:30Z",
+            "time_end": "2024-03-19T10:01:30Z",
+            "input": [
+              {
+                "field": "job_title",
+                "value": "Electrician"
+              },
+              {
+                "field": "job_description",
+                "value": "Installing and maintaining electrical systems in buildings"
+              },
+              {
+                "field": "org_description",
+                "value": "Electrical contracting company"
+              }
+            ],
+            "response": [
+              {
+                "type": "sic",
+                "classified": false,
+                "followup": "Please specify if this is electrical or plumbing installation.",
+                "code": null,
+                "description": null,
+                "candidates": [
+                  {
+                    "code": "43210",
+                    "descriptive": "Electrical installation",
+                    "likelihood": 0.8
+                  },
+                  {
+                    "code": "43220",
+                    "descriptive": "Plumbing, heat and air-conditioning installation",
+                    "likelihood": 0.2
+                  }
+                ],
+                "reasoning": "The respondent'\''s data indicates electrical work but needs clarification on specific installation type..."
+              },
+              {
+                "type": "soc",
+                "classified": true,
+                "followup": null,
+                "code": "5245",
+                "description": "Electricians and electrical fitters",
+                "candidates": [
+                  {
+                    "code": "5245",
+                    "descriptive": "Electricians and electrical fitters",
+                    "likelihood": 0.95
+                  }
+                ],
+                "reasoning": "The respondent'\''s data clearly indicates electrical work activities..."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }'
+```
+
+**Response:**
+```json
+{
+  "message": "Result stored successfully",
+  "result_id": "test-survey-123/test.userSA187/2024-03-19/10_01_30.json"
+}
+```
+
+#### Retrieve Survey Result
+
+**GET** `/v1/survey-assist/result?result_id=test-survey-123/test.userSA187/2024-03-19/10_01_30.json`
+
+**Response:**
+```json
+{
+  "survey_id": "test-survey-123",
+  "case_id": "test-case-456",
+  "user": "test.userSA187",
+  "time_start": "2024-03-19T10:00:00Z",
+  "time_end": "2024-03-19T10:05:00Z",
+  "responses": [
+    {
+      "person_id": "person-001",
+      "time_start": "2024-03-19T10:00:00Z",
+      "time_end": "2024-03-19T10:02:00Z",
+      "survey_assist_interactions": [
+        {
+          "type": "classify",
+          "flavour": "sic_soc",
+          "time_start": "2024-03-19T10:00:30Z",
+          "time_end": "2024-03-19T10:01:30Z",
+          "input": [
+            {
+              "field": "job_title",
+              "value": "Electrician"
+            },
+            {
+              "field": "job_description",
+              "value": "Installing and maintaining electrical systems in buildings"
+            },
+            {
+              "field": "org_description",
+              "value": "Electrical contracting company"
+            }
+          ],
+          "response": [
+            {
+              "type": "sic",
+              "classified": false,
+              "followup": "Please specify if this is electrical or plumbing installation.",
+              "code": null,
+              "description": null,
+              "candidates": [
+                {
+                  "code": "43210",
+                  "descriptive": "Electrical installation",
+                  "likelihood": 0.8
+                },
+                {
+                  "code": "43220",
+                  "descriptive": "Plumbing, heat and air-conditioning installation",
+                  "likelihood": 0.2
+                }
+              ],
+              "reasoning": "The respondent's data indicates electrical work but needs clarification on specific installation type..."
+            },
+            {
+              "type": "soc",
+              "classified": true,
+              "followup": null,
+              "code": "5245",
+              "description": "Electricians and electrical fitters",
+              "candidates": [
+                {
+                  "code": "5245",
+                  "descriptive": "Electricians and electrical fitters",
+                  "likelihood": 0.95
+                }
+              ],
+              "reasoning": "The respondent's data clearly indicates electrical work activities..."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Data Models
 
@@ -213,12 +394,6 @@ The original classification endpoint (`/v1/survey-assist/classify`) remains unch
 - `GenericCandidate`: Represents a classification candidate with code, description, and likelihood
 - `GenericClassificationResult`: Represents a single classification result with type, status, and candidates
 - `GenericClassificationResponse`: The main response containing requested type and results array
-
-### Generic Result Models
-
-- `GenericSurveyAssistInteraction`: Interaction model that can handle SIC/SOC classification results
-- `GenericResponse`: Response model for generic survey data
-- `GenericSurveyAssistResult`: Complete survey result model for generic classification
 
 ## Implementation Notes
 
@@ -232,6 +407,8 @@ The original classification endpoint (`/v1/survey-assist/classify`) remains unch
 
 4. **Error Handling**: Comprehensive error handling is implemented for both classification types.
 
+5. **Rephrasing**: SIC candidates are automatically rephrased using the `SICRephraseClient` when available.
+
 ## Testing
 
 Comprehensive tests have been added to verify:
@@ -239,11 +416,11 @@ Comprehensive tests have been added to verify:
 - SOC-only classification  
 - Combined SIC+SOC classification
 - Error handling for invalid inputs
-- Generic result storage and retrieval
+- Rephrasing functionality
 
 ## Future Enhancements
 
 1. **Full SOC Implementation**: Replace placeholder SOC classification with full LLM-based classification
-2. **Rephrasing Support**: Extend rephrasing functionality to work with generic classification results
+2. **Rephrasing Support**: Extend rephrasing functionality to work with SOC classification results
 3. **Performance Optimization**: Optimize vector store queries for combined classification
 4. **Additional Classification Types**: Extend the framework to support other classification systems 
