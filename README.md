@@ -9,6 +9,7 @@ The Survey Assist API implemented in Fast API
 ## Features
 
 - Fast API with endpoints for lookup and classification of SIC (Standard Industrial Classifier) and SOC (Standard Occupational Classification)
+- **Rephrasing Toggle**: Control SIC description rephrasing via API options for testing and development
 - Deployed in GCP using Terraform
 - Uses the following cloud services:
   - Cloud Run
