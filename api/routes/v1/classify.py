@@ -14,10 +14,12 @@ from industrial_classification_utils.llm.llm import ClassificationLLM
 from survey_assist_utils.logging import get_logger
 
 from api.models.classify import (
+    AppliedOptions,
     ClassificationRequest,
     GenericCandidate,
     GenericClassificationResponse,
     GenericClassificationResult,
+    ResponseMeta,
 )
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
@@ -130,9 +132,37 @@ async def classify_text(
             )
             results.append(soc_result)
 
+        # Build meta response if options were provided
+        meta = None
+        if classification_request.options:
+            applied_options = AppliedOptions()
+
+            # Add SIC options if SIC classification was performed
+            if (
+                classification_request.type in ["sic", "sic_soc"]
+                and classification_request.options.sic
+            ):
+                applied_options.sic = {
+                    "rephrased": classification_request.options.sic.rephrased
+                }
+
+            # Add SOC options if SOC classification was performed
+            if (
+                classification_request.type in ["soc", "sic_soc"]
+                and classification_request.options.soc
+            ):
+                applied_options.soc = {
+                    "rephrased": classification_request.options.soc.rephrased
+                }
+
+            meta = ResponseMeta(
+                llm=classification_request.llm, applied_options=applied_options
+            )
+
         return GenericClassificationResponse(
             requested_type=classification_request.type,
             results=results,
+            meta=meta,
         )
 
     except Exception as e:

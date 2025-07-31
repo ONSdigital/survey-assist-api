@@ -188,12 +188,39 @@ class GenericClassificationResult(BaseModel):
     reasoning: str = Field(..., description="Reasoning behind the LLM's response")
 
 
+class AppliedOptions(BaseModel):
+    """Model for applied options in the response meta.
+
+    Attributes:
+        sic (dict): Applied SIC options.
+        soc (dict): Applied SOC options.
+    """
+
+    sic: dict = Field(default_factory=dict, description="Applied SIC options")
+    soc: dict = Field(default_factory=dict, description="Applied SOC options")
+
+
+class ResponseMeta(BaseModel):
+    """Model for response metadata.
+
+    Attributes:
+        llm (str): The LLM model used.
+        applied_options (AppliedOptions): The options that were applied.
+    """
+
+    llm: str = Field(..., description="The LLM model used")
+    applied_options: AppliedOptions = Field(
+        ..., description="The options that were applied"
+    )
+
+
 class GenericClassificationResponse(BaseModel):
     """Model for the generic classification response.
 
     Attributes:
         requested_type (str): The type of classification that was requested.
         results (list[GenericClassificationResult]): List of classification results.
+        meta (Optional[ResponseMeta]): Response metadata, only included when options were provided.
     """
 
     requested_type: str = Field(
@@ -201,4 +228,7 @@ class GenericClassificationResponse(BaseModel):
     )
     results: list[GenericClassificationResult] = Field(
         ..., description="List of classification results"
+    )
+    meta: Optional[ResponseMeta] = Field(
+        None, description="Response metadata, only included when options were provided"
     )
