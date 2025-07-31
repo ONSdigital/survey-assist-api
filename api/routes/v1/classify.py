@@ -232,10 +232,10 @@ def _apply_rephrasing(
     Returns:
         List of candidates with rephrased descriptions if enabled.
     """
-    # Check if rephrasing is enabled (default to True for backward compatibility)
+    # Check if SIC rephrasing is enabled (default to True for backward compatibility)
     rephrasing_enabled = (
-        classification_request.options.rephrased
-        if classification_request.options
+        classification_request.options.sic.rephrased
+        if classification_request.options and classification_request.options.sic
         else True
     )
 
@@ -306,5 +306,17 @@ async def _classify_soc(  # pylint: disable=unused-argument
         ],
         reasoning="Placeholder SOC classification reasoning",
     )
+
+    # Check if SOC rephrasing is enabled (default to True for backward compatibility)
+    # Note: SOC rephrasing is not yet implemented, so this is a placeholder
+    rephrasing_enabled = (
+        classification_request.options.soc.rephrased
+        if classification_request.options and classification_request.options.soc
+        else True
+    )
+
+    # TODO: Implement SOC rephrasing when SOC rephrase client is available
+    if rephrasing_enabled:
+        logger.info("SOC rephrasing requested but not yet implemented")
 
     return result
