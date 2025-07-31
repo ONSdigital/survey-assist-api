@@ -29,13 +29,43 @@ class ClassificationOptions(BaseModel):
     """Model for classification options.
 
     Attributes:
-        rephrased (bool): Whether to apply rephrasing to classification results.
+        sic (Optional[SICOptions]): SIC-specific classification options.
+        soc (Optional[SOCOptions]): SOC-specific classification options.
+    """
+
+    sic: Optional["SICOptions"] = Field(
+        None, description="SIC-specific classification options"
+    )
+    soc: Optional["SOCOptions"] = Field(
+        None, description="SOC-specific classification options"
+    )
+
+
+class SICOptions(BaseModel):
+    """Model for SIC-specific classification options.
+
+    Attributes:
+        rephrased (bool): Whether to apply rephrasing to SIC classification results.
             Defaults to True to maintain backward compatibility.
     """
 
     rephrased: bool = Field(
         default=True,
-        description="Whether to apply rephrasing to classification results",
+        description="Whether to apply rephrasing to SIC classification results",
+    )
+
+
+class SOCOptions(BaseModel):
+    """Model for SOC-specific classification options.
+
+    Attributes:
+        rephrased (bool): Whether to apply rephrasing to SOC classification results.
+            Defaults to True to maintain backward compatibility.
+    """
+
+    rephrased: bool = Field(
+        default=True,
+        description="Whether to apply rephrasing to SOC classification results",
     )
 
 
