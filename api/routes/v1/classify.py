@@ -5,7 +5,7 @@ It defines the classification endpoint and returns classification results using
 vector store and LLM.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from industrial_classification_utils.llm.llm import ClassificationLLM
@@ -18,6 +18,7 @@ from api.models.classify import (
     ClassificationRequest,
     GenericCandidate,
     GenericClassificationResponse,
+    GenericClassificationResponseWithoutMeta,
     GenericClassificationResult,
     ResponseMeta,
 )
@@ -79,14 +80,19 @@ sic_llm_dependency = Depends(get_sic_llm_client)
 soc_llm_dependency = Depends(get_soc_llm_client)
 
 
-@router.post("/classify", response_model=GenericClassificationResponse)
+@router.post(
+    "/classify",
+    response_model=Union[
+        GenericClassificationResponse, GenericClassificationResponseWithoutMeta
+    ],
+)
 async def classify_text(
     request: Request,
     classification_request: ClassificationRequest,
     sic_vector_store: SICVectorStoreClient = sic_vector_store_dependency,
     soc_vector_store: SOCVectorStoreClient = soc_vector_store_dependency,
     rephrase_client: SICRephraseClient = rephrase_dependency,
-) -> GenericClassificationResponse:
+) -> Union[GenericClassificationResponse, GenericClassificationResponseWithoutMeta]:
     """Classify the provided text using the generic response format.
 
     Args:
@@ -159,6 +165,12 @@ async def classify_text(
                 llm=classification_request.llm, applied_options=applied_options
             )
 
+        # Build response without meta field if it's None
+        if meta is None:
+            return GenericClassificationResponseWithoutMeta(
+                requested_type=classification_request.type,
+                results=results,
+            )
         return GenericClassificationResponse(
             requested_type=classification_request.type,
             results=results,
