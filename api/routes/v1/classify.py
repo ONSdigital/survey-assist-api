@@ -286,6 +286,10 @@ def _apply_rephrasing(
                 )
             else:
                 # Keep original description if no rephrased version available
+                logger.info(
+                    f"No rephrased description found for SIC code {candidate.code}, "
+                    "keeping original description"
+                )
                 rephrased_candidates.append(candidate)
         return rephrased_candidates
     except Exception as e:  # pylint: disable=broad-except
