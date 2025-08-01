@@ -230,5 +230,22 @@ class GenericClassificationResponse(BaseModel):
         ..., description="List of classification results"
     )
     meta: Optional[ResponseMeta] = Field(
-        None, description="Response metadata, only included when options were provided"
+        default=None,
+        description="Response metadata, only included when options were provided",
+    )
+
+
+class GenericClassificationResponseWithoutMeta(BaseModel):
+    """Model for the generic classification response without meta field.
+
+    Attributes:
+        requested_type (str): The type of classification that was requested.
+        results (list[GenericClassificationResult]): List of classification results.
+    """
+
+    requested_type: str = Field(
+        ..., description="Type of classification that was requested"
+    )
+    results: list[GenericClassificationResult] = Field(
+        ..., description="List of classification results"
     )
