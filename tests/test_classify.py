@@ -805,3 +805,101 @@ def test_classify_endpoint_rephrasing_options_validation(
     assert (
         response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     )  # Validation error
+
+
+@patch("api.routes.v1.classify.SICRephraseClient")
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_classify_endpoint_meta_field_exclusion(
+    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+):
+    """Test that the meta field is excluded when options are not provided."""
+    # Mock auth
+    mock_auth.return_value = (MagicMock(), "test-project")
+
+    # Mock vector store
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    # Mock the rephrase client
+    mock_rephrase_instance = MagicMock()
+    mock_rephrase_instance.process_classification_response.return_value = {
+        "classified": True,
+        "followup": None,
+        "sic_code": EXPECTED_SIC_CODE,
+        "sic_description": EXPECTED_SIC_DESCRIPTION,
+        "sic_candidates": [
+            {
+                "sic_code": EXPECTED_SIC_CODE,
+                "sic_descriptive": EXPECTED_SIC_DESCRIPTION,
+                "likelihood": EXPECTED_LIKELIHOOD,
+            }
+        ],
+        "reasoning": "Mocked reasoning",
+        "prompt_used": None,
+    }
+    mock_rephrase_instance.get_rephrased_count.return_value = 0
+    mock_rephrase_client.return_value = mock_rephrase_instance
+
+    mock_llm.sa_rag_sic_code.return_value = (
+        MagicMock(
+            classified=True,
+            followup=None,
+            sic_code=EXPECTED_SIC_CODE,
+            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+            reasoning="Mocked reasoning",
+            sic_candidates=[
+                MagicMock(
+                    sic_code=EXPECTED_SIC_CODE,
+                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    likelihood=EXPECTED_LIKELIHOOD,
+                )
+            ],
+        ),
+        None,
+        None,
+    )
+
+    # Test request without options
+    request_data_without_options = {
+        "llm": "chat-gpt",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems",
+        "org_description": "Electrical contracting company",
+    }
+
+    response = client.post(
+        "/v1/survey-assist/classify", json=request_data_without_options
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    # Verify that meta field is not present in the response
+    assert "meta" not in data
+
+    # Test request with options to verify meta field is included
+    request_data_with_options = {
+        "llm": "chat-gpt",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems",
+        "org_description": "Electrical contracting company",
+        "options": {"sic": {"rephrased": True}},
+    }
+
+    response = client.post("/v1/survey-assist/classify", json=request_data_with_options)
+    assert response.status_code == status.HTTP_200_OK
+
+    data = response.json()
+    # Verify that meta field is present in the response when options are provided
+    assert "meta" in data
+    assert data["meta"] is not None
