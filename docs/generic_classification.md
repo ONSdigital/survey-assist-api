@@ -87,7 +87,7 @@ If no `options` are provided, rephrasing defaults to `true` for both SIC and SOC
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
-    "llm": "gemini-1.5-flash",
+    "llm": "gemini",
     "type": "sic",
     "job_title": "Farmer",
     "job_description": "Growing cereals and crops",
@@ -103,7 +103,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
-    "llm": "gemini-1.5-flash",
+    "llm": "gemini",
     "type": "sic",
     "job_title": "Farmer",
     "job_description": "Growing cereals and crops",
@@ -124,7 +124,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
-    "llm": "gemini-1.5-flash",
+    "llm": "gemini",
     "type": "sic",
     "job_title": "Farmer",
     "job_description": "Growing cereals and crops",
@@ -145,7 +145,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
-    "llm": "gemini-1.5-flash",
+    "llm": "gemini",
     "type": "sic_soc",
     "job_title": "Farmer",
     "job_description": "Growing cereals and crops",
