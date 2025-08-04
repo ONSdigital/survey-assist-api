@@ -1,6 +1,7 @@
 """Utility functions for working with package data files."""
 
 from importlib import resources
+
 from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -20,7 +21,7 @@ def resolve_package_data_path(package_name: str, filename: str) -> str:
         # Use importlib.resources to get the data file from the installed package
         data_dir = resources.files(package_name)
         resolved_path = data_dir / filename
-        logger.info("Using data from installed package: %s", resolved_path)
+        logger.info(f"Using data from installed package: {resolved_path}")
         return str(resolved_path)
     except (ImportError, OSError) as e:
         # Fallback to hardcoded path for backward compatibility
@@ -29,8 +30,6 @@ def resolve_package_data_path(package_name: str, filename: str) -> str:
             f"{filename}"
         )
         logger.warning(
-            "Could not resolve package path, using fallback: %s. Error: %s",
-            fallback_path,
-            e,
+            f"Could not resolve package path, using fallback: {fallback_path}. Error: {e}"
         )
         return fallback_path
