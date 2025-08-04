@@ -4,9 +4,14 @@ This module provides a client for the SIC lookup service, which is used to
 look up SIC codes and descriptions.
 """
 
+import logging
 from pathlib import Path
 
 from industrial_classification.lookup.sic_lookup import SICLookup
+
+from api.services.package_utils import resolve_package_data_path
+
+logger = logging.getLogger(__name__)
 
 
 class SICLookupClient:
@@ -27,16 +32,7 @@ class SICLookupClient:
                 knowledge base path will be used.
         """
         # Use the provided path or default path
-        if data_path is None:
-            # Get the absolute path to the project root (one more parent)
-            project_root = Path(__file__).parent.parent.parent.parent
-            resolved_path = str(
-                project_root
-                / "sic-classification-library/src/industrial_classification"
-                / "data/example_sic_lookup_data.csv"
-            )
-        else:
-            resolved_path = data_path
+        resolved_path = self._get_default_path() if data_path is None else data_path
 
         # Ensure the path is a string
         if isinstance(resolved_path, Path):
@@ -44,6 +40,16 @@ class SICLookupClient:
 
         # Initialise the SIC lookup service
         self.lookup_service = SICLookup(resolved_path)
+
+    def _get_default_path(self) -> str:
+        """Get the default path to the SIC lookup data file.
+
+        Returns:
+            str: Path to the SIC lookup data file.
+        """
+        return resolve_package_data_path(
+            "industrial_classification.data", "example_sic_lookup_data.csv"
+        )
 
     def lookup(self, description: str) -> dict | None:
         """Look up a SIC code by description.

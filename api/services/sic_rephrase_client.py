@@ -4,14 +4,15 @@ This module provides a client for the SIC rephrase service, which is used to
 map standard SIC descriptions to user-friendly rephrased versions.
 """
 
-from pathlib import Path
+import logging
 from typing import Any, Optional
 
 import pandas as pd
 from fastapi import HTTPException
-from survey_assist_utils.logging import get_logger
 
-logger = get_logger(__name__)
+from api.services.package_utils import resolve_package_data_path
+
+logger = logging.getLogger(__name__)
 
 # Constants
 FOUR_DIGIT_SIC_CODE = 4
@@ -43,17 +44,9 @@ class SICRephraseClient:
         Returns:
             str: Path to the rephrased SIC data file.
         """
-        # Get the absolute path to the project root (one more parent)
-        project_root = Path(__file__).parent.parent.parent.parent
-        resolved_path = str(
-            project_root
-            / "sic-classification-library/src/industrial_classification"
-            / "data/example_rephrased_sic_data.csv"
+        return resolve_package_data_path(
+            "industrial_classification.data", "example_rephrased_sic_data.csv"
         )
-        logger.info(
-            f"Using rephrase data from SIC classification library: {resolved_path}"
-        )
-        return resolved_path
 
     def _load_rephrase_data(self, data_path: str) -> dict[str, str]:
         """Load rephrased descriptions from CSV file.
@@ -65,11 +58,11 @@ class SICRephraseClient:
             dict[str, str]: Dictionary mapping SIC codes to rephrased descriptions.
 
         Raises:
-            HTTPException: If the data file cannot be loaded.
+            HTTPException: If the file is not found or has invalid format.
         """
         try:
-            # Read the CSV file with explicit dtype for sic_code to ensure it's treated as string
-            df = pd.read_csv(data_path, dtype={"sic_code": str})
+            # Load the CSV file
+            df = pd.read_csv(data_path)
 
             # Validate required columns
             required_columns = ["sic_code", "reviewed_description"]
@@ -86,19 +79,20 @@ class SICRephraseClient:
                     rephrased_dict[sic_code] = reviewed_description
 
             logger.info(
-                f"Loaded {len(rephrased_dict)} rephrased SIC descriptions from {data_path} "
-                f"(reviewed_description format)"
+                "Loaded %d rephrased SIC descriptions from %s (reviewed_description format)",
+                len(rephrased_dict),
+                data_path,
             )
             return rephrased_dict
 
         except FileNotFoundError:
-            logger.error(f"Rephrased SIC data file not found: {data_path}")
+            logger.error("Rephrased SIC data file not found: %s", data_path)
             raise HTTPException(
                 status_code=500,
                 detail=f"Rephrased SIC data file not found: {data_path}",
             ) from None
         except Exception as e:
-            logger.error(f"Error loading rephrased SIC data from {data_path}: {e}")
+            logger.error("Error loading rephrased SIC data from %s: %s", data_path, e)
             raise HTTPException(
                 status_code=500, detail=f"Error loading rephrased SIC data: {e}"
             ) from e

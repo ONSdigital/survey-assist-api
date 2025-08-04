@@ -28,7 +28,7 @@ class TestSICRephraseClient:
 
             SICRephraseClient(data_path=custom_path)
 
-            mock_read_csv.assert_called_once_with(custom_path, dtype={"sic_code": str})
+            mock_read_csv.assert_called_once_with(custom_path)
 
     def test_init_with_hardcoded_path(self):
         """Test initialisation using hardcoded path (no environment variable)."""
@@ -41,10 +41,14 @@ class TestSICRephraseClient:
 
             SICRephraseClient()
 
-            # Should call pandas.read_csv with hardcoded SIC library path
+            # Should call pandas.read_csv with installed package path
             mock_read_csv.assert_called_once()
             call_args = mock_read_csv.call_args[0][0]
-            assert "sic-classification-library" in call_args
+            # Check for either the importlib.resources path or fallback path
+            assert (
+                "site-packages/industrial_classification" in call_args
+                or "industrial_classification/data" in call_args
+            )
             assert "example_rephrased_sic_data.csv" in call_args
 
     def test_init_with_sic_library_path(self):
@@ -58,10 +62,14 @@ class TestSICRephraseClient:
 
             SICRephraseClient()
 
-            # Should call pandas.read_csv with SIC library path
+            # Should call pandas.read_csv with installed package path
             mock_read_csv.assert_called_once()
             call_args = mock_read_csv.call_args[0][0]
-            assert "sic-classification-library" in call_args
+            # Check for either the importlib.resources path or fallback path
+            assert (
+                "site-packages/industrial_classification" in call_args
+                or "industrial_classification/data" in call_args
+            )
             assert "example_rephrased_sic_data.csv" in call_args
 
     def test_load_rephrase_data_success(self):

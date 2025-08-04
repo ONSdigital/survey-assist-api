@@ -9,7 +9,6 @@ Functions:
     pytest_sessionfinish(session, exitstatus): Logs the end of a test session.
 """
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,8 +17,6 @@ from industrial_classification_utils.llm.llm import ClassificationLLM
 from survey_assist_utils.logging import get_logger
 
 from api.main import app
-from api.routes.v1.sic_lookup import get_lookup_client
-from api.services.sic_lookup_client import SICLookupClient
 
 # Configure a global logger
 logger = get_logger(__name__)
@@ -91,10 +88,6 @@ def pytest_sessionfinish(session, exitstatus):  # pylint: disable=unused-argumen
     logger.info(f"Test Session Finished with Status: {exitstatus}")
 
 
-# Get the absolute path to the test data file
-TEST_DATA_PATH = str(Path(__file__).parent / "data" / "example_sic_lookup_data.csv")
-
-
 @pytest.fixture
 def test_client():
     """Create a test client for the FastAPI app.
@@ -102,8 +95,5 @@ def test_client():
     Returns:
         TestClient: A test client for the FastAPI app.
     """
-    # Override the SIC lookup client to use test data
-    app.dependency_overrides[get_lookup_client] = lambda: SICLookupClient(
-        data_path=TEST_DATA_PATH
-    )
+    # Use the default SIC lookup client (no override needed since it uses package data)
     return TestClient(app)
