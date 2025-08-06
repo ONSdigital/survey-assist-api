@@ -175,18 +175,22 @@ gcloud run services logs read survey-assist-api --region=europe-west2 --project=
 
 ### 5. Test Deployed Endpoints
 
+**Important**: The Cloud Run service requires authentication. Use the identity token for authentication:
+
 ```bash
 # Get the service URL
 SURVEY_ASSIST_URL="https://survey-assist-api-670504361336.europe-west2.run.app"
 
-# Test endpoints
-curl $SURVEY_ASSIST_URL/
-curl $SURVEY_ASSIST_URL/v1/survey-assist/config
-curl $SURVEY_ASSIST_URL/v1/survey-assist/embeddings
-curl $SURVEY_ASSIST_URL/v1/survey-assist/sic-lookup
-curl -X POST $SURVEY_ASSIST_URL/v1/survey-assist/classify -H "Content-Type: application/json" -d '{"test": "data"}'
-curl $SURVEY_ASSIST_URL/v1/survey-assist/result?result_id=test
+# Test endpoints with authentication
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/v1/survey-assist/config
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/v1/survey-assist/embeddings
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/v1/survey-assist/sic-lookup
+curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json" -d '{"test": "data"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" "$SURVEY_ASSIST_URL/v1/survey-assist/result?result_id=test"
 ```
+
+**Note**: Use `gcloud auth print-identity-token` (not `print-access-token`) for Cloud Run authentication. The identity token contains your user identity information that Cloud Run's IAM system can validate.
 
 ## Troubleshooting
 
