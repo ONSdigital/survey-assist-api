@@ -99,75 +99,85 @@ gcloud services enable artifactregistry.googleapis.com
 gcloud services enable cloudbuild.googleapis.com
 ```
 
-### 2. Create Artifact Registry Repository
-
-```bash
-# Create repository for Docker images
-gcloud artifacts repositories create survey-assist-repo \
-  --repository-format=docker \
-  --location=europe-west2 \
-  --description="Survey Assist API Docker images"
-```
-
-### 3. Build and Push Images
+### 2. Build and Push Images
 
 ```bash
 # Configure Docker to use gcloud as credential helper
 gcloud auth configure-docker europe-west2-docker.pkg.dev
 
-# Tag images for Artifact Registry
-docker tag survey-assist-api:latest europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-repo/survey-assist-api:latest
-docker tag sic-vector-store:latest europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-repo/sic-vector-store:latest
+# Build the survey-assist-api image
+cd /path/to/survey-assist-api
+docker build -t survey-assist-api:latest .
 
-# Push images
-docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-repo/survey-assist-api:latest
-docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-repo/sic-vector-store:latest
+# Tag image for Artifact Registry
+docker tag survey-assist-api:latest europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+
+# Push image to Artifact Registry
+docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
 ```
 
-### 4. Deploy to Cloud Run
+### 3. Deploy to Cloud Run
 
-#### Deploy SIC Vector Store
+**Important**: The Cloud Run service must be configured to match the container port. Our container runs on port 8080, so the Cloud Run service must be configured accordingly.
+
+#### Update Existing Cloud Run Service
+
+If a Cloud Run service already exists, update it with the correct configuration:
 
 ```bash
-gcloud run deploy sic-vector-store \
-  --image europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-repo/sic-vector-store:latest \
-  --platform managed \
-  --region europe-west2 \
-  --allow-unauthenticated \
-  --port 8088 \
-  --memory 4Gi \
-  --cpu 2 \
-  --timeout 3600 \
-  --set-env-vars="VECTOR_STORE_DIR=/app/sic_classification_vector_store/data/vector_store"
+# Update the service with correct port and resource configuration
+gcloud run services update survey-assist-api \
+  --port=8080 \
+  --concurrency=160 \
+  --timeout=60 \
+  --cpu=1 \
+  --memory=4Gi \
+  --set-env-vars="BUCKET_NAME=survey-assist-sandbox-cloud-run-services,DATA_STORE=gcp" \
+  --region=europe-west2 \
+  --project=survey-assist-sandbox
 ```
 
-#### Deploy Survey Assist API
+**Key Configuration Details:**
+- **Port**: 8080 (must match container port)
+- **Concurrency**: 160 (matches successful UI service configuration)
+- **Timeout**: 60s (reduced from 720s for better performance)
+- **CPU**: 1 (reduced from 4 for cost optimisation)
+- **Memory**: 4Gi (reduced from 8Gi for cost optimisation)
+- **Environment Variables**: BUCKET_NAME and DATA_STORE set
+
+#### Deploy New Cloud Run Service
+
+If deploying a new service:
 
 ```bash
 gcloud run deploy survey-assist-api \
-  --image europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-repo/survey-assist-api:latest \
+  --image europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest \
   --platform managed \
   --region europe-west2 \
-  --allow-unauthenticated \
   --port 8080 \
-  --memory 2Gi \
+  --memory 4Gi \
   --cpu 1 \
-  --timeout 300 \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=survey-assist-sandbox,SIC_VECTOR_STORE=https://sic-vector-store-url"
+  --timeout 60 \
+  --concurrency 160 \
+  --set-env-vars="BUCKET_NAME=survey-assist-sandbox-cloud-run-services,DATA_STORE=gcp" \
+  --service-account api-cloud-run@survey-assist-sandbox.iam.gserviceaccount.com
 ```
 
-**Note**: Replace `sic-vector-store-url` with the actual URL of the deployed SIC vector store service.
-
-### 5. Configure API Gateway
-
-The API Gateway should be configured to route traffic to the survey-assist-api Cloud Run service. The latest OpenAPI schema should be deployed to API Gateway.
-
-### 6. Test Deployed Endpoints
+### 4. Verify Deployment
 
 ```bash
-# Get the service URLs
-SURVEY_ASSIST_URL=$(gcloud run services describe survey-assist-api --region=europe-west2 --format="value(status.url)")
-SIC_VECTOR_STORE_URL=$(gcloud run services describe sic-vector-store --region=europe-west2 --format="value(status.url)")
+# Check service status
+gcloud run services describe survey-assist-api --region=europe-west2 --project=survey-assist-sandbox
+
+# View logs
+gcloud run services logs read survey-assist-api --region=europe-west2 --project=survey-assist-sandbox --limit=50
+```
+
+### 5. Test Deployed Endpoints
+
+```bash
+# Get the service URL
+SURVEY_ASSIST_URL="https://survey-assist-api-670504361336.europe-west2.run.app"
 
 # Test endpoints
 curl $SURVEY_ASSIST_URL/
@@ -178,31 +188,39 @@ curl -X POST $SURVEY_ASSIST_URL/v1/survey-assist/classify -H "Content-Type: appl
 curl $SURVEY_ASSIST_URL/v1/survey-assist/result?result_id=test
 ```
 
-## Environment-Specific Configuration
-
-### Sandbox Environment
-- Project: `survey-assist-sandbox`
-- Region: `europe-west2`
-- Service URLs: Available via Cloud Run console
-
-### Development Environment
-- Project: `ons-survey-assist-dev`
-- Region: `europe-west2`
-- Service URLs: Available via Cloud Run console
-
-### Pre-production Environment
-- Project: `ons-survey-assist-preprod`
-- Region: `europe-west2`
-- Service URLs: Available via Cloud Run console
-
-### Production Environment
-- Project: `ons-survey-assist-prod`
-- Region: `europe-west2`
-- Service URLs: Available via Cloud Run console
-
 ## Troubleshooting
 
+### Port Configuration Issues
 
+**Problem**: Container fails to become healthy with "Startup probes timed out" error.
+
+**Root Cause**: Mismatch between container port and Cloud Run service port configuration.
+
+**Solution**: Ensure Cloud Run service is configured to use port 8080 (matching the container):
+
+```bash
+# Check current port configuration
+gcloud run services describe survey-assist-api --region=europe-west2 --project=survey-assist-sandbox --format="value(spec.template.spec.containers[0].ports[0].containerPort)"
+
+# Update port if needed
+gcloud run services update survey-assist-api --port=8080 --region=europe-west2 --project=survey-assist-sandbox
+```
+
+### Resource Configuration
+
+**Problem**: Service uses excessive resources (8Gi memory, 4 CPU).
+
+**Solution**: Use optimised configuration matching successful UI service:
+
+```bash
+gcloud run services update survey-assist-api \
+  --cpu=1 \
+  --memory=4Gi \
+  --concurrency=160 \
+  --timeout=60 \
+  --region=europe-west2 \
+  --project=survey-assist-sandbox
+```
 
 ### Common Issues
 
@@ -232,6 +250,29 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=sic-vector-store" --limit=50
 ```
 
+## Environment-Specific Configuration
+
+### Sandbox Environment
+- Project: `survey-assist-sandbox`
+- Region: `europe-west2`
+- Service URL: `https://survey-assist-api-670504361336.europe-west2.run.app`
+- Artifact Registry: `europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/`
+
+### Development Environment
+- Project: `ons-survey-assist-dev`
+- Region: `europe-west2`
+- Service URLs: Available via Cloud Run console
+
+### Pre-production Environment
+- Project: `ons-survey-assist-preprod`
+- Region: `europe-west2`
+- Service URLs: Available via Cloud Run console
+
+### Production Environment
+- Project: `ons-survey-assist-prod`
+- Region: `europe-west2`
+- Service URLs: Available via Cloud Run console
+
 ## Security Considerations
 
 - Both containers run as non-root user (appuser)
@@ -241,15 +282,27 @@ gcloud logging read "resource.type=cloud_run_revision AND resource.labels.servic
 
 ## Performance Optimisation
 
-- SIC vector store uses 4GB memory and 2 CPU cores for optimal performance
-- Survey Assist API uses 2GB memory and 1 CPU core
+- Survey Assist API uses 4GB memory and 1 CPU core (optimised from 8GB/4CPU)
+- Concurrency set to 160 for better throughput
+- Timeout reduced to 60s for faster response times
 - Consider implementing caching for frequently accessed data
 - Monitor and adjust resource allocation based on usage patterns
 
 ## Next Steps
 
-1. Set up CI/CD pipeline using Cloud Build
-2. Implement automated testing in the deployment pipeline
-3. Configure monitoring and alerting
-4. Set up backup and disaster recovery procedures
-5. Document API usage and integration guidelines 
+1. **Update API Gateway schema** with latest OpenAPI specification
+2. **Test all endpoints** in the deployed environment
+3. **Set up CI/CD pipeline** using Cloud Build
+4. **Implement automated testing** in the deployment pipeline
+5. **Configure monitoring and alerting**
+6. **Set up backup and disaster recovery procedures**
+7. **Document API usage and integration guidelines**
+
+## Recent Deployment Success
+
+**Date**: 2025-08-06  
+**Service**: survey-assist-api  
+**Revision**: survey-assist-api-00012-rct  
+**Status**: ✅ Successfully deployed and serving traffic  
+**URL**: https://survey-assist-api-670504361336.europe-west2.run.app  
+**Configuration**: Port 8080, 4Gi memory, 1 CPU, 160 concurrency, 60s timeout 
