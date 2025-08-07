@@ -59,11 +59,106 @@ curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSI
 curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
 ```
 
+## Updating Existing Images
+
+### Quick Update (Recommended)
+To update an existing image with new code changes:
+
+```bash
+# 1. Build with same tag (overwrites existing image)
+docker build -t europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest .
+
+# 2. Push to update registry
+docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+
+# 3. Deploy updated image to Cloud Run
+gcloud run services update survey-assist-api \
+  --image=europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest \
+  --port=8080 \
+  --concurrency=160 \
+  --timeout=60s \
+  --cpu=1 \
+  --memory=4Gi \
+  --set-env-vars="GCP_BUCKET_NAME=survey-assist-sandbox-cloud-run-services,DATA_STORE=gcp" \
+  --region=europe-west2 \
+  --project=survey-assist-sandbox
+```
+
+### Alternative: Versioned Updates
+For better tracking, use versioned tags:
+
+```bash
+# 1. Build with version tag
+docker build -t europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:v1.4 .
+
+# 2. Push versioned image
+docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:v1.4
+
+# 3. Deploy specific version
+gcloud run services update survey-assist-api \
+  --image=europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:v1.4 \
+  --region=europe-west2 \
+  --project=survey-assist-sandbox
+```
+
+### Clean Update (Remove Old Images)
+If you want to clean up old images:
+
+```bash
+# 1. Remove old local images
+docker rmi survey-assist-api:latest
+docker rmi europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+
+# 2. Build fresh with same tag
+docker build -t europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest .
+
+# 3. Push and deploy (same as Quick Update)
+docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+gcloud run services update survey-assist-api --image=... # (same command as above)
+```
+
 ## Current Status
 
-✅ **All endpoints working**: root, config, classify, sic-lookup, result  
-✅ **Service URL**: https://survey-assist-api-670504361336.europe-west2.run.app  
-✅ **Environment**: survey-assist-sandbox
+**All endpoints working**: root, config, classify, sic-lookup, result  
+**Service URL**: https://survey-assist-api-670504361336.europe-west2.run.app  
+**Environment**: survey-assist-sandbox
+
+## Recent Updates
+
+### Swagger2 Support (August 2025)
+The API has been updated to support Swagger2 (OpenAPI v2) for Google Cloud API Gateway compatibility:
+
+#### Changes Made
+- **Added `fastapi_swagger2` dependency** (v0.2.4)
+- **Replaced OpenAPI v3 endpoints** with Swagger2 endpoints
+- **Updated documentation URLs** from `/docs` to `/swagger2/docs`
+
+#### New Endpoints
+- `/swagger2.json` - Swagger2 specification (API Gateway compatible)
+- `/swagger2/docs` - Swagger2 UI
+- `/swagger2/redoc` - ReDoc for Swagger2
+
+#### Breaking Changes
+- `/docs`, `/redoc`, `/openapi.json` endpoints removed
+- **Documentation URLs updated** - all references changed to `/swagger2/*`
+
+#### Testing Swagger2
+```bash
+# Test new Swagger2 endpoints
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  "https://survey-assist-api-670504361336.europe-west2.run.app/swagger2.json"
+
+# Verify old endpoints are removed
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  "https://survey-assist-api-670504361336.europe-west2.run.app/docs"
+# Should return 404
+```
+
+#### API Gateway Compatibility
+The Swagger2 specification is now compatible with Google Cloud API Gateway, enabling:
+- **API Gateway deployment** with proper authentication
+- **Swagger2 format** (OpenAPI v2) instead of v3
+- **Google Cloud extensions** support
 
 ## Troubleshooting
 
