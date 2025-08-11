@@ -59,6 +59,79 @@ curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSI
 curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
 ```
 
+### Step 2: Fix Swagger2 Compatibility Issues
+
+The original spec contains OpenAPI 3.0 features that aren't supported by API Gateway. Fix these issues:
+
+```bash
+# Remove examples fields (not supported in Swagger 2.0)
+jq 'del(.. | select(type == "object" and has("examples")).examples)' swagger2_original.json > swagger2_fixed.json
+
+# Remove anyOf fields (not supported in Swagger 2.0)
+jq 'del(.. | select(type == "object" and has("anyOf")).anyOf)' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
+
+# Add missing type field for data_path parameter
+jq '(.paths."/v1/survey-assist/sic-lookup".get.parameters[] | select(.name == "data_path")) += {"type": "string"}' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
+
+# Add Google Cloud API Gateway extensions
+jq '. + {"x-google-backend": {"address": "https://survey-assist-api-670504361336.europe-west2.run.app"}, "x-google-issuer": "https://accounts.google.com", "x-google-jwks_uri": "https://www.googleapis.com/oauth2/v1/certs", "x-google-audiences": "survey-assist-sandbox", "securityDefinitions": {"google_id_token": {"type": "apiKey", "name": "Authorization", "in": "header", "description": "Google ID token for authentication"}}}' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
+
+# Add security to all endpoints
+jq '(.paths[][] | select(type == "object" and has("tags"))) += {"security": [{"google_id_token": []}]}' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
+```
+
+### Step 3: Deploy the Fixed Specification
+
+```bash
+# Create new API config with fixed spec
+gcloud api-gateway api-configs create survey-assist-api-config-v3 \
+  --api=survey-assist-api \
+  --openapi-spec=swagger2_fixed.json \
+  --project=survey-assist-sandbox
+```
+
+### Step 4: Update the Gateway
+
+```bash
+# Update existing gateway to use new config
+gcloud api-gateway gateways update survey-assist-api-gw \
+  --api-config=survey-assist-api-config-v3 \
+  --api=survey-assist-api \
+  --location=europe-west2 \
+  --project=survey-assist-sandbox
+```
+
+### Step 5: Test API Gateway Endpoints
+
+```bash
+# Test config endpoint
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  "https://{GATEWAY_URL}/v1/survey-assist/config"
+
+# Test SIC lookup endpoint
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  "https://{GATEWAY_URL}/v1/survey-assist/sic-lookup?description=electrical%20installation"
+
+# Test classify endpoint
+curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"llm":"gemini","type":"sic","job_title":"Software Engineer","job_description":"I develop web applications"}' \
+  "https://{GATEWAY_URL}/v1/survey-assist/classify"
+
+# Test result endpoint
+curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  -H "Content-Type: application/json" \
+  -d '{"survey_id":"test-123","case_id":"test-456","user":"test.user","time_start":"2024-01-01T10:00:00Z","time_end":"2024-01-01T10:05:00Z","responses":[]}' \
+  "https://{GATEWAY_URL}/v1/survey-assist/result"
+```
+
+## API Gateway URLs
+
+- **Gateway URL**: `https://{GATEWAY_URL}`
+- **Config Endpoint**: `/v1/survey-assist/config`
+- **SIC Lookup**: `/v1/survey-assist/sic-lookup`
+- **Classification**: `/v1/survey-assist/classify`
+- **Results**: `/v1/survey-assist/result`
 ## Updating Existing Images
 
 ### Quick Update (Recommended)
@@ -165,7 +238,12 @@ The Swagger2 specification is now compatible with Google Cloud API Gateway, enab
 ### Port Configuration
 If container fails to start, ensure Cloud Run service uses port 8080:
 ```bash
-gcloud run services update survey-assist-api --port=8080 --region=europe-west2
+# Get authentication token
+gcloud auth print-identity-token
+
+# Use in requests
+curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  "https://{GATEWAY_URL}/v1/survey-assist/config"
 ```
 
 ### Environment Variables
