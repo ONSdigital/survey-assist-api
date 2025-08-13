@@ -131,16 +131,6 @@ curl -X POST \
 
 **Expected Response**: Successful SIC classification with proper authentication between services.
 
-### How It Works
-
-1. **Client sends request** to API Gateway
-2. **API Gateway forwards** to Survey Assist API
-3. **Survey Assist API authenticates** with vector store using ID token
-4. **Vector store returns** search results
-5. **Survey Assist API sends** vector store results to Gemini LLM for classification
-6. **Final result** sent back to client
-
-
 ## API Gateway Setup
 
 ### 5. Fix Swagger2 Compatibility Issues
