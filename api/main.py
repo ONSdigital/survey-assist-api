@@ -7,6 +7,7 @@ It defines the FastAPI application and the API endpoints.
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi_swagger2 import FastAPISwagger2
 from industrial_classification_utils.llm.llm import ClassificationLLM
 
 from api.routes.v1.classify import router as classify_router
@@ -34,11 +35,11 @@ app: FastAPI = FastAPI(
     title="Survey Assist API",
     description="API for interacting with backend data processing services such as classification",
     version="1.0.0",
-    openapi_url="/openapi.json",
-    docs_url="/docs",
-    redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+# Enable Swagger2 endpoints (replaces OpenAPI v3)
+FastAPISwagger2(app)  # type: ignore
 
 # Include versioned routes
 app.include_router(config_router, prefix="/v1/survey-assist")

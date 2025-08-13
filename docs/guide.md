@@ -242,21 +242,21 @@ The API integrates with the Vector Store Service to provide:
 
 ### Interactive Documentation
 The API provides two types of interactive documentation:
-1. **Swagger UI** (`/docs`)
+1. **Swagger UI** (`/swagger2/docs`)
    - Interactive API testing
    - Request/response schemas
    - Example values
    - Try-it-out functionality
 
-2. **ReDoc** (`/redoc`)
+2. **ReDoc** (`/swagger2/redoc`)
    - Alternative documentation view
    - Clean, readable format
    - Schema visualisation
 
-You can access these interactive documentation tools by ensuring your API is running and then navigating to the `/docs` or `/redoc` URL in a browser (e.g., http://127.0.0.1:8080/docs).
+You can access these interactive documentation tools by ensuring your API is running and then navigating to the `/swagger2/docs` or `/swagger2/redoc` URL in a browser (e.g., http://127.0.0.1:8080/swagger2/docs).
 
 ### API Specification
-The OpenAPI specification is available at `/openapi.json`
+The Swagger2 specification is available at `/swagger2.json`
 
 ## Development
 

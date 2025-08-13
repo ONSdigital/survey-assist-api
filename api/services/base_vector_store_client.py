@@ -11,6 +11,14 @@ import httpx
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2 import id_token
+
+    GOOGLE_AUTH_AVAILABLE = True
+except ImportError:
+    GOOGLE_AUTH_AVAILABLE = False
+
 logger = get_logger(__name__)
 
 
@@ -31,6 +39,36 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             base_url: The base URL of the vector store service.
         """
         self.base_url = base_url
+
+    def _get_auth_headers(self) -> dict[str, str]:
+        """Get authentication headers for Google Cloud services.
+
+        Returns:
+            dict: Dictionary containing authorization header if available.
+        """
+        if not GOOGLE_AUTH_AVAILABLE:
+            logger.warning(
+                "Google Auth not available, proceeding without authentication"
+            )
+            return {}
+
+        try:
+            # For Cloud Run service-to-service communication, we need an ID token
+            # The audience should be the base URL of the receiving service
+            audience = self.base_url.rstrip("/")
+
+            # Get the ID token for the specific audience
+            auth_req = Request()
+            id_token_value = id_token.fetch_id_token(auth_req, audience)
+
+            logger.info(
+                f"Successfully obtained Google Cloud ID token for audience: {audience}"
+            )
+            return {"Authorization": f"Bearer {id_token_value}"}
+
+        except (ValueError, OSError, RuntimeError) as e:
+            logger.warning(f"Failed to get Google Cloud ID token: {e}")
+            return {}
 
     @abstractmethod
     def get_status_url(self) -> str:
@@ -70,8 +108,16 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             logger.info(
                 f"Attempting to check {self.get_service_name()} status", url=url
             )
+
+            # Get authentication headers
+            headers = self._get_auth_headers()
+            if headers:
+                logger.info(
+                    f"Using authentication headers for {self.get_service_name()}"
+                )
+
             async with httpx.AsyncClient() as client:
-                response = await client.get(url)
+                response = await client.get(url, headers=headers)
                 logger.info(
                     f"{self.get_service_name()} response status",
                     status_code=str(response.status_code),
@@ -118,6 +164,14 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         try:
             url = self.get_search_url()
             logger.info(f"Attempting to search {self.get_service_name()}", url=url)
+
+            # Get authentication headers
+            headers = self._get_auth_headers()
+            if headers:
+                logger.info(
+                    f"Using authentication headers for {self.get_service_name()}"
+                )
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url,
@@ -126,6 +180,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                         "job_title": job_title,
                         "job_description": job_description,
                     },
+                    headers=headers,
                 )
                 logger.info(
                     f"{self.get_service_name()} response status",

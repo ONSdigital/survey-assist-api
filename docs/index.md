@@ -13,8 +13,8 @@ The Survey Assist API is a FastAPI-based service that provides endpoints for ind
 ## API Documentation
 
 The API documentation is available in two formats:
-- **Swagger UI**: Interactive documentation at `/docs`
-- **ReDoc**: Alternative documentation view at `/redoc`
+- **Swagger UI**: Interactive documentation at `/swagger2/docs`
+- **ReDoc**: Alternative documentation view at `/swagger2/redoc`
 
 ## Getting Started
 

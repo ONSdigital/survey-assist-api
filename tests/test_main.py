@@ -170,7 +170,10 @@ async def test_get_status_success():
     mock_client.__aexit__.return_value = None
     mock_client.get.return_value = mock_response
 
-    with patch("httpx.AsyncClient", return_value=mock_client):
+    with patch("httpx.AsyncClient", return_value=mock_client), patch(
+        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
+        return_value={},
+    ):
         client = SICVectorStoreClient(base_url="http://localhost:8088")
         response = await client.get_status()
         assert response == {"status": "ready"}
@@ -193,6 +196,9 @@ async def test_get_status_connection_error():
     """
     with patch(
         "httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")
+    ), patch(
+        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
+        return_value={},
     ):
         client = SICVectorStoreClient(base_url="http://nonexistent:8088")
         with pytest.raises(HTTPException) as exc_info:
