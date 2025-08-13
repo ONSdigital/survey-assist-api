@@ -64,6 +64,19 @@ gcloud projects add-iam-policy-binding {PROJECT_ID} \
 gcloud projects add-iam-policy-binding {PROJECT_ID} \
   --member="serviceAccount:{SURVEY_ASSIST_SERVICE_ACCOUNT}" \
   --role="roles/iam.serviceAccountTokenCreator"
+
+# Ensure service requires authentication (remove public access if needed)
+gcloud run services remove-iam-policy-binding survey-assist-api \
+  --member="allUsers" \
+  --role="roles/run.invoker" \
+  --region={REGION} \
+  --project={PROJECT_ID}
+
+# Redeploy to apply authentication changes
+gcloud run services update survey-assist-api \
+  --image=europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest \
+  --region={REGION} \
+  --project={PROJECT_ID}
 ```
 
 ### 5. Test Direct Cloud Run Endpoints
