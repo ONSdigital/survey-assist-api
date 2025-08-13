@@ -10,7 +10,7 @@ This document provides the essential steps for deploying the Survey Assist API t
 
 ## Deployment Process
 
-### Step 1: Build Docker Image
+### 1. Build Docker Image
 
 ```bash
 # Build the survey-assist-api image
@@ -18,7 +18,7 @@ cd /path/to/survey-assist-api
 docker build -t survey-assist-api:latest .
 ```
 
-### Step 2: Push to Artifact Registry
+### 2. Push to Artifact Registry
 
 ```bash
 # Configure Docker to use gcloud as credential helper
@@ -31,7 +31,7 @@ docker tag survey-assist-api:latest europe-west2-docker.pkg.dev/survey-assist-sa
 docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
 ```
 
-### Step 3: Deploy to Cloud Run
+### 3. Deploy to Cloud Run
 
 ```bash
 # Update existing service with new image
@@ -47,7 +47,7 @@ gcloud run services update survey-assist-api \
   --project=survey-assist-sandbox
 ```
 
-### Step 4: Test Direct Cloud Run Endpoints
+### 4. Test Direct Cloud Run Endpoints
 
 ```bash
 # Test endpoints with authentication
@@ -56,12 +56,94 @@ SURVEY_ASSIST_URL="$(gcloud run services describe survey-assist-api --region=eur
 curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/
 curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/v1/survey-assist/config
 curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/v1/survey-assist/sic-lookup
-curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
+curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test", "org_description": "Test organisation"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
 ```
+
+## Service-to-Service Authentication
+
+The Survey Assist API is configured to communicate securely with other Cloud Run services (such as the SIC Classification Vector Store) using Google Cloud's service-to-service authentication with ID tokens.
+
+### Authentication Implementation
+
+The API uses **Application Default Credentials (ADC)** to automatically obtain and use Google Cloud ID tokens for service-to-service communication:
+
+- **ID Token Generation**: Uses `google.oauth2.id_token.fetch_id_token()` with proper audience validation
+- **Automatic Authentication**: Leverages the service account's identity to authenticate requests
+- **Secure Communication**: All inter-service requests include `Authorization: Bearer <id_token>` headers
+
+### Required Dependencies
+
+The following Google Cloud dependencies are included in `pyproject.toml`:
+
+```toml
+google-cloud-logging = "^3.9.0"
+google-auth = "^2.28.0"
+```
+
+### Environment Configuration
+
+Set the `SIC_VECTOR_STORE` environment variable to enable secure communication with the vector store service:
+
+```bash
+# Set environment variable for service-to-service communication
+gcloud run services update survey-assist-api \
+  --set-env-vars="SIC_VECTOR_STORE=https://sic-classification-vector-store-4e23ylmuja-nw.a.run.app" \
+  --region=europe-west2 \
+  --project=survey-assist-sandbox
+```
+
+### Service Account Permissions
+
+The `survey-assist-api` service account requires the following IAM roles for service-to-service communication:
+
+```bash
+# Grant Cloud Run Invoker role to the calling service
+gcloud run services add-iam-policy-binding sic-classification-vector-store \
+  --member="serviceAccount:survey-assist-api@survey-assist-sandbox.iam.gserviceaccount.com" \
+  --role="roles/run.invoker" \
+  --region=europe-west2 \
+  --project=survey-assist-sandbox
+
+# Grant IAM Service Account Token Creator role (if needed for token generation)
+gcloud projects add-iam-policy-binding survey-assist-sandbox \
+  --member="serviceAccount:survey-assist-api@survey-assist-sandbox.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountTokenCreator"
+```
+
+### Testing Service-to-Service Communication
+
+Test the complete end-to-end flow including service-to-service authentication:
+
+```bash
+# Test with complete request including org_description
+curl -X POST \
+  -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "Electrician",
+    "job_description": "I install and maintain electrical systems and wiring",
+    "org_description": "Electrical installation and maintenance services"
+  }' \
+  "https://{API_GATEWAY_URL}/v1/survey-assist/classify"
+```
+
+**Expected Response**: Successful SIC classification with proper authentication between services.
+
+### How It Works
+
+1. **Client sends request** to API Gateway
+2. **API Gateway forwards** to Survey Assist API
+3. **Survey Assist API authenticates** with vector store using ID token
+4. **Vector store returns** search results
+5. **Survey Assist API sends** vector store results to Gemini LLM for classification
+6. **Final result** sent back to client
+
 
 ## API Gateway Setup
 
-### Step 5: Fix Swagger2 Compatibility Issues
+### 5. Fix Swagger2 Compatibility Issues
 
 The original spec contains OpenAPI 3.0 features that aren't supported by API Gateway. Fix these issues:
 
@@ -82,7 +164,7 @@ jq '. + {"x-google-backend": {"address": "https://survey-assist-api-670504361336
 jq '(.paths[][] | select(type == "object" and has("tags"))) += {"security": [{"google_id_token": []}]}' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
 ```
 
-### Step 6: Deploy the Fixed Specification
+### 6. Deploy the Fixed Specification
 
 ```bash
 # Create new API config with fixed spec
@@ -92,7 +174,7 @@ gcloud api-gateway api-configs create survey-assist-api-config-v3 \
   --project=survey-assist-sandbox
 ```
 
-### Step 7: Update the Gateway
+### 7. Update the Gateway
 
 ```bash
 # Update existing gateway to use new config
