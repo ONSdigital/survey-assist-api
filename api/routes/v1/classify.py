@@ -5,6 +5,8 @@ It defines the classification endpoint and returns classification results using
 vector store and LLM.
 """
 
+import os
+
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -36,7 +38,13 @@ def get_sic_vector_store_client() -> SICVectorStoreClient:
     Returns:
         SICVectorStoreClient: A SIC vector store client instance.
     """
-    return SICVectorStoreClient()
+    env_url = os.getenv("SIC_VECTOR_STORE")
+    if env_url and env_url.strip():
+        logger.info(f"Using SIC vector store URL from environment: {env_url}")
+        return SICVectorStoreClient(base_url=env_url.strip())
+    else:
+        logger.warning("SIC_VECTOR_STORE environment variable not set, using default localhost URL")
+        return SICVectorStoreClient()
 
 
 def get_soc_vector_store_client() -> SOCVectorStoreClient:
