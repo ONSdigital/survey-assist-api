@@ -28,7 +28,7 @@ class TestSICRephraseClient:
 
             SICRephraseClient(data_path=custom_path)
 
-            mock_read_csv.assert_called_once_with(custom_path)
+            mock_read_csv.assert_called_once_with(custom_path, dtype={"sic_code": str})
 
     def test_init_with_hardcoded_path(self):
         """Test initialisation using hardcoded path (no environment variable)."""
@@ -62,8 +62,10 @@ class TestSICRephraseClient:
 
             SICRephraseClient()
 
-            # Should call pandas.read_csv with installed package path
+            # Should call pandas.read_csv with installed package path and dtype parameter
             mock_read_csv.assert_called_once()
+            # Check that dtype parameter is included
+            assert mock_read_csv.call_args[1]["dtype"] == {"sic_code": str}
             call_args = mock_read_csv.call_args[0][0]
             # Check for either the importlib.resources path or fallback path
             assert (
