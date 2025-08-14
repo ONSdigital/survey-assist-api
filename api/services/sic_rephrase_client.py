@@ -61,8 +61,8 @@ class SICRephraseClient:
             HTTPException: If the file is not found or has invalid format.
         """
         try:
-            # Load the CSV file
-            df = pd.read_csv(data_path)
+            # Load the CSV file, ensuring SIC codes are read as strings to preserve leading zeros
+            df = pd.read_csv(data_path, dtype={"sic_code": str})
 
             # Validate required columns
             required_columns = ["sic_code", "reviewed_description"]
