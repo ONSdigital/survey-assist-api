@@ -167,4 +167,4 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 
 ### Data Coverage Note
 
-The rephrase data currently contains primarily agricultural SIC codes (01xxx series). Industrial and construction codes may not have rephrased versions available, so they will show original descriptions even when rephrasing is enabled. 
+The rephrase data currently contains **only agricultural SIC codes (01xxx series)** such as crop farming, dairy farming, and livestock raising. For all other SIC codes (industrial, construction, healthcare, retail, etc.), the toggle will show the same descriptions regardless of setting, as no rephrased versions are available.
