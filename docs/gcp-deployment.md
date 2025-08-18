@@ -207,7 +207,8 @@ gcloud api-gateway gateways update survey-assist-api-gw \
   --api-config=survey-assist-api-config-v3 \
   --api=survey-assist-api \
   --location={REGION} \
-  --project={PROJECT_ID}
+  --project={PROJECT_ID} \
+  --backend-auth-service-account={BACKEND_AUTH_SERVICE_ACCOUNT}
 ```
 
 ### 9. Test API Gateway Endpoints
@@ -292,6 +293,12 @@ All endpoints are accessible via the API Gateway at `{API_GATEWAY_URL}/v1/survey
 ### JWT Token Generation Process
 
 To authenticate with API Gateway, you must generate a signed JWT token:
+
+#### Quick 3-Step Process
+
+1. **Create payload** - JSON with timestamps, service account email, and API Gateway hostname
+2. **Sign with service account** - Use `gcloud iam service-accounts sign-jwt --iam-account={SERVICE_ACCOUNT_EMAIL} payload.json output.txt`
+3. **Use token** - Read from `output.txt` and include in `Authorization: Bearer ${TOKEN}` header
 
 #### 1. Create JWT Payload
 
