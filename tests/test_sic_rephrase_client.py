@@ -6,6 +6,7 @@ import pytest
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
+from api.config import settings
 from api.services.sic_rephrase_client import SICRephraseClient
 
 logger = get_logger(__name__)
@@ -30,8 +31,8 @@ class TestSICRephraseClient:
 
             mock_read_csv.assert_called_once_with(custom_path, dtype={"sic_code": str})
 
-    def test_init_with_hardcoded_path(self):
-        """Test initialisation using hardcoded path (no environment variable)."""
+    def test_init_with_config_path(self):
+        """Test initialisation using configuration path."""
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
             mock_df.columns = ["sic_code", "reviewed_description"]
@@ -41,18 +42,14 @@ class TestSICRephraseClient:
 
             SICRephraseClient()
 
-            # Should call pandas.read_csv with installed package path
+            # Should call pandas.read_csv with configuration path
             mock_read_csv.assert_called_once()
             call_args = mock_read_csv.call_args[0][0]
-            # Check for either the importlib.resources path or fallback path
-            assert (
-                "site-packages/industrial_classification" in call_args
-                or "industrial_classification/data" in call_args
-            )
-            assert "example_rephrased_sic_data.csv" in call_args
+            # Check for configuration path
+            assert settings.SIC_REPHRASE_DATA_PATH in call_args
 
     def test_init_with_sic_library_path(self):
-        """Test initialisation using SIC classification library path."""
+        """Test initialisation using configuration path."""
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
             mock_df.columns = ["sic_code", "reviewed_description"]
@@ -62,17 +59,13 @@ class TestSICRephraseClient:
 
             SICRephraseClient()
 
-            # Should call pandas.read_csv with installed package path and dtype parameter
+            # Should call pandas.read_csv with configuration path and dtype parameter
             mock_read_csv.assert_called_once()
             # Check that dtype parameter is included
             assert mock_read_csv.call_args[1]["dtype"] == {"sic_code": str}
             call_args = mock_read_csv.call_args[0][0]
-            # Check for either the importlib.resources path or fallback path
-            assert (
-                "site-packages/industrial_classification" in call_args
-                or "industrial_classification/data" in call_args
-            )
-            assert "example_rephrased_sic_data.csv" in call_args
+            # Check for configuration path
+            assert settings.SIC_REPHRASE_DATA_PATH in call_args
 
     def test_load_rephrase_data_success(self):
         """Test successful loading of rephrase data."""
