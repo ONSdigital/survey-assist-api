@@ -9,7 +9,7 @@ from pathlib import Path
 
 from industrial_classification.lookup.sic_lookup import SICLookup
 
-from api.services.package_utils import resolve_package_data_path
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -41,15 +41,20 @@ class SICLookupClient:
         # Initialise the SIC lookup service
         self.lookup_service = SICLookup(resolved_path)
 
+        # Log confirmation of data loading
+        logger.info(
+            "SIC lookup data loaded from %s (%d codes available)",
+            resolved_path,
+            self.get_sic_codes_count(),
+        )
+
     def _get_default_path(self) -> str:
         """Get the default path to the SIC lookup data file.
 
         Returns:
             str: Path to the SIC lookup data file.
         """
-        return resolve_package_data_path(
-            "industrial_classification.data", "example_sic_lookup_data.csv"
-        )
+        return settings.SIC_LOOKUP_DATA_PATH
 
     def lookup(self, description: str) -> dict | None:
         """Look up a SIC code by description.
