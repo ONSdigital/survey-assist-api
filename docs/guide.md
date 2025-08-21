@@ -299,6 +299,196 @@ The Swagger2 specification is available at `/swagger2.json`
 
 Note: Both services must be running simultaneously for the embeddings endpoint to work. The vector store service must be started before making requests to the `/embeddings` endpoint.
 
+## Local Development with Docker
+
+### Prerequisites for Docker Setup
+- Docker installed and running
+- Colima (for macOS) or Docker Desktop
+- Google Cloud CLI (`gcloud`) authenticated
+- Access to the `survey-assist-sandbox` GCP project
+
+### Docker Setup
+
+#### 1. Build the Docker Image
+Navigate to the survey-assist-api directory and build the image:
+```bash
+cd survey-assist-api
+docker build -t sa_api .
+```
+
+**Note**: The build process requires significant memory (recommended: 8GB+). If using Colima, ensure sufficient resources:
+```bash
+colima start --memory 8 --cpu 4
+```
+
+#### 2. Set Up Google Cloud Authentication
+Ensure you're authenticated and have access to the required project:
+```bash
+# Check current authentication
+gcloud auth list
+
+# Set the active project
+gcloud config set project survey-assist-sandbox
+
+# Create service account key (if needed)
+gcloud iam service-accounts keys create service-account-key.json \
+  --iam-account=sa-tlfs-vertexai@survey-assist-sandbox.iam.gserviceaccount.com
+```
+
+#### 3. Start the Vector Store Service
+In a separate terminal, start the vector store service locally:
+```bash
+cd sic-classification-vector-store
+make run-vector-store
+```
+
+#### 4. Get Host Machine IP Address
+Get the IP address of your host machine (not the Colima VM):
+```bash
+ifconfig | grep "inet " | grep -v 127.0.0.1
+```
+Look for your local network IP address (usually starts with `192.168.x.x` or `10.x.x.x`).
+
+**Important:** We use the **host machine's IP address**, not the Colima VM's IP address, because the container needs to connect to services running on the host machine itself.
+
+#### 5. Run the API Container
+Run the survey assist API container with the proper configuration:
+```bash
+docker run \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
+  -v $(pwd)/service-account-key.json:/app/service-account-key.json \
+  -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
+  sa_api
+```
+
+**Environment Variables Explained:**
+- `GOOGLE_APPLICATION_CREDENTIALS`: Path to the service account key file inside the container
+- `SIC_VECTOR_STORE`: URL of the locally running vector store service
+
+**Volume Mount:**
+- Maps the local `service-account-key.json` to `/app/service-account-key.json` inside the container
+
+**Note:** Port forwarding (`-p 8080:8080`) is not strictly necessary on macOS as Docker Desktop automatically provides host access to container ports. However, if you prefer explicit port forwarding, you can add `-p 8080:8080` to the command.
+
+### Alternative: Run in Background
+To run the container in the background:
+```bash
+docker run -d \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
+  -v $(pwd)/service-account-key.json:/app/service-account-key.json \
+  -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
+  --name survey-assist-api \
+  sa_api
+```
+
+### Testing the Setup
+
+#### 1. Verify Vector Store
+Ensure the vector store is accessible:
+```bash
+curl http://localhost:8088/health
+```
+
+#### 2. Test API Endpoints
+Test the survey assist API:
+```bash
+# Health check
+curl http://localhost:8080/health
+
+# Configuration
+curl http://localhost:8080/v1/survey-assist/config
+
+# Test classification (example)
+curl -X POST http://localhost:8080/v1/survey-assist/classify \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "Farmer",
+    "job_description": "Grows crops and raises livestock",
+    "org_description": "Agricultural farm"
+  }'
+```
+
+### Troubleshooting
+
+#### Common Issues
+
+**Port Already in Use**
+```bash
+# Check what's using the port
+lsof -i :8088
+
+# Kill the process if needed
+kill <PID>
+```
+
+**Docker Build Memory Issues**
+```bash
+# Increase Colima memory
+colima stop
+colima start --memory 8 --cpu 4
+```
+
+**Service Account Permission Issues**
+```bash
+# Verify the service account has the right roles
+gcloud projects get-iam-policy survey-assist-sandbox \
+  --flatten="bindings[].members" \
+  --format="table(bindings.role)" \
+  --filter="bindings.members:sa-tlfs-vertexai@survey-assist-sandbox.iam.gserviceaccount.com"
+```
+
+**Network Connectivity Issues**
+```bash
+# Test connectivity from container to host
+docker exec <container_id> curl http://<host-ip-address>:8088/health
+
+# Verify Colima VM is running
+colima status
+
+# If using port forwarding, verify ports are correctly mapped
+docker port <container_id>
+```
+
+### Development Workflow
+
+1. **Make code changes** in the survey-assist-api directory
+2. **Rebuild the image** when dependencies change:
+   ```bash
+   docker build -t sa_api .
+   ```
+3. **Restart the container** with the new image
+4. **Test changes** using the API endpoints
+5. **Iterate** on the development cycle
+
+### Simplified Setup Notes
+
+The local Docker setup has been simplified and tested:
+- **No `--network=host` required**: This flag doesn't work properly on macOS Docker Desktop
+- **No port forwarding required**: Docker Desktop on macOS automatically provides host access to container ports
+- **Use host machine IP (NOT VM IP)**: The container connects to `http://<host-ip-address>:8088` for the vector store
+- **Cleaner commands**: The Docker run commands are now simpler and more reliable
+
+**Key Point:** We use the **host machine's actual IP address** (like `192.168.1.157`), not the Colima VM's IP address, because the vector store is running on the host machine itself.
+
+This setup has been verified to work successfully for local development and testing.
+
+### Environment Variables Reference
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` |
+| `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` |
+| `PORT` | API port (default: 8080) | `8080` |
+
+### Security Notes
+
+- **Never commit** `service-account-key.json` to version control
+- **Rotate keys** regularly for production use
+- **Use least privilege** principle when assigning IAM roles
+- **Monitor usage** through GCP Cloud Logging
+
 ### Testing
 The project includes comprehensive test coverage:
 - API endpoint tests
