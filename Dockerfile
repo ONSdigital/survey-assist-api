@@ -23,6 +23,8 @@ RUN /opt/poetry/bin/poetry config virtualenvs.create false && \
 
 COPY api/ ./api/
 COPY utils/ ./utils/
+# Copy the entire data folder structure
+COPY data/ ./data/
 
 # Stage 2: Final runtime image
 FROM python:3.12-slim
