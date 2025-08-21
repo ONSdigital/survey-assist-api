@@ -480,6 +480,8 @@ This setup has been verified to work successfully for local development and test
 |----------|-------------|---------|
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` |
 | `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` |
+| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup data file | `data/sic_knowledge_base_utf8.csv` |
+| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase data file | `data/sic_rephrased_descriptions_2025_02_03.csv` |
 | `PORT` | API port (default: 8080) | `8080` |
 
 ### Security Notes
@@ -521,10 +523,25 @@ The API implements robust error handling:
 
 ## Configuration
 
-The API provides a configuration system that currently allows viewing the active configuration.
+The API provides a configuration system that manages various settings including data file paths and service configurations.
 
-- The `/config` endpoint provides a read-only view of the current API configuration.
-- Currently, the LLM configuration is static and cannot be modified via the API.
+### Configuration Options
+
+- **Data File Paths**: Configurable paths for SIC lookup and rephrase data files
+- **Service Settings**: GCP bucket names, vector store URLs, and other service configurations
+- **Environment Variables**: All settings can be overridden via environment variables
+
+### Data File Configuration
+
+The API now loads data files from configurable paths instead of hardcoded locations:
+
+- **SIC Lookup Data**: `SIC_LOOKUP_DATA_PATH` (default: `data/sic_knowledge_base_utf8.csv`)
+- **SIC Rephrase Data**: `SIC_REPHRASE_DATA_PATH` (default: `data/sic_rephrased_descriptions_2025_02_03.csv`)
+
+### Viewing Configuration
+
+- The `/config` endpoint provides a read-only view of the current API configuration
+- Currently, the LLM configuration is static and cannot be modified via the API
 
 Configuration is managed through the `/config` endpoint and reflects the settings currently in use.
 
