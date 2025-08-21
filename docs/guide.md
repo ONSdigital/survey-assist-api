@@ -309,7 +309,33 @@ Note: Both services must be running simultaneously for the embeddings endpoint t
 
 ### Docker Setup
 
-#### 1. Build the Docker Image
+#### 1. Prepare Data Files
+Before building the Docker image, you need to create a `data/` folder with the required CSV files:
+
+```bash
+# Create the data directory
+mkdir -p data
+
+# Add your SIC classification data files to the data/ folder:
+# - sic_knowledge_base_utf8.csv (SIC lookup data)
+# - sic_rephrased_descriptions_2025_02_03.csv (SIC rephrase data)
+```
+
+**Important**: The `data/` folder is not committed to version control (it's in `.gitignore`), so you must create it locally with your data files before building the Docker image.
+
+**Required Data Folder Structure**:
+```
+survey-assist-api/
+├── data/
+│   ├── sic_knowledge_base_utf8.csv
+│   └── sic_rephrased_descriptions_2025_02_03.csv
+├── Dockerfile
+├── api/
+├── utils/
+└── ...
+```
+
+#### 2. Build the Docker Image
 Navigate to the survey-assist-api directory and build the image:
 ```bash
 cd survey-assist-api
@@ -321,7 +347,11 @@ docker build -t sa_api .
 colima start --memory 8 --cpu 4
 ```
 
-#### 2. Set Up Google Cloud Authentication
+**Data Files**: The Docker image will include the SIC classification data files from your local `data/` folder:
+- `data/sic_knowledge_base_utf8.csv` - SIC lookup data
+- `data/sic_rephrased_descriptions_2025_02_03.csv` - SIC rephrase data
+
+#### 3. Set Up Google Cloud Authentication
 Ensure you're authenticated and have access to the required project:
 ```bash
 # Check current authentication
@@ -335,14 +365,14 @@ gcloud iam service-accounts keys create service-account-key.json \
   --iam-account=sa-tlfs-vertexai@survey-assist-sandbox.iam.gserviceaccount.com
 ```
 
-#### 3. Start the Vector Store Service
+#### 4. Start the Vector Store Service
 In a separate terminal, start the vector store service locally:
 ```bash
 cd sic-classification-vector-store
 make run-vector-store
 ```
 
-#### 4. Get Host Machine IP Address
+#### 5. Get Host Machine IP Address
 Get the IP address of your host machine (not the Colima VM):
 ```bash
 ifconfig | grep "inet " | grep -v 127.0.0.1
@@ -351,19 +381,23 @@ Look for your local network IP address (usually starts with `192.168.x.x` or `10
 
 **Important:** We use the **host machine's IP address**, not the Colima VM's IP address, because the container needs to connect to services running on the host machine itself.
 
-#### 5. Run the API Container
+#### 6. Run the API Container
 Run the survey assist API container with the proper configuration:
 ```bash
 docker run \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
   -v $(pwd)/service-account-key.json:/app/service-account-key.json \
   -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
+  -e SIC_REPHRASE_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
+  -e SIC_LOOKUP_PATH=data/sic_knowledge_base_utf8.csv \
   sa_api
 ```
 
 **Environment Variables Explained:**
 - `GOOGLE_APPLICATION_CREDENTIALS`: Path to the service account key file inside the container
 - `SIC_VECTOR_STORE`: URL of the locally running vector store service
+- `SIC_REPHRASE_PATH`: Path to the SIC rephrase data file within the container
+- `SIC_LOOKUP_PATH`: Path to the SIC lookup data file within the container
 
 **Volume Mount:**
 - Maps the local `service-account-key.json` to `/app/service-account-key.json` inside the container
@@ -377,19 +411,46 @@ docker run -d \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
   -v $(pwd)/service-account-key.json:/app/service-account-key.json \
   -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
+  -e SIC_REPHRASE_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
+  -e SIC_LOOKUP_PATH=data/sic_knowledge_base_utf8.csv \
   --name survey-assist-api \
   sa_api
 ```
 
 ### Testing the Setup
 
-#### 1. Verify Vector Store
+#### 1. Verify Data Files Are Loaded
+Check the Docker container logs to confirm the data files are loaded successfully:
+```bash
+# Get the container ID
+docker ps
+
+# Check the logs for data loading messages
+docker logs <container_id>
+```
+
+**Expected Log Messages**: Look for these indicators that data is loaded:
+- SIC lookup data loading messages
+- SIC rephrase data loading messages
+- No file not found errors for the CSV files
+
+**Example Successful Log Messages**:
+```
+INFO:api.services.sic_lookup_client:Loaded XXXX SIC lookup codes from data/sic_knowledge_base_utf8.csv
+INFO:api.services.sic_rephrase_client:Loaded XXXX rephrased SIC descriptions from data/sic_rephrased_descriptions_2025_02_03.csv
+```
+
+**Note**: Both clients now use the same consistent format: "Loaded XXXX [type] from [filepath]"
+
+**Warning Signs**: If you see errors like "No such file or directory" or "File not found" for the CSV files, the data hasn't loaded properly.
+
+#### 2. Verify Vector Store
 Ensure the vector store is accessible:
 ```bash
 curl http://localhost:8088/health
 ```
 
-#### 2. Test API Endpoints
+#### 3. Test API Endpoints
 Test the survey assist API:
 ```bash
 # Health check
@@ -413,6 +474,16 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
 ### Troubleshooting
 
 #### Common Issues
+
+**Data Files Not Loading**
+If you see errors about missing data files in the logs:
+```bash
+# Check if data files exist in the container
+docker exec <container_id> ls -la /app/data/
+
+# Verify the data folder structure
+docker exec <container_id> find /app -name "*.csv"
+```
 
 **Port Already in Use**
 ```bash
@@ -480,8 +551,8 @@ This setup has been verified to work successfully for local development and test
 |----------|-------------|---------|
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` |
 | `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` |
-| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup data file | `data/sic_knowledge_base_utf8.csv` |
-| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase data file | `data/sic_rephrased_descriptions_2025_02_03.csv` |
+| `SIC_LOOKUP_PATH` | Path to SIC lookup data file within container | `data/sic_knowledge_base_utf8.csv` |
+| `SIC_REPHRASE_PATH` | Path to SIC rephrase data file within container | `data/sic_rephrased_descriptions_2025_02_03.csv` |
 | `PORT` | API port (default: 8080) | `8080` |
 
 ### Security Notes
@@ -533,10 +604,12 @@ The API provides a configuration system that manages various settings including 
 
 ### Data File Configuration
 
-The API now loads data files from configurable paths instead of hardcoded locations:
+The API now loads data files from configurable paths. In the Docker container, these files are built into the image:
 
-- **SIC Lookup Data**: `SIC_LOOKUP_DATA_PATH` (default: `data/sic_knowledge_base_utf8.csv`)
-- **SIC Rephrase Data**: `SIC_REPHRASE_DATA_PATH` (default: `data/sic_rephrased_descriptions_2025_02_03.csv`)
+- **SIC Lookup Data**: `SIC_LOOKUP_PATH` (default: `data/sic_knowledge_base_utf8.csv`)
+- **SIC Rephrase Data**: `SIC_REPHRASE_PATH` (default: `data/sic_rephrased_descriptions_2025_02_03.csv`)
+
+**Note**: The data files are now included in the Docker image during the build process, so no external data mounting is required.
 
 ### Viewing Configuration
 
