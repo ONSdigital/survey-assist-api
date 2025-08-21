@@ -43,9 +43,9 @@ class SICLookupClient:
 
         # Log confirmation of data loading
         logger.info(
-            "SIC lookup data loaded from %s (%d codes available)",
-            resolved_path,
+            "Loaded %d SIC lookup codes from %s",
             self.get_sic_codes_count(),
+            resolved_path,
         )
 
     def _get_default_path(self) -> str:

@@ -84,8 +84,9 @@ class SICRephraseClient:
                     rephrased_dict[sic_code] = reviewed_description
 
             logger.info(
-                "Loaded %d rephrased SIC descriptions from local data folder",
+                "Loaded %d rephrased SIC descriptions from %s",
                 len(rephrased_dict),
+                data_path,
             )
             return rephrased_dict
 
