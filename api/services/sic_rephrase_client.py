@@ -10,7 +10,7 @@ from typing import Any, Optional
 import pandas as pd
 from fastapi import HTTPException
 
-from api.services.package_utils import resolve_package_data_path
+from api.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -38,15 +38,20 @@ class SICRephraseClient:
         # Load the rephrased descriptions
         self.rephrased_descriptions = self._load_rephrase_data(resolved_path)
 
+        # Log confirmation of data loading
+        logger.info(
+            "SIC rephrase data loaded from %s (%d descriptions available)",
+            resolved_path,
+            self.get_rephrased_count(),
+        )
+
     def _get_default_path(self) -> str:
         """Get the default path to the rephrased SIC data file.
 
         Returns:
             str: Path to the rephrased SIC data file.
         """
-        return resolve_package_data_path(
-            "industrial_classification.data", "example_rephrased_sic_data.csv"
-        )
+        return settings.SIC_REPHRASE_DATA_PATH
 
     def _load_rephrase_data(self, data_path: str) -> dict[str, str]:
         """Load rephrased descriptions from CSV file.
@@ -79,9 +84,8 @@ class SICRephraseClient:
                     rephrased_dict[sic_code] = reviewed_description
 
             logger.info(
-                "Loaded %d rephrased SIC descriptions from %s (reviewed_description format)",
+                "Loaded %d rephrased SIC descriptions from local data folder",
                 len(rephrased_dict),
-                data_path,
             )
             return rephrased_dict
 
