@@ -4,7 +4,6 @@ This module contains pytest-based unit tests for the SICLookupClient class, whic
 provides SIC code lookup functionality.
 """
 
-from http import HTTPStatus
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -236,7 +235,7 @@ def test_sic_lookup_exact_match():
         mock_instance = mock_lookup.return_value
         mock_instance.lookup.return_value = {
             "code": "43210",
-            "description": "street lighting installation"
+            "description": "street lighting installation",
         }
         mock_instance.data = MagicMock()
         mock_instance.data.__len__.return_value = 100
@@ -244,7 +243,10 @@ def test_sic_lookup_exact_match():
         client = SICLookupClient()
         result = client.lookup("street lighting installation")
 
-        assert result == {"code": "43210", "description": "street lighting installation"}
+        assert result == {
+            "code": "43210",
+            "description": "street lighting installation",
+        }
         mock_instance.lookup.assert_called_once_with("street lighting installation")
 
 
@@ -262,9 +264,9 @@ def test_sic_lookup_similarity():
                 "descriptions": [
                     "Electrical installation",
                     "Electrical contractor",
-                    "Electrician"
+                    "Electrician",
                 ]
-            }
+            },
         }
         mock_instance.data = MagicMock()
         mock_instance.data.__len__.return_value = 100
@@ -279,9 +281,9 @@ def test_sic_lookup_similarity():
                 "descriptions": [
                     "Electrical installation",
                     "Electrical contractor",
-                    "Electrician"
+                    "Electrician",
                 ]
-            }
+            },
         }
         mock_instance.lookup.assert_called_once_with("electrician", similarity=True)
 
