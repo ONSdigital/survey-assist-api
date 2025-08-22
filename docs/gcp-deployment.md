@@ -8,6 +8,10 @@ This document provides the essential steps for deploying the Survey Assist API t
 - Docker installed and running (colima for local development)
 - Access to the target GCP project ({PROJECT_ID})
 
+## Authentication Note
+
+**All Cloud Run endpoints require signed JWT tokens for authentication.** Google Identity tokens (`gcloud auth print-identity-token`) cannot be used. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
+
 ## Deployment Process
 
 ### 1. Build Docker Image
@@ -19,6 +23,8 @@ docker build -t survey-assist-api:latest .
 ```
 
 ### 2. Push to Artifact Registry
+
+**Important**: This step is required before pushing images to the Artifact Registry.
 
 ```bash
 # Configure Docker to use gcloud as credential helper
@@ -81,14 +87,20 @@ gcloud run services update survey-assist-api \
 
 ### 5. Test Direct Cloud Run Endpoints
 
+**Important**: All Cloud Run endpoints require signed JWT tokens for authentication. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
+
 ```bash
 # Test endpoints with authentication
 SURVEY_ASSIST_URL="$(gcloud run services describe survey-assist-api --region={REGION} --project={PROJECT_ID} --format='value(status.url)')"
 
-curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/
-curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/v1/survey-assist/config
-curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" $SURVEY_ASSIST_URL/v1/survey-assist/sic-lookup
-curl -X POST -H "Authorization: Bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test", "org_description": "Test organisation"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
+# Test config endpoint
+curl -H "Authorization: Bearer ${JWT_TOKEN}" $SURVEY_ASSIST_URL/v1/survey-assist/config
+
+# Test SIC lookup endpoint
+curl -H "Authorization: Bearer ${JWT_TOKEN}" $SURVEY_ASSIST_URL/v1/survey-assist/sic-lookup
+
+# Test classify endpoint
+curl -X POST -H "Authorization: Bearer ${JWT_TOKEN}" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test", "org_description": "Test organisation"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
 ```
 
 ## Service-to-Service Authentication
@@ -149,7 +161,7 @@ Test the complete end-to-end flow including service-to-service authentication:
 ```bash
 # Test with complete request including org_description
 curl -X POST \
-  -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+  -H "Authorization: Bearer ${JWT_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
     "llm": "gemini",
@@ -486,8 +498,9 @@ The API has been updated to support Swagger2 (OpenAPI v2) for Google Cloud API G
 ### Testing Swagger2
 ```bash
 # Test new Swagger2 endpoints
-curl -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
+curl -H "Authorization: Bearer ${JWT_TOKEN}" \
   "$(gcloud run services describe survey-assist-api --region=europe-west2 --project=survey-assist-sandbox --format='value(status.url)')/swagger2.json"
+```
 
 ## Key Learnings and Best Practices
 
