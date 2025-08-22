@@ -10,7 +10,7 @@ This document provides the essential steps for deploying the Survey Assist API t
 
 ## Authentication Note
 
-**All Cloud Run endpoints require signed JWT tokens for authentication.** Google Identity tokens (`gcloud auth print-identity-token`) cannot be used. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
+**All testing is done through the API Gateway using signed JWT tokens for authentication.** We never test Cloud Run services directly. Google Identity tokens (`gcloud auth print-identity-token`) cannot be used. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
 
 ## Deployment Process
 
@@ -85,22 +85,22 @@ gcloud run services update survey-assist-api \
   --project={PROJECT_ID}
 ```
 
-### 5. Test Direct Cloud Run Endpoints
+### 5. Test API Gateway Endpoints
 
-**Important**: All Cloud Run endpoints require signed JWT tokens for authentication. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
+**Important**: All testing is done through the API Gateway using signed JWT tokens for authentication. We never test Cloud Run services directly. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
 
 ```bash
-# Test endpoints with authentication
-SURVEY_ASSIST_URL="$(gcloud run services describe survey-assist-api --region={REGION} --project={PROJECT_ID} --format='value(status.url)')"
+# Test endpoints with authentication through API Gateway
+# Replace {API_GATEWAY_URL} with your actual API Gateway hostname
 
 # Test config endpoint
-curl -H "Authorization: Bearer ${JWT_TOKEN}" $SURVEY_ASSIST_URL/v1/survey-assist/config
+curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/survey-assist/config"
 
 # Test SIC lookup endpoint
-curl -H "Authorization: Bearer ${JWT_TOKEN}" $SURVEY_ASSIST_URL/v1/survey-assist/sic-lookup
+curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/survey-assist/sic-lookup"
 
 # Test classify endpoint
-curl -X POST -H "Authorization: Bearer ${JWT_TOKEN}" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test", "org_description": "Test organisation"}' "$SURVEY_ASSIST_URL/v1/survey-assist/classify"
+curl -X POST -H "Authorization: Bearer ${JWT_TOKEN}" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test", "org_description": "Test organisation"}' "https://{API_GATEWAY_URL}/v1/survey-assist/classify"
 ```
 
 ## Service-to-Service Authentication
