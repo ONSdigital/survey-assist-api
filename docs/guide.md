@@ -303,7 +303,7 @@ Note: Both services must be running simultaneously for the embeddings endpoint t
 
 ### Prerequisites for Docker Setup
 - Docker installed and running
-- Colima (for macOS) or Docker Desktop
+- Colima for macOS
 - Google Cloud CLI (`gcloud`) authenticated
 - Access to the `survey-assist-sandbox` GCP project
 
