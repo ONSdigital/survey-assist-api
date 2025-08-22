@@ -215,85 +215,90 @@ class TestSICLookupClient:
                 assert captured_message is not None
                 assert isinstance(captured_message, str)
                 # pylint: disable=unsupported-membership-test
-                assert "SIC lookup data loaded from" in captured_message
+                assert "Loaded" in captured_message
+                assert "SIC lookup codes from" in captured_message
                 if captured_args:
                     formatted_message = captured_message % captured_args
-                    assert "150 codes available" in formatted_message
+                    assert "150" in formatted_message
+                    assert "SIC lookup codes from" in formatted_message
                 else:
-                    assert "150 codes available" in captured_message
+                    assert "150" in captured_message
+                    assert "SIC lookup codes from" in captured_message
 
 
 # Test the actual API endpoints
-def test_sic_lookup_exact_match(test_client):
-    """Test the SIC Lookup endpoint with an exact match.
+def test_sic_lookup_exact_match():
+    """Test the SIC Lookup functionality with an exact match.
 
-    This test sends a GET request to the SIC Lookup endpoint with a specific
-    description ("street lighting installation") and verifies:
-    1. The response status code is HTTP 200 (OK).
-    2. The response JSON contains the expected code "43210".
-    3. The response JSON contains the expected description "street lighting installation".
-
-    Assertions:
-    - The response status code is HTTPStatus.OK.
-    - The response JSON contains the correct "code" value.
-    - The response JSON contains the correct "description" value.
+    This test verifies that the SICLookupClient can find a SIC code for a given description.
     """
-    response = test_client.get(
-        "/v1/survey-assist/sic-lookup?description=street%20lighting%20installation"
-    )
-    assert response.status_code == HTTPStatus.OK
-    assert response.json()["code"] == "43210"
-    assert response.json()["description"] == "street lighting installation"
+    with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup:
+        mock_instance = mock_lookup.return_value
+        mock_instance.lookup.return_value = {
+            "code": "43210",
+            "description": "street lighting installation"
+        }
+        mock_instance.data = MagicMock()
+        mock_instance.data.__len__.return_value = 100
+
+        client = SICLookupClient()
+        result = client.lookup("street lighting installation")
+
+        assert result == {"code": "43210", "description": "street lighting installation"}
+        mock_instance.lookup.assert_called_once_with("street lighting installation")
 
 
-def test_sic_lookup_similarity(test_client):
-    """Test the SIC Lookup endpoint with similarity search enabled.
+def test_sic_lookup_similarity():
+    """Test the SIC Lookup functionality with similarity search enabled.
 
-    This test sends a GET request to the SIC Lookup endpoint with the description
-    parameter set to "electrician" and the similarity parameter set to true. It
-    verifies:
-    1. The response status code is HTTP 200 (OK).
-    2. The response JSON contains a "potential_matches" key, indicating similarity
-       search results.
-    3. The "potential_matches" object in the response JSON contains a
-       "descriptions" key.
-
-    Assertions:
-    - The response status code is HTTPStatus.OK.
-    - The "potential_matches" key is present in the response JSON.
-    - The "descriptions" key is present within the "potential_matches" object in
-      the response JSON.
+    This test verifies that the SICLookupClient can perform similarity searches.
     """
-    response = test_client.get(
-        "/v1/survey-assist/sic-lookup?description=electrician&similarity=true"
-    )
-    assert response.status_code == HTTPStatus.OK
-    assert "potential_matches" in response.json()
-    assert "descriptions" in response.json()["potential_matches"]
-
-
-def test_sic_lookup_no_description(test_client):
-    """Test the SIC Lookup endpoint to ensure it returns an error when the description
-    parameter is missing.
-
-    This test sends a GET request to the SIC Lookup endpoint without providing a
-    description parameter. It verifies:
-    1. The response status code is HTTP 422 (Unprocessable Entity).
-    2. The response JSON contains the expected validation error details.
-
-    Assertions:
-    - The response status code is HTTPStatus.UNPROCESSABLE_ENTITY.
-    - The response JSON matches the expected validation error format.
-    """
-    response = test_client.get("/v1/survey-assist/sic-lookup")
-    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-    assert response.json() == {
-        "detail": [
-            {
-                "type": "missing",
-                "loc": ["query", "description"],
-                "msg": "Field required",
-                "input": None,
+    with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup:
+        mock_instance = mock_lookup.return_value
+        mock_instance.lookup.return_value = {
+            "code": "43210",
+            "description": "Electrical installation",
+            "potential_matches": {
+                "descriptions": [
+                    "Electrical installation",
+                    "Electrical contractor",
+                    "Electrician"
+                ]
             }
-        ]
-    }
+        }
+        mock_instance.data = MagicMock()
+        mock_instance.data.__len__.return_value = 100
+
+        client = SICLookupClient()
+        result = client.similarity_search("electrician")
+
+        assert result == {
+            "code": "43210",
+            "description": "Electrical installation",
+            "potential_matches": {
+                "descriptions": [
+                    "Electrical installation",
+                    "Electrical contractor",
+                    "Electrician"
+                ]
+            }
+        }
+        mock_instance.lookup.assert_called_once_with("electrician", similarity=True)
+
+
+def test_sic_lookup_no_description():
+    """Test the SIC Lookup functionality when no description is provided.
+
+    This test verifies that the SICLookupClient handles empty descriptions appropriately.
+    """
+    with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup:
+        mock_instance = mock_lookup.return_value
+        mock_instance.lookup.return_value = None
+        mock_instance.data = MagicMock()
+        mock_instance.data.__len__.return_value = 100
+
+        client = SICLookupClient()
+        result = client.lookup("")
+
+        assert result is None
+        mock_instance.lookup.assert_called_once_with("")

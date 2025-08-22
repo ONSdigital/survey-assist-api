@@ -87,7 +87,7 @@ gcloud run services update survey-assist-api \
 
 ### 5. Test API Gateway Endpoints
 
-**Important**: All testing is done through the API Gateway using signed JWT tokens for authentication. We never test Cloud Run services directly. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
+**Important**: All testing is done through the API Gateway using signed JWT tokens for authentication. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
 
 ```bash
 # Test endpoints with authentication through API Gateway
@@ -174,6 +174,28 @@ curl -X POST \
 ```
 
 **Expected Response**: Successful SIC classification with proper authentication between services.
+
+#### Complete Working Example
+
+Here's a complete example of generating and using a JWT token:
+
+```bash
+# 1. Create payload with current timestamps
+echo '{"iat":' $(date +%s) ',"exp":' $(( $(date +%s) + 3600 )) ',"iss":"<your-service-account-email>","aud":"<your-api-gateway-hostname>","sub":"<your-service-account-email>","email":"<your-service-account-email>"}' > payload.json
+
+# 2. Sign the JWT
+gcloud iam service-accounts sign-jwt \
+  --iam-account=<your-service-account-email> \
+  payload.json \
+  output.txt
+
+# 3. Use the token
+TOKEN=$(cat output.txt)
+
+# 4. Test the API
+curl -H "Authorization: Bearer ${TOKEN}" \
+  "https://<api-gateway-hostname>/v1/survey-assist/config"
+```
 
 ## API Gateway Setup
 
@@ -306,6 +328,25 @@ All endpoints are accessible via the API Gateway at `{API_GATEWAY_URL}/v1/survey
 
 To authenticate with API Gateway, you must generate a signed JWT token:
 
+#### Prerequisites: Get Your API Gateway Details
+
+Before generating the JWT token, you need to know your API Gateway hostname and service account:
+
+```bash
+# 1. List your API Gateways
+gcloud api-gateway gateways list --project={PROJECT_ID}
+
+# 2. Get the API Gateway hostname
+gcloud api-gateway gateways describe {GATEWAY_ID} \
+  --location={REGION} \
+  --project={PROJECT_ID} \
+  --format='value(defaultHostname)'
+
+# 3. Get the service account from the API config
+
+- **API Gateway hostname**: `your-gateway-name-xxxxx.nw.gateway.dev`
+- **Service account**: `your-service-account@your-project.iam.gserviceaccount.com`
+
 #### Quick 3-Step Process
 
 1. **Create payload** - JSON with timestamps, service account email, and API Gateway hostname
@@ -318,22 +359,31 @@ Create a `payload.json` file with the required claims:
 
 ```json
 {
-  "iat": <current_timestamp>,
-  "exp": <current_timestamp + 3600>,
-  "iss": "<service-account-email>",
-  "aud": "<api-gateway-hostname>",
-  "sub": "<service-account-email>",
-  "email": "<service-account-email>"
+  "iat": <current_unix_timestamp>,
+  "exp": <current_unix_timestamp + 3600>,
+  "iss": "<your-service-account-email>",
+  "aud": "<your-api-gateway-hostname>",
+  "sub": "<your-service-account-email>",
+  "email": "<your-service-account-email>"
 }
 ```
 
 **Required fields:**
-- `iat`: Issued at timestamp (current time)
-- `exp`: Expiration timestamp (current time + 1 hour)
-- `iss`: Issuer (must match `x-google-issuer` in Swagger spec)
-- `aud`: Audience (must match `x-google-audiences` in Swagger spec)
-- `sub`: Subject (service account email)
-- `email`: Service account email
+- `iat`: Issued at timestamp (current Unix timestamp in seconds)
+- `exp`: Expiration timestamp (current Unix timestamp + 3600 seconds = 1 hour from now)
+- `iss`: Issuer (service account that will sign the JWT)
+- `aud`: Audience (your API Gateway hostname)
+- `sub`: Subject (same as issuer)
+- `email`: Service account email (same as issuer)
+
+**Quick timestamp generation:**
+```bash
+# Get current timestamp
+echo "Current timestamp: $(date +%s)"
+
+# Create payload with current timestamps
+echo '{"iat":' $(date +%s) ',"exp":' $(( $(date +%s) + 3600 )) ',"iss":"<your-service-account-email>","aud":"<your-api-gateway-hostname>","sub":"<your-service-account-email>","email":"<your-service-account-email>"}' > payload.json
+```
 
 #### 2. Generate Signed JWT
 
