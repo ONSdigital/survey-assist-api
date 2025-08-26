@@ -53,6 +53,19 @@ Retrieve survey results using a result ID.
 
 The API supports rephrasing of classification descriptions to provide more user-friendly versions. This feature can be controlled separately for SIC and SOC classifications.
 
+### How Rephrasing Works
+
+The rephrase toggle allows you to choose between:
+- **Original SIC descriptions**: Technical, official SIC code descriptions
+- **Rephrased descriptions**: User-friendly, simplified versions of the same information
+
+### Rephrasing Data Sources
+
+**Package Data**: Contains 28 agricultural SIC codes (01xxx series) with rephrased descriptions
+**Local Data**: Contains full rephrase dataset with comprehensive coverage
+
+The rephrase data source is controlled by the `SIC_REPHRASE_DATA_PATH` environment variable, just like the lookup data.
+
 ### Options Structure
 
 The `options` field allows granular control over rephrasing for different classification types:
@@ -72,12 +85,21 @@ The `options` field allows granular control over rephrasing for different classi
 
 ### Rephrasing Controls
 
-- **SIC Rephrasing**: Currently implemented and functional
-- **SOC Rephrasing**: Not yet implemented (placeholder for future development)
+- **SIC Rephrasing**: ✅ **Fully implemented and functional**
+- **SOC Rephrasing**: 🔄 **Not yet implemented** (placeholder for future development)
 
 ### Default Behaviour
 
 If no `options` are provided, rephrasing defaults to `true` for both SIC and SOC to maintain backward compatibility.
+
+### Rephrasing Examples
+
+| SIC Code | Original Description | Rephrased Description |
+|----------|---------------------|----------------------|
+| 01110 | "Growing of cereals (except rice), leguminous crops and oil seeds" | "Crop growing" |
+| 01410 | "Raising of dairy cattle" | "Dairy farming" |
+| 01450 | "Raising of sheep and goats" | "Sheep and goat farming" |
+| 01500 | "Mixed farming" | "Crop and livestock farm" |
 
 ### Examples
 
