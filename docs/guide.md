@@ -360,6 +360,9 @@ gcloud auth list
 # Set the active project
 gcloud config set project survey-assist-sandbox
 
+# Note: The API when run locally requires access to the ai-assist-tlfs-poc project for certain services
+# Ensure you have access to both projects when setting up authentication
+
 # Create service account key (if needed)
 gcloud iam service-accounts keys create service-account-key.json \
   --iam-account=sa-tlfs-vertexai@survey-assist-sandbox.iam.gserviceaccount.com
@@ -547,13 +550,13 @@ This setup has been verified to work successfully for local development and test
 
 ### Environment Variables Reference
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` |
-| `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` |
-| `SIC_LOOKUP_PATH` | Path to SIC lookup data file within container | `data/sic_knowledge_base_utf8.csv` |
-| `SIC_REPHRASE_PATH` | Path to SIC rephrase data file within container | `data/sic_rephrased_descriptions_2025_02_03.csv` |
-| `PORT` | API port (default: 8080) | `8080` |
+| Variable | Description | Example | Default Behaviour |
+|----------|-------------|---------|------------------|
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` | None |
+| `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` | `http://localhost:8088` |
+| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup data file | `data/sic_knowledge_base_utf8.csv` | Uses package example data |
+| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase data file | `data/sic_rephrased_descriptions_2025_02_03.csv` | Uses package example data |
+| `PORT` | API port | `8080` | `8080` |
 
 ### Security Notes
 
@@ -610,6 +613,153 @@ The API now loads data files from configurable paths. In the Docker container, t
 - **SIC Rephrase Data**: `SIC_REPHRASE_PATH` (default: `data/sic_rephrased_descriptions_2025_02_03.csv`)
 
 **Note**: The data files are now included in the Docker image during the build process, so no external data mounting is required.
+
+### Data Loading Configuration
+
+The Survey Assist API supports flexible data loading with two data sources:
+
+#### **1. Package Data (Default)**
+When no environment variables are set, the API automatically uses example datasets from the `sic-classification-library` package:
+- **SIC Lookup**: `example_sic_lookup_data.csv` (contains 138 example SIC codes)
+- **SIC Rephrase**: `example_rephrased_sic_data.csv` (contains 28 agricultural SIC codes with rephrased descriptions)
+
+#### **2. Local Data (Override)**
+When environment variables are set, the API uses custom datasets from specified paths:
+- **SIC Lookup**: `SIC_LOOKUP_DATA_PATH` environment variable
+- **SIC Rephrase**: `SIC_REPHRASE_DATA_PATH` environment variable
+
+#### **3. Mixed Configuration**
+You can mix data sources:
+- Local SIC lookup data + Package rephrase data
+- Package lookup data + Local rephrase data
+
+### Environment Variables for Data Loading
+
+| Variable | Description | Default Behaviour |
+|----------|-------------|------------------|
+| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup CSV file | Uses package example data |
+| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase CSV file | Uses package example data |
+
+### Testing Data Loading Configuration
+
+#### **Test 1: Package Data (No Environment Variables)**
+```bash
+# Clear any existing environment variables
+unset SIC_LOOKUP_DATA_PATH
+unset SIC_REPHRASE_DATA_PATH
+
+# Test SIC lookup with package data
+curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy%20farming"
+
+# Expected response: SIC code 01410 with description "Raising of dairy cattle"
+```
+
+#### **Test 2: Local Data (Environment Variables Set)**
+```bash
+# Set environment variables to use local data
+export SIC_LOOKUP_DATA_PATH="data/sic_knowledge_base_utf8.csv"
+export SIC_REPHRASE_DATA_PATH="data/sic_rephrased_descriptions_2025_02_03.csv"
+
+# Test SIC lookup with local data
+curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrician"
+
+# Expected response: SIC code 43210 with description "Electrical installation"
+```
+
+#### **Test 3: Mixed Configuration**
+```bash
+# Use local lookup data but package rephrase data
+export SIC_LOOKUP_DATA_PATH="data/sic_knowledge_base_utf8.csv"
+unset SIC_REPHRASE_DATA_PATH
+
+# Test classification with mixed data sources
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "Dairy Farmer",
+    "job_description": "Raising dairy cattle and producing milk"
+  }'
+```
+
+### Logging and Monitoring
+
+The API provides clear logging about which data sources are being used:
+
+#### **When Using Package Data:**
+```
+WARNING - SIC_LOOKUP_DATA_PATH not set - will use default example dataset from sic-classification-library package
+WARNING - SIC_REPHRASE_DATA_PATH not set - will use default example dataset from sic-classification-library package
+INFO - Loaded [X] SIC lookup codes from [package_path]/example_sic_lookup_data.csv
+INFO - Loaded [Y] rephrased SIC descriptions from [package_path]/example_rephrased_sic_data.csv
+```
+
+#### **When Using Local Data:**
+```
+INFO - Loaded [X] SIC lookup codes from data/sic_knowledge_base_utf8.csv
+INFO - Loaded [Y] rephrased SIC descriptions from data/sic_rephrased_descriptions_2025_02_03.csv
+```
+
+### Data Source Comparison
+
+| Aspect | Package Data | Local Data |
+|--------|--------------|------------|
+| **Size** | Small (138 lookup, 28 rephrase) | Full datasets |
+| **Coverage** | Agricultural SIC codes (01xxx series) | Complete SIC classification |
+| **Use Case** | Development, testing, examples | Production, full classification |
+| **Performance** | Fast loading, small memory footprint | Slower loading, larger memory usage |
+| **Maintenance** | Automatically updated with package | Manual updates required |
+
+### Troubleshooting Data Loading
+
+#### **Common Issues and Solutions**
+
+1. **"File not found" errors**
+   - Verify the file paths in environment variables
+   - Check file permissions
+   - Ensure files exist in the specified locations
+
+2. **Package data not loading**
+   - Verify `sic-classification-library` package is installed
+   - Check package installation path
+   - Ensure package data files are accessible
+
+3. **Mixed configuration not working**
+   - Verify environment variables are set correctly
+   - Check that one source is not overriding the other
+   - Review API logs for data loading confirmations
+
+4. **Classification endpoint failing**
+   - Ensure vector store service is running
+   - Check vector store connectivity
+   - Verify data loading completed successfully
+
+#### **Verification Commands**
+
+```bash
+# Check current data source configuration
+curl -X GET "http://localhost:8080/v1/survey-assist/config"
+
+# Verify SIC lookup is working
+curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=test"
+
+# Test classification endpoint
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test description"}'
+
+# Check vector store status
+curl -X GET "http://localhost:8088/v1/sic-vector-store/status"
+```
+
+### Best Practices
+
+1. **Development Environment**: Use package data for quick setup and testing
+2. **Production Environment**: Use local data for full classification coverage
+3. **Testing**: Test both configurations to ensure flexibility
+4. **Monitoring**: Watch logs to confirm data source selection
+5. **Documentation**: Document your data source configuration for team members
 
 ### Viewing Configuration
 

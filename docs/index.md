@@ -7,6 +7,7 @@ The Survey Assist API is a FastAPI-based service that provides endpoints for ind
 - **Industrial Classification**: Endpoints for Standard Industrial Classification (SIC) code lookup and classification
 - **Vector Store Integration**: Status checking and integration with the vector store service for embeddings
 - **Configuration Management**: Flexible configuration system for managing classification models and prompts
+- **Flexible Data Loading**: Support for both package example data and custom local datasets via environment variables
 - **Interactive Documentation**: Built-in Swagger UI and ReDoc documentation
 - **Integration Ready**: Designed to work seamlessly with the SIC Classification Library and Vector Store Service
 
