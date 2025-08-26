@@ -48,9 +48,21 @@ gcloud run services update survey-assist-api \
   --timeout=60s \
   --cpu=1 \
   --memory=4Gi \
-  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp" \
+  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp,SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv,SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv" \
   --region={REGION} \
   --project={PROJECT_ID}
+```
+
+### Environment Variables for Data Loading
+
+The deployment now includes additional environment variables for flexible data loading:
+
+- `SIC_LOOKUP_DATA_PATH`: Path to the SIC lookup data file within the container (defaults to package example data if not set)
+- `SIC_REPHRASE_DATA_PATH`: Path to the SIC rephrase data file within the container (defaults to package example data if not set)
+
+**Data Loading Behavior**:
+- **Package Data (default)**: When no environment variables are set, the API uses example data from the `industrial_classification_utils` package
+- **Local Data (override)**: When environment variables are set, the API uses the full datasets copied into the container during build
 ```
 
 ### 4. Configure Service Account and Permissions
@@ -175,6 +187,8 @@ curl -X POST \
 
 **Expected Response**: Successful SIC classification with proper authentication between services.
 
+**Data Loading Verification**: The deployed service will use the full datasets specified in the environment variables. You can verify this by checking the startup logs for data loading messages showing the local data paths.
+
 #### Complete Working Example
 
 Here's a complete example of generating and using a JWT token:
@@ -298,6 +312,7 @@ curl "https://$GATEWAY_URL/v1/survey-assist/config"
 
 **Expected Responses**:
 - **Config**: Returns LLM model, embedding model, and prompt configurations
+- **Data Loading**: Service uses full datasets from container paths (not package example data)
 - **Embeddings**: Returns vector store status and metadata
 - **SIC Lookup**: Returns SIC code lookup results
 - **Classify**: Returns SIC/SOC classification with follow-up questions
@@ -489,7 +504,7 @@ gcloud run services update survey-assist-api \
   --timeout=60s \
   --cpu=1 \
   --memory=4Gi \
-  --set-env-vars="GCP_BUCKET_NAME=survey-assist-sandbox-cloud-run-services,DATA_STORE=gcp" \
+  --set-env-vars="GCP_BUCKET_NAME=survey-assist-sandbox-cloud-run-services,DATA_STORE=gcp,SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv,SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv" \
   --region=europe-west2 \
   --project=survey-assist-sandbox
 ```
@@ -576,10 +591,10 @@ Based on our deployment experience, the following factors are critical for API G
 
 ### Common Pitfalls to Avoid
 
-- **❌ Using `gcloud auth print-identity-token`**: This generates Google Identity tokens, not signed JWTs
-- **❌ Missing Swagger fields**: Missing `host`, `protocol`, or `path_translation` can break authentication
-- **❌ Incorrect security type**: Using `apiKey` instead of `oauth2` in `securityDefinitions`
-- **❌ Expired JWT timestamps**: JWT tokens must have current `iat` and `exp` values
+- ** Using `gcloud auth print-identity-token`**: This generates Google Identity tokens, not signed JWTs
+- ** Missing Swagger fields**: Missing `host`, `protocol`, or `path_translation` can break authentication
+- ** Incorrect security type**: Using `apiKey` instead of `oauth2` in `securityDefinitions`
+- ** Expired JWT timestamps**: JWT tokens must have current `iat` and `exp` values
 
 ### Testing Strategy
 
