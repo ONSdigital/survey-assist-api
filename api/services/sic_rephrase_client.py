@@ -11,6 +11,7 @@ import pandas as pd
 from fastapi import HTTPException
 
 from api.config import settings
+from api.services.package_utils import resolve_package_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,14 @@ class SICRephraseClient:
         Returns:
             str: Path to the rephrased SIC data file.
         """
-        return settings.SIC_REPHRASE_DATA_PATH
+        # If environment variable is set, use that path
+        if settings.SIC_REPHRASE_DATA_PATH:
+            return settings.SIC_REPHRASE_DATA_PATH
+
+        # Otherwise, use the example dataset from the package
+        return resolve_package_data_path(
+            "industrial_classification.data", "example_rephrased_sic_data.csv"
+        )
 
     def _load_rephrase_data(self, data_path: str) -> dict[str, str]:
         """Load rephrased descriptions from CSV file.
