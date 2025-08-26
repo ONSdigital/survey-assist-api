@@ -6,7 +6,6 @@ import pytest
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
-from api.config import settings
 from api.services.sic_rephrase_client import SICRephraseClient
 
 logger = get_logger(__name__)
@@ -32,8 +31,11 @@ class TestSICRephraseClient:
             mock_read_csv.assert_called_once_with(custom_path, dtype={"sic_code": str})
 
     def test_init_with_config_path(self):
-        """Test initialisation using configuration path."""
-        with patch("pandas.read_csv") as mock_read_csv:
+        """Test initialisation using configuration path when SIC_REPHRASE_DATA_PATH is set."""
+        with patch("pandas.read_csv") as mock_read_csv, patch(
+            "api.services.sic_rephrase_client.settings"
+        ) as mock_settings:
+            mock_settings.SIC_REPHRASE_DATA_PATH = "/config/path/rephrase.csv"
             mock_df = mock_read_csv.return_value
             mock_df.columns = ["sic_code", "reviewed_description"]
             mock_df.iterrows.return_value = [
@@ -46,11 +48,40 @@ class TestSICRephraseClient:
             mock_read_csv.assert_called_once()
             call_args = mock_read_csv.call_args[0][0]
             # Check for configuration path
-            assert settings.SIC_REPHRASE_DATA_PATH in call_args
+            assert "/config/path/rephrase.csv" in call_args
+
+    def test_init_with_package_fallback(self):
+        """Test initialisation using package data when SIC_REPHRASE_DATA_PATH is not set."""
+        with patch("pandas.read_csv") as mock_read_csv, patch(
+            "api.services.sic_rephrase_client.settings"
+        ) as mock_settings, patch(
+            "api.services.sic_rephrase_client.resolve_package_data_path"
+        ) as mock_resolve:
+            mock_settings.SIC_REPHRASE_DATA_PATH = None
+            mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
+            mock_df = mock_read_csv.return_value
+            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.iterrows.return_value = [
+                (0, {"sic_code": "01120", "reviewed_description": "Rice farming"}),
+            ]
+
+            SICRephraseClient()
+
+            # Should call pandas.read_csv with package data path
+            mock_read_csv.assert_called_once()
+            call_args = mock_read_csv.call_args[0][0]
+            # Check for package data path
+            assert "/package/path/example_rephrased_sic_data.csv" in call_args
+            mock_resolve.assert_called_once_with(
+                "industrial_classification.data", "example_rephrased_sic_data.csv"
+            )
 
     def test_init_with_sic_library_path(self):
-        """Test initialisation using configuration path."""
-        with patch("pandas.read_csv") as mock_read_csv:
+        """Test initialisation using configuration path when SIC_REPHRASE_DATA_PATH is set."""
+        with patch("pandas.read_csv") as mock_read_csv, patch(
+            "api.services.sic_rephrase_client.settings"
+        ) as mock_settings:
+            mock_settings.SIC_REPHRASE_DATA_PATH = "/config/path/rephrase.csv"
             mock_df = mock_read_csv.return_value
             mock_df.columns = ["sic_code", "reviewed_description"]
             mock_df.iterrows.return_value = [
@@ -65,7 +96,7 @@ class TestSICRephraseClient:
             assert mock_read_csv.call_args[1]["dtype"] == {"sic_code": str}
             call_args = mock_read_csv.call_args[0][0]
             # Check for configuration path
-            assert settings.SIC_REPHRASE_DATA_PATH in call_args
+            assert "/config/path/rephrase.csv" in call_args
 
     def test_load_rephrase_data_success(self):
         """Test successful loading of rephrase data."""
