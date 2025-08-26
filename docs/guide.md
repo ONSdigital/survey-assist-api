@@ -352,21 +352,21 @@ colima start --memory 8 --cpu 4
 - `data/sic_rephrased_descriptions_2025_02_03.csv` - SIC rephrase data
 
 #### 3. Set Up Google Cloud Authentication
-Ensure you're authenticated and have access to the required project:
+The containerized API requires Google Cloud credentials for LLM functionality. You'll need to:
+
 ```bash
 # Check current authentication
 gcloud auth list
 
-# Set the active project
-gcloud config set project survey-assist-sandbox
+# Set the active project (replace with your project ID)
+gcloud config set project YOUR_PROJECT_ID
 
-# Note: The API when run locally requires access to the ai-assist-tlfs-poc project for certain services
-# Ensure you have access to both projects when setting up authentication
-
-# Create service account key (if needed)
+# Create service account key (replace with your service account)
 gcloud iam service-accounts keys create service-account-key.json \
-  --iam-account=sa-tlfs-vertexai@survey-assist-sandbox.iam.gserviceaccount.com
+  --iam-account=YOUR_SERVICE_ACCOUNT@YOUR_PROJECT.iam.gserviceaccount.com
 ```
+
+**Note**: The API requires GCP credentials to start up due to LLM initialization at startup.
 
 #### 4. Start the Vector Store Service
 In a separate terminal, start the vector store service locally:
@@ -391,16 +391,16 @@ docker run \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
   -v $(pwd)/service-account-key.json:/app/service-account-key.json \
   -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
-  -e SIC_REPHRASE_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
-  -e SIC_LOOKUP_PATH=data/sic_knowledge_base_utf8.csv \
+  -e SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
+  -e SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv \
   sa_api
 ```
 
 **Environment Variables Explained:**
 - `GOOGLE_APPLICATION_CREDENTIALS`: Path to the service account key file inside the container
 - `SIC_VECTOR_STORE`: URL of the locally running vector store service
-- `SIC_REPHRASE_PATH`: Path to the SIC rephrase data file within the container
-- `SIC_LOOKUP_PATH`: Path to the SIC lookup data file within the container
+- `SIC_REPHRASE_DATA_PATH`: Path to the SIC rephrase data file within the container
+- `SIC_LOOKUP_DATA_PATH`: Path to the SIC lookup data file within the container
 
 **Volume Mount:**
 - Maps the local `service-account-key.json` to `/app/service-account-key.json` inside the container
@@ -414,8 +414,8 @@ docker run -d \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
   -v $(pwd)/service-account-key.json:/app/service-account-key.json \
   -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
-  -e SIC_REPHRASE_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
-  -e SIC_LOOKUP_PATH=data/sic_knowledge_base_utf8.csv \
+  -e SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
+  -e SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv \
   --name survey-assist-api \
   sa_api
 ```
@@ -424,6 +424,8 @@ docker run -d \
 
 #### 1. Verify Data Files Are Loaded
 Check the Docker container logs to confirm the data files are loaded successfully:
+
+**Note**: The API currently uses the root endpoint `/` for status checks. Use `curl http://localhost:8080/` to verify the container is running.
 ```bash
 # Get the container ID
 docker ps
@@ -443,7 +445,13 @@ INFO:api.services.sic_lookup_client:Loaded XXXX SIC lookup codes from data/sic_k
 INFO:api.services.sic_rephrase_client:Loaded XXXX rephrased SIC descriptions from data/sic_rephrased_descriptions_2025_02_03.csv
 ```
 
+**Data Source Confirmation**: 
+- **Package Data**: Look for paths containing `industrial_classification_utils/data/example/`
+- **Local Data**: Look for paths containing `data/sic_knowledge_base_utf8.csv`
+
 **Note**: Both clients now use the same consistent format: "Loaded XXXX [type] from [filepath]"
+
+**Important**: The SIC lookup uses exact matching. Terms like "farmer" won't match "Arable farmers" - you need to use the exact description from the dataset.
 
 **Warning Signs**: If you see errors like "No such file or directory" or "File not found" for the CSV files, the data hasn't loaded properly.
 
@@ -456,8 +464,8 @@ curl http://localhost:8088/health
 #### 3. Test API Endpoints
 Test the survey assist API:
 ```bash
-# Health check
-curl http://localhost:8080/health
+# Root endpoint (API status)
+curl http://localhost:8080/
 
 # Configuration
 curl http://localhost:8080/v1/survey-assist/config
@@ -474,6 +482,8 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
   }'
 ```
 
+**Note**: The API uses exact matching for SIC lookups. Partial matches (e.g., "farmer" vs "Arable farmers") will not return results.
+
 ### Troubleshooting
 
 #### Common Issues
@@ -487,6 +497,11 @@ docker exec <container_id> ls -la /app/data/
 # Verify the data folder structure
 docker exec <container_id> find /app -name "*.csv"
 ```
+
+**Data Loading Behavior**:
+- **Package Data (default)**: When no environment variables are set, the API uses example data from the `industrial_classification_utils` package
+- **Local Data**: When `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` are set, the API uses the full datasets copied into the container during build
+- **Exact Matching**: SIC lookups require exact matches (e.g., "Arable farmers" not "farmer")
 
 **Port Already in Use**
 ```bash
@@ -506,12 +521,14 @@ colima start --memory 8 --cpu 4
 
 **Service Account Permission Issues**
 ```bash
-# Verify the service account has the right roles
-gcloud projects get-iam-policy survey-assist-sandbox \
+# Verify the service account has the right roles (replace with your project and service account)
+gcloud projects get-iam-policy YOUR_PROJECT_ID \
   --flatten="bindings[].members" \
   --format="table(bindings.role)" \
-  --filter="bindings.members:sa-tlfs-vertexai@survey-assist-sandbox.iam.gserviceaccount.com"
+  --filter="bindings.members:YOUR_SERVICE_ACCOUNT@YOUR_PROJECT.iam.gserviceaccount.com"
 ```
+
+**Health Endpoint Note**: The API currently uses the root endpoint `/` for status checks. A dedicated `/health` endpoint is planned for future releases.
 
 **Network Connectivity Issues**
 ```bash
@@ -536,23 +553,13 @@ docker port <container_id>
 4. **Test changes** using the API endpoints
 5. **Iterate** on the development cycle
 
-### Simplified Setup Notes
 
-The local Docker setup has been simplified and tested:
-- **No `--network=host` required**: This flag doesn't work properly on macOS Docker Desktop
-- **No port forwarding required**: Docker Desktop on macOS automatically provides host access to container ports
-- **Use host machine IP (NOT VM IP)**: The container connects to `http://<host-ip-address>:8088` for the vector store
-- **Cleaner commands**: The Docker run commands are now simpler and more reliable
-
-**Key Point:** We use the **host machine's actual IP address** (like `192.168.1.157`), not the Colima VM's IP address, because the vector store is running on the host machine itself.
-
-This setup has been verified to work successfully for local development and testing.
 
 ### Environment Variables Reference
 
 | Variable | Description | Example | Default Behaviour |
 |----------|-------------|---------|------------------|
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` | None |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` | Required for container startup |
 | `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` | `http://localhost:8088` |
 | `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup data file | `data/sic_knowledge_base_utf8.csv` | Uses package example data |
 | `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase data file | `data/sic_rephrased_descriptions_2025_02_03.csv` | Uses package example data |
