@@ -10,6 +10,7 @@ from pathlib import Path
 from industrial_classification.lookup.sic_lookup import SICLookup
 
 from api.config import settings
+from api.services.package_utils import resolve_package_data_path
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,14 @@ class SICLookupClient:
         Returns:
             str: Path to the SIC lookup data file.
         """
-        return settings.SIC_LOOKUP_DATA_PATH
+        # If environment variable is set, use that path
+        if settings.SIC_LOOKUP_DATA_PATH:
+            return settings.SIC_LOOKUP_DATA_PATH
+
+        # Otherwise, use the example dataset from the package
+        return resolve_package_data_path(
+            "industrial_classification.data", "example_sic_lookup_data.csv"
+        )
 
     def lookup(self, description: str) -> dict | None:
         """Look up a SIC code by description.
