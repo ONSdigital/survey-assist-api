@@ -176,7 +176,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 response = await client.post(
                     url,
                     json={
-                        "industry_descr": industry_descr,
+                        "industry_descr": industry_descr or "",
                         "job_title": job_title,
                         "job_description": job_description,
                     },
