@@ -68,6 +68,8 @@ The API is built using:
   - `job_title` (required): Survey response for Job Title
   - `job_description` (required): Survey response for Job Description
   - `org_description` (optional): Survey response for Organisation/Industry Description
+  - `rephrase` (optional): Boolean flag for user-friendly language conversion
+  - `data_path` (optional): Path to specific dataset within container (e.g., `data/sic_knowledge_base_utf8.csv`)
 - **Response**: Returns classification results including:
   - `classified` (boolean): Whether the input could be definitively classified
   - `followup` (string, optional): Additional question to help classify
@@ -84,6 +86,41 @@ The classification process works as follows:
 2. The vector store returns a list of candidates with similarity scores
 3. The LLM analyses the candidates and input to determine the final classification
 4. If the classification is ambiguous, a follow-up question is provided
+
+### Data Source Selection
+
+The API supports two data sources for classification and lookup:
+
+**Package Data (Default)**: Uses example datasets from the sic-classification-library package
+- Provides basic classification functionality
+- Suitable for testing and development
+- No additional parameters required
+
+**Full Datasets**: Uses complete datasets copied into the container during build
+- Provides comprehensive classification with full metadata
+- Includes detailed includes/excludes lists and division information
+- Specify `data_path` parameter to use full datasets
+
+**Example Usage with Full Datasets**:
+```bash
+# SIC Lookup with full dataset
+curl --header "Authorization: Bearer ${JWT_TOKEN}" \
+  "https://your-api-gateway-url/v1/survey-assist/sic-lookup?description=electrical%20installation&data_path=data/sic_knowledge_base_utf8.csv"
+
+# Classification with full dataset and rephrase
+curl --header "Authorization: Bearer ${JWT_TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "electrical engineer",
+    "job_description": "designing and installing electrical systems",
+    "org_description": "electrical contracting company",
+    "rephrase": true,
+    "data_path": "data/sic_knowledge_base_utf8.csv"
+  }' \
+  "https://your-api-gateway-url/v1/survey-assist/classify"
+```
 
 ### Result Endpoint
 - **Base URL**: `http://localhost:8080`
@@ -212,9 +249,13 @@ curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey
 - **Parameters**:
   - `description` (required): The business description to classify
   - `similarity` (optional): Boolean flag for similarity search
+  - `data_path` (optional): Path to specific dataset within container (e.g., `data/sic_knowledge_base_utf8.csv`)
 - **Description**: Performs SIC code lookup with two modes:
   - Exact match (similarity=false)
   - Similarity search (similarity=true)
+- **Data Sources**: 
+  - **Default**: Uses package example data from sic-classification-library
+  - **Custom**: Specify `data_path` parameter to use full datasets copied into container during build
 
 ### Embeddings Endpoint
 - **Path**: `/v1/survey-assist/embeddings`
@@ -659,6 +700,9 @@ unset SIC_REPHRASE_DATA_PATH
 curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy%20farming"
 
 # Expected response: SIC code 01410 with description "Raising of dairy cattle"
+
+# Note: You can also override the data source per request using the data_path parameter
+curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy%20farming&data_path=data/sic_knowledge_base_utf8.csv"
 ```
 
 #### **Test 2: Local Data (Environment Variables Set)**
@@ -687,6 +731,17 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
     "type": "sic",
     "job_title": "Dairy Farmer",
     "job_description": "Raising dairy cattle and producing milk"
+  }'
+
+# Note: You can also override the data source per request using the data_path parameter
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "Dairy Farmer",
+    "job_description": "Raising dairy cattle and producing milk",
+    "data_path": "data/sic_knowledge_base_utf8.csv"
   }'
 ```
 
