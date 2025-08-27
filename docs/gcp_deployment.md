@@ -278,14 +278,24 @@ curl --header "Authorization: Bearer ${JWT_TOKEN}" \
 curl --header "Authorization: Bearer ${JWT_TOKEN}" \
   "https://$GATEWAY_URL/v1/survey-assist/embeddings"
 
-# Test SIC lookup endpoint
+# Test SIC lookup endpoint (uses package data by default)
 curl --header "Authorization: Bearer ${JWT_TOKEN}" \
   "https://$GATEWAY_URL/v1/survey-assist/sic-lookup?description=electrical%20installation"
 
-# Test classify endpoint
+# Test SIC lookup with full dataset
+curl --header "Authorization: Bearer ${JWT_TOKEN}" \
+  "https://$GATEWAY_URL/v1/survey-assist/sic-lookup?description=electrical%20installation&data_path=data/sic_knowledge_base_utf8.csv"
+
+# Test classify endpoint (uses package data by default)
 curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"llm":"gemini","type":"sic","job_title":"Electrician","job_description":"I install and maintain electrical systems and wiring","org_description":"Electrical installation and maintenance services"}' \
+  "https://$GATEWAY_URL/v1/survey-assist/classify"
+
+# Test classify endpoint with full dataset
+curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"llm":"gemini","type":"sic","job_title":"Electrician","job_description":"I install and maintain electrical systems and wiring","org_description":"Electrical installation and maintenance services","data_path":"data/sic_knowledge_base_utf8.csv"}' \
   "https://$GATEWAY_URL/v1/survey-assist/classify"
 
 # Test classify endpoint with rephrase toggle (SIC rephrasing enabled)
@@ -312,7 +322,8 @@ curl "https://$GATEWAY_URL/v1/survey-assist/config"
 
 **Expected Responses**:
 - **Config**: Returns LLM model, embedding model, and prompt configurations
-- **Data Loading**: Service uses full datasets from container paths (not package example data)
+- **Data Loading**: Service uses full datasets from container paths by default, or package data if no environment variables set
+- **Data Path Parameter**: Can override data source per request using `data_path` parameter
 - **Embeddings**: Returns vector store status and metadata
 - **SIC Lookup**: Returns SIC code lookup results
 - **Classify**: Returns SIC/SOC classification with follow-up questions
@@ -425,6 +436,40 @@ TOKEN=$(cat output.txt)
 # Make authenticated requests
 curl --header "Authorization: Bearer ${TOKEN}" \
   "https://<api-gateway-hostname>/v1/survey-assist/config"
+```
+
+### Using Data Path Parameter with API Gateway
+
+The API Gateway supports the same `data_path` parameter for selecting data sources:
+
+**Package Data (Default)**: No additional parameters needed
+```bash
+# Uses package example data
+curl --header "Authorization: Bearer ${TOKEN}" \
+  "https://<api-gateway-hostname>/v1/survey-assist/sic-lookup?description=electrical%20installation"
+```
+
+**Full Datasets**: Specify `data_path` parameter
+```bash
+# Uses full dataset from container
+curl --header "Authorization: Bearer ${TOKEN}" \
+  "https://<api-gateway-hostname>/v1/survey-assist/sic-lookup?description=electrical%20installation&data_path=data/sic_knowledge_base_utf8.csv"
+```
+
+**Classification with Full Dataset**:
+```bash
+curl --header "Authorization: Bearer ${TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "electrical engineer",
+    "job_description": "designing and installing electrical systems",
+    "org_description": "electrical contracting company",
+    "rephrase": true,
+    "data_path": "data/sic_knowledge_base_utf8.csv"
+  }' \
+  "https://<api-gateway-hostname>/v1/survey-assist/classify"
 ```
 
 ### Swagger Specification Requirements
