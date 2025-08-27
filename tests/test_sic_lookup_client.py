@@ -34,32 +34,10 @@ class TestSICLookupClient:
             assert client.lookup_service == mock_instance
 
     def test_init_with_config_path(self):
-        """Test initialisation using configuration path when SIC_LOOKUP_DATA_PATH is set."""
+        """Test initialisation using package data path (environment variables ignored)."""
         with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup, patch(
-            "api.services.sic_lookup_client.settings"
-        ) as mock_settings:
-            mock_settings.SIC_LOOKUP_DATA_PATH = "/config/path/lookup.csv"
-            mock_instance = mock_lookup.return_value
-            mock_instance.get_sic_codes_count.return_value = 100
-            mock_instance.data = MagicMock()
-            mock_instance.data.__len__.return_value = 100
-
-            SICLookupClient()
-
-            # Should call SICLookup with configuration path
-            mock_lookup.assert_called_once()
-            call_args = mock_lookup.call_args[0][0]
-            # Check for configuration path
-            assert "/config/path/lookup.csv" in call_args
-
-    def test_init_with_package_fallback(self):
-        """Test initialisation using package data when SIC_LOOKUP_DATA_PATH is not set."""
-        with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup, patch(
-            "api.services.sic_lookup_client.settings"
-        ) as mock_settings, patch(
             "api.services.sic_lookup_client.resolve_package_data_path"
         ) as mock_resolve:
-            mock_settings.SIC_LOOKUP_DATA_PATH = None
             mock_resolve.return_value = "/package/path/example_sic_lookup_data.csv"
             mock_instance = mock_lookup.return_value
             mock_instance.get_sic_codes_count.return_value = 100
@@ -68,7 +46,26 @@ class TestSICLookupClient:
 
             SICLookupClient()
 
-            # Should call SICLookup with package data path
+            # Should call SICLookup with package data path (ignoring environment variables)
+            mock_lookup.assert_called_once()
+            call_args = mock_lookup.call_args[0][0]
+            # Check for package data path
+            assert "/package/path/example_sic_lookup_data.csv" in call_args
+
+    def test_init_with_package_fallback(self):
+        """Test initialisation using package data (environment variables ignored)."""
+        with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup, patch(
+            "api.services.sic_lookup_client.resolve_package_data_path"
+        ) as mock_resolve:
+            mock_resolve.return_value = "/package/path/example_sic_lookup_data.csv"
+            mock_instance = mock_lookup.return_value
+            mock_instance.get_sic_codes_count.return_value = 100
+            mock_instance.data = MagicMock()
+            mock_instance.data.__len__.return_value = 100
+
+            SICLookupClient()
+
+            # Should call SICLookup with package data path (ignoring environment variables)
             mock_lookup.assert_called_once()
             call_args = mock_lookup.call_args[0][0]
             # Check for package data path
@@ -78,11 +75,11 @@ class TestSICLookupClient:
             )
 
     def test_init_with_sic_library_path(self):
-        """Test initialisation using configuration path when SIC_LOOKUP_DATA_PATH is set."""
+        """Test initialisation using package data path (environment variables ignored)."""
         with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup, patch(
-            "api.services.sic_lookup_client.settings"
-        ) as mock_settings:
-            mock_settings.SIC_LOOKUP_DATA_PATH = "/config/path/lookup.csv"
+            "api.services.sic_lookup_client.resolve_package_data_path"
+        ) as mock_resolve:
+            mock_resolve.return_value = "/package/path/example_sic_lookup_data.csv"
             mock_instance = mock_lookup.return_value
             mock_instance.get_sic_codes_count.return_value = 100
             mock_instance.data = MagicMock()
@@ -90,11 +87,11 @@ class TestSICLookupClient:
 
             SICLookupClient()
 
-            # Should call SICLookup with configuration path
+            # Should call SICLookup with package data path (ignoring environment variables)
             mock_lookup.assert_called_once()
             call_args = mock_lookup.call_args[0][0]
-            # Check for configuration path
-            assert "/config/path/lookup.csv" in call_args
+            # Check for package data path
+            assert "/package/path/example_sic_lookup_data.csv" in call_args
 
     def test_lookup_success(self):
         """Test successful lookup operation."""

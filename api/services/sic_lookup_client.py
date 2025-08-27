@@ -5,11 +5,11 @@ look up SIC codes and descriptions.
 """
 
 import logging
+import os
 from pathlib import Path
 
 from industrial_classification.lookup.sic_lookup import SICLookup
 
-from api.config import settings
 from api.services.package_utils import resolve_package_data_path
 
 logger = logging.getLogger(__name__)
@@ -29,10 +29,10 @@ class SICLookupClient:
         """Initialise the SIC lookup client.
 
         Args:
-            data_path: Path to the SIC data file. If not provided, the default
-                knowledge base path will be used.
+            data_path: Path to the SIC data file for initialisation-time configuration.
+                If not provided, the default knowledge base path will be used.
         """
-        # Use the provided path or default path
+        # Always call _get_default_path() to get the resolved path
         resolved_path = self._get_default_path() if data_path is None else data_path
 
         # Ensure the path is a string
@@ -55,11 +55,7 @@ class SICLookupClient:
         Returns:
             str: Path to the SIC lookup data file.
         """
-        # If environment variable is set, use that path
-        if settings.SIC_LOOKUP_DATA_PATH:
-            return settings.SIC_LOOKUP_DATA_PATH
-
-        # Otherwise, use the example dataset from the package
+        # Always use the example dataset from the package
         return resolve_package_data_path(
             "industrial_classification.data", "example_sic_lookup_data.csv"
         )

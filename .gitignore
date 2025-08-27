@@ -178,3 +178,12 @@ cython_debug/
 
 # Data files (not committed to version control)
 data/
+
+# Service account keys and sensitive files (never commit these)
+*.json
+
+# JWT token generation files (payload.json is already covered by *.json)
+output.txt
+
+# Temporary files
+*.tmp

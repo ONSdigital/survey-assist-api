@@ -4,6 +4,8 @@ This module contains the SIC lookup endpoint for the Survey Assist API.
 It defines the endpoint for looking up SIC codes based on descriptions.
 """
 
+import os
+
 from fastapi import APIRouter, Depends, HTTPException
 from survey_assist_utils.logging import get_logger
 
@@ -13,16 +15,19 @@ router = APIRouter(tags=["SIC Lookup"])
 logger = get_logger(__name__)
 
 
-def get_lookup_client(data_path: str | None = None) -> SICLookupClient:
+def get_lookup_client() -> SICLookupClient:
     """Get a SIC lookup client instance.
-
-    Args:
-        data_path (str | None, optional): Path to the data file. Defaults to None.
 
     Returns:
         SICLookupClient: A SIC lookup client instance.
     """
-    return SICLookupClient(data_path=data_path)
+    data_path = os.getenv("SIC_LOOKUP_DATA_PATH")
+    if data_path and data_path.strip():
+        logger.info(f"Using SIC lookup data from environment: {data_path}")
+        return SICLookupClient(data_path=data_path.strip())  # Pass the path!
+
+    logger.info("SIC_LOOKUP_DATA_PATH not set, using package example data")
+    return SICLookupClient()  # No path = uses package data
 
 
 # Define the dependency at module level

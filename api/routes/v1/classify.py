@@ -63,7 +63,13 @@ def get_rephrase_client() -> SICRephraseClient:
     Returns:
         SICRephraseClient: A SIC rephrase client instance.
     """
-    return SICRephraseClient()
+    data_path = os.getenv("SIC_REPHRASE_DATA_PATH")
+    if data_path and data_path.strip():
+        logger.info(f"Using SIC rephrase data from environment: {data_path}")
+        return SICRephraseClient(data_path=data_path.strip())  # Pass the path!
+
+    logger.info("SIC_REPHRASE_DATA_PATH not set, using package example data")
+    return SICRephraseClient()  # No path = uses package data
 
 
 def get_sic_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore

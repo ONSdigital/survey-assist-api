@@ -95,6 +95,7 @@ The API supports two data sources for classification and lookup:
 - Provides basic classification functionality
 - Suitable for testing and development
 - No additional parameters required
+- **Note**: Environment variables for data paths are no longer used
 
 **Full Datasets**: Uses complete datasets copied into the container during build
 - Provides comprehensive classification with full metadata
@@ -683,10 +684,12 @@ You can mix data sources:
 
 ### Environment Variables for Data Loading
 
+**Note**: Environment variables for data paths are no longer used. The API always uses packaged example data by default.
+
 | Variable | Description | Default Behaviour |
 |----------|-------------|------------------|
-| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup CSV file | Uses package example data |
-| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase CSV file | Uses package example data |
+| `SIC_LOOKUP_DATA_PATH` | ~~Path to SIC lookup CSV file~~ | ~~Uses package example data~~ **No longer used** |
+| `SIC_REPHRASE_DATA_PATH` | ~~Path to SIC rephrase CSV file~~ | ~~Uses package example data~~ **No longer used** |
 
 ### Testing Data Loading Configuration
 
@@ -707,33 +710,23 @@ curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy
 
 #### **Test 2: Local Data (Environment Variables Set)**
 ```bash
-# Set environment variables to use local data
-export SIC_LOOKUP_DATA_PATH="data/sic_knowledge_base_utf8.csv"
-export SIC_REPHRASE_DATA_PATH="data/sic_rephrased_descriptions_2025_02_03.csv"
+# Note: Environment variables are no longer used for data loading
+# The API always uses packaged example data by default
+# To use local data, specify the data_path parameter in requests
 
-# Test SIC lookup with local data
-curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrician"
+# Test SIC lookup with local data using data_path parameter
+curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrician&data_path=data/sic_knowledge_base_utf8.csv"
 
 # Expected response: SIC code 43210 with description "Electrical installation"
 ```
 
 #### **Test 3: Mixed Configuration**
 ```bash
-# Use local lookup data but package rephrase data
-export SIC_LOOKUP_DATA_PATH="data/sic_knowledge_base_utf8.csv"
-unset SIC_REPHRASE_DATA_PATH
+# Note: Environment variables are no longer used for data loading
+# The API always uses packaged example data by default
+# To use local data, specify the data_path parameter in requests
 
-# Test classification with mixed data sources
-curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "llm": "gemini",
-    "type": "sic",
-    "job_title": "Dairy Farmer",
-    "job_description": "Raising dairy cattle and producing milk"
-  }'
-
-# Note: You can also override the data source per request using the data_path parameter
+# Test classification with local data using data_path parameter
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
@@ -751,8 +744,6 @@ The API provides clear logging about which data sources are being used:
 
 #### **When Using Package Data:**
 ```
-WARNING - SIC_LOOKUP_DATA_PATH not set - will use default example dataset from sic-classification-library package
-WARNING - SIC_REPHRASE_DATA_PATH not set - will use default example dataset from sic-classification-library package
 INFO - Loaded [X] SIC lookup codes from [package_path]/example_sic_lookup_data.csv
 INFO - Loaded [Y] rephrased SIC descriptions from [package_path]/example_rephrased_sic_data.csv
 ```
@@ -788,8 +779,8 @@ INFO - Loaded [Y] rephrased SIC descriptions from data/sic_rephrased_description
    - Ensure package data files are accessible
 
 3. **Mixed configuration not working**
-   - Verify environment variables are set correctly
-   - Check that one source is not overriding the other
+   - Note: Environment variables are no longer used for data loading
+   - Use `data_path` parameter in requests to override default package data
    - Review API logs for data loading confirmations
 
 4. **Classification endpoint failing**

@@ -5,12 +5,12 @@ map standard SIC descriptions to user-friendly rephrased versions.
 """
 
 import logging
+import os
 from typing import Any, Optional
 
 import pandas as pd
 from fastapi import HTTPException
 
-from api.config import settings
 from api.services.package_utils import resolve_package_data_path
 
 logger = logging.getLogger(__name__)
@@ -26,10 +26,11 @@ class SICRephraseClient:
         """Initialise the SIC rephrase client.
 
         Args:
-            data_path (Optional[str]): Path to the rephrased SIC data file.
-                If None, uses default path from SIC classification library.
+            data_path (Optional[str]): Path to the rephrased SIC data file for
+                initialisation-time configuration. If None, uses default path from
+                SIC classification library.
         """
-        # Use the provided path or default path
+        # Always call _get_default_path() to get the resolved path
         resolved_path = self._get_default_path() if data_path is None else data_path
 
         # Ensure the path is a string
@@ -44,21 +45,6 @@ class SICRephraseClient:
             "SIC rephrase data loaded from %s (%d descriptions available)",
             resolved_path,
             self.get_rephrased_count(),
-        )
-
-    def _get_default_path(self) -> str:
-        """Get the default path to the rephrased SIC data file.
-
-        Returns:
-            str: Path to the rephrased SIC data file.
-        """
-        # If environment variable is set, use that path
-        if settings.SIC_REPHRASE_DATA_PATH:
-            return settings.SIC_REPHRASE_DATA_PATH
-
-        # Otherwise, use the example dataset from the package
-        return resolve_package_data_path(
-            "industrial_classification.data", "example_rephrased_sic_data.csv"
         )
 
     def _load_rephrase_data(self, data_path: str) -> dict[str, str]:
@@ -109,6 +95,17 @@ class SICRephraseClient:
             raise HTTPException(
                 status_code=500, detail=f"Error loading rephrased SIC data: {e}"
             ) from e
+
+    def _get_default_path(self) -> str:
+        """Get the default path to the rephrased SIC data file.
+
+        Returns:
+            str: Path to the rephrased Sic data file.
+        """
+        # Always use the example dataset from the package
+        return resolve_package_data_path(
+            "industrial_classification.data", "example_rephrased_sic_data.csv"
+        )
 
     def get_rephrased_description(self, sic_code: str) -> Optional[str]:
         """Get the rephrased description for a given SIC code.
