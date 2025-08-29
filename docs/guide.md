@@ -100,13 +100,13 @@ The API supports two data sources for classification and lookup:
 **Full Datasets**: Uses complete datasets copied into the container during build
 - Provides comprehensive classification with full metadata
 - Includes detailed includes/excludes lists and division information
-- Specify `data_path` parameter to use full datasets
+- The API uses packaged example data by default
 
 **Example Usage with Full Datasets**:
 ```bash
 # SIC Lookup with full dataset
 curl --header "Authorization: Bearer ${JWT_TOKEN}" \
-  "https://your-api-gateway-url/v1/survey-assist/sic-lookup?description=electrical%20installation&data_path=data/sic_knowledge_base_utf8.csv"
+  "https://your-api-gateway-url/v1/survey-assist/sic-lookup?description=electrical%20installation"
 
 # Classification with full dataset and rephrase
 curl --header "Authorization: Bearer ${JWT_TOKEN}" \
@@ -256,7 +256,7 @@ curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey
   - Similarity search (similarity=true)
 - **Data Sources**: 
   - **Default**: Uses package example data from sic-classification-library
-  - **Custom**: Specify `data_path` parameter to use full datasets copied into container during build
+  - **Custom**: The API uses packaged example data by default
 
 ### Embeddings Endpoint
 - **Path**: `/v1/survey-assist/embeddings`
@@ -347,7 +347,7 @@ Note: Both services must be running simultaneously for the embeddings endpoint t
 - Docker installed and running
 - Colima for macOS
 - Google Cloud CLI (`gcloud`) authenticated
-- Access to the `survey-assist-sandbox` GCP project
+- Access to your GCP project
 
 ### Docker Setup
 
@@ -686,10 +686,6 @@ You can mix data sources:
 
 **Note**: Environment variables for data paths are no longer used. The API always uses packaged example data by default.
 
-| Variable | Description | Default Behaviour |
-|----------|-------------|------------------|
-| `SIC_LOOKUP_DATA_PATH` | ~~Path to SIC lookup CSV file~~ | ~~Uses package example data~~ **No longer used** |
-| `SIC_REPHRASE_DATA_PATH` | ~~Path to SIC rephrase CSV file~~ | ~~Uses package example data~~ **No longer used** |
 
 ### Testing Data Loading Configuration
 
@@ -704,18 +700,17 @@ curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy
 
 # Expected response: SIC code 01410 with description "Raising of dairy cattle"
 
-# Note: You can also override the data source per request using the data_path parameter
-curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy%20farming&data_path=data/sic_knowledge_base_utf8.csv"
+# Test SIC lookup with local data
+curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy%20farming"
 ```
 
 #### **Test 2: Local Data (Environment Variables Set)**
 ```bash
 # Note: Environment variables are no longer used for data loading
 # The API always uses packaged example data by default
-# To use local data, specify the data_path parameter in requests
 
-# Test SIC lookup with local data using data_path parameter
-curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrician&data_path=data/sic_knowledge_base_utf8.csv"
+# Test SIC lookup with local data
+curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrician"
 
 # Expected response: SIC code 43210 with description "Electrical installation"
 ```
@@ -724,17 +719,15 @@ curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=elect
 ```bash
 # Note: Environment variables are no longer used for data loading
 # The API always uses packaged example data by default
-# To use local data, specify the data_path parameter in requests
 
-# Test classification with local data using data_path parameter
+# Test classification with local data
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
     "llm": "gemini",
     "type": "sic",
     "job_title": "Dairy Farmer",
-    "job_description": "Raising dairy cattle and producing milk",
-    "data_path": "data/sic_knowledge_base_utf8.csv"
+    "job_description": "Raising dairy cattle and producing milk"
   }'
 ```
 
@@ -748,21 +741,21 @@ INFO - Loaded [X] SIC lookup codes from [package_path]/example_sic_lookup_data.c
 INFO - Loaded [Y] rephrased SIC descriptions from [package_path]/example_rephrased_sic_data.csv
 ```
 
-#### **When Using Local Data:**
+#### **When Using Package Data (Default):**
 ```
-INFO - Loaded [X] SIC lookup codes from data/sic_knowledge_base_utf8.csv
-INFO - Loaded [Y] rephrased SIC descriptions from data/sic_rephrased_descriptions_2025_02_03.csv
+INFO - Loaded [X] SIC lookup codes from [package_path]/example_sic_lookup_data.csv
+INFO - Loaded [Y] rephrased SIC descriptions from [package_path]/example_rephrased_sic_data.csv
 ```
 
 ### Data Source Comparison
 
-| Aspect | Package Data | Local Data |
-|--------|--------------|------------|
-| **Size** | Small (138 lookup, 28 rephrase) | Full datasets |
-| **Coverage** | Agricultural SIC codes (01xxx series) | Complete SIC classification |
-| **Use Case** | Development, testing, examples | Production, full classification |
-| **Performance** | Fast loading, small memory footprint | Slower loading, larger memory usage |
-| **Maintenance** | Automatically updated with package | Manual updates required |
+| Aspect | Package Data (Default) |
+|--------|----------------------|
+| **Size** | Small (138 lookup, 28 rephrase) |
+| **Coverage** | Agricultural SIC codes (01xxx series) |
+| **Use Case** | Development, testing, examples |
+| **Performance** | Fast loading, small memory footprint |
+| **Maintenance** | Automatically updated with package |
 
 ### Troubleshooting Data Loading
 
@@ -780,7 +773,7 @@ INFO - Loaded [Y] rephrased SIC descriptions from data/sic_rephrased_description
 
 3. **Mixed configuration not working**
    - Note: Environment variables are no longer used for data loading
-   - Use `data_path` parameter in requests to override default package data
+   - The API always uses packaged example data by default
    - Review API logs for data loading confirmations
 
 4. **Classification endpoint failing**
