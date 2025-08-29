@@ -31,10 +31,10 @@ docker build -t survey-assist-api:latest .
 gcloud auth configure-docker europe-west2-docker.pkg.dev
 
 # Tag image for Artifact Registry
-docker tag survey-assist-api:latest europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+docker tag survey-assist-api:latest europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
 
 # Push image to Artifact Registry
-docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
 ```
 
 ### 3. Deploy to Cloud Run
@@ -48,21 +48,28 @@ gcloud run services update survey-assist-api \
   --timeout=60s \
   --cpu=1 \
   --memory=4Gi \
-  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp,SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv,SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv" \
+  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp,SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
   --region={REGION} \
   --project={PROJECT_ID}
 ```
 
 ### Environment Variables for Data Loading
 
-The deployment now includes additional environment variables for flexible data loading:
+The deployment now includes environment variables for service communication and data loading:
 
-- `SIC_LOOKUP_DATA_PATH`: Path to the SIC lookup data file within the container (defaults to package example data if not set)
-- `SIC_REPHRASE_DATA_PATH`: Path to the SIC rephrase data file within the container (defaults to package example data if not set)
+- `SIC_VECTOR_STORE`: URL of the SIC classification vector store service (required for classification functionality)
+- `GCP_BUCKET_NAME`: GCP storage bucket name for data storage
+- `DATA_STORE`: Data store type (set to "gcp")
 
 **Data Loading Behavior**:
-- **Package Data (default)**: When no environment variables are set, the API uses example data from the `industrial_classification_utils` package
-- **Local Data (override)**: When environment variables are set, the API uses the full datasets copied into the container during build
+- **Package Data (default)**: The API always uses example data from the `industrial_classification_utils` package when no custom data paths are specified
+- **Custom Data Sources**: Can be specified per-request using the `data_path` parameter in API calls
+- **No Environment Variable Dependencies**: The API no longer requires `SIC_LOOKUP_DATA_PATH` or `SIC_REPHRASE_DATA_PATH` environment variables
+
+**Note**: To find the correct `SIC_VECTOR_STORE` URL, use:
+```bash
+gcloud run services list --project={PROJECT_ID} --region={REGION} | grep -i vector
+```
 ```
 
 ### 4. Configure Service Account and Permissions
@@ -144,7 +151,7 @@ Set the `SIC_VECTOR_STORE` environment variable to enable secure communication w
 # Set environment variable for service-to-service communication
 gcloud run services update survey-assist-api \
   --set-env-vars="SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
-  --region=europe-west2 \
+  --region={REGION} \
   --project={PROJECT_ID}
 ```
 
@@ -438,26 +445,24 @@ curl --header "Authorization: Bearer ${TOKEN}" \
   "https://<api-gateway-hostname>/v1/survey-assist/config"
 ```
 
-### Using Data Path Parameter with API Gateway
+### Testing API Gateway Endpoints
 
-The API Gateway supports the same `data_path` parameter for selecting data sources:
+The API Gateway provides access to all survey-assist-api endpoints with JWT authentication:
 
-**Package Data (Default)**: No additional parameters needed
+**Basic Endpoints**:
 ```bash
-# Uses package example data
+# Configuration endpoint
+curl --header "Authorization: Bearer ${TOKEN}" \
+  "https://<api-gateway-hostname>/v1/survey-assist/config"
+
+# SIC lookup endpoint (uses package example data)
 curl --header "Authorization: Bearer ${TOKEN}" \
   "https://<api-gateway-hostname>/v1/survey-assist/sic-lookup?description=electrical%20installation"
 ```
 
-**Full Datasets**: Specify `data_path` parameter
+**Classification Endpoints**:
 ```bash
-# Uses full dataset from container
-curl --header "Authorization: Bearer ${TOKEN}" \
-  "https://<api-gateway-hostname>/v1/survey-assist/sic-lookup?description=electrical%20installation&data_path=data/sic_knowledge_base_utf8.csv"
-```
-
-**Classification with Full Dataset**:
-```bash
+# Classification with rephrase enabled (user-friendly descriptions)
 curl --header "Authorization: Bearer ${TOKEN}" \
   --header "Content-Type: application/json" \
   --data '{
@@ -466,8 +471,28 @@ curl --header "Authorization: Bearer ${TOKEN}" \
     "job_title": "electrical engineer",
     "job_description": "designing and installing electrical systems",
     "org_description": "electrical contracting company",
-    "rephrase": true,
-    "data_path": "data/sic_knowledge_base_utf8.csv"
+    "options": {
+      "sic": {
+        "rephrased": true
+      }
+    }
+  }' \
+  "https://<api-gateway-hostname>/v1/survey-assist/classify"
+
+# Classification with rephrase disabled (original SIC descriptions)
+curl --header "Authorization: Bearer ${TOKEN}" \
+  --header "Content-Type: application/json" \
+  --data '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "electrical engineer",
+    "job_description": "designing and installing electrical systems",
+    "org_description": "electrical contracting company",
+    "options": {
+      "sic": {
+        "rephrased": false
+      }
+    }
   }' \
   "https://<api-gateway-hostname>/v1/survey-assist/classify"
 ```
@@ -536,22 +561,22 @@ To update an existing image with new code changes:
 
 ```bash
 # 1. Build with same tag (overwrites existing image)
-docker build -t europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest .
+docker build -t europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest .
 
 # 2. Push to update registry
-docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
 
 # 3. Deploy updated image to Cloud Run
 gcloud run services update survey-assist-api \
-  --image=europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest \
+  --image=europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest \
   --port=8080 \
   --concurrency=160 \
   --timeout=60s \
   --cpu=1 \
   --memory=4Gi \
-  --set-env-vars="GCP_BUCKET_NAME=survey-assist-sandbox-cloud-run-services,DATA_STORE=gcp,SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv,SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv" \
-  --region=europe-west2 \
-  --project=survey-assist-sandbox
+  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp,SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
+  --region={REGION} \
+  --project={PROJECT_ID}
 ```
 
 ### Alternative: Versioned Updates
@@ -559,16 +584,16 @@ For better tracking, use versioned tags:
 
 ```bash
 # 1. Build with version tag
-docker build -t europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:v1.4 .
+docker build -t europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:v1.4 .
 
 # 2. Push versioned image
-docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:v1.4
+docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:v1.4
 
 # 3. Deploy specific version
 gcloud run services update survey-assist-api \
-  --image=europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:v1.4 \
-  --region=europe-west2 \
-  --project=survey-assist-sandbox
+  --image=europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:v1.4 \
+  --region={REGION} \
+  --project={PROJECT_ID}
 ```
 
 ### Clean Update (Remove Old Images)
@@ -577,13 +602,13 @@ If you want to clean up old images:
 ```bash
 # 1. Remove old local images
 docker rmi survey-assist-api:latest
-docker rmi europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+docker rmi europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
 
 # 2. Build fresh with same tag
-docker build -t europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest .
+docker build -t europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest .
 
 # 3. Push and deploy (same as Quick Update)
-docker push europe-west2-docker.pkg.dev/survey-assist-sandbox/survey-assist-api/survey-assist-api:latest
+docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
 gcloud run services update survey-assist-api --image=... # (same command as above)
 ```
 
@@ -609,7 +634,7 @@ The API has been updated to support Swagger2 (OpenAPI v2) for Google Cloud API G
 ```bash
 # Test new Swagger2 endpoints
 curl -H "Authorization: Bearer ${JWT_TOKEN}" \
-  "$(gcloud run services describe survey-assist-api --region=europe-west2 --project=survey-assist-sandbox --format='value(status.url)')/swagger2.json"
+  "$(gcloud run services describe survey-assist-api --region={REGION} --project={PROJECT_ID} --format='value(status.url)')/swagger2.json"
 ```
 
 ## Key Learnings and Best Practices
@@ -664,5 +689,5 @@ The Swagger2 specification is now compatible with Google Cloud API Gateway, enab
 ### Environment Variables
 Ensure correct environment variable name is used:
 ```bash
-gcloud run services update survey-assist-api --set-env-vars="GCP_BUCKET_NAME=survey-assist-sandbox-cloud-run-services,DATA_STORE=gcp" --region=europe-west2
+gcloud run services update survey-assist-api --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp" --region={REGION}
 ```
