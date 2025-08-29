@@ -5,7 +5,6 @@ map standard SIC descriptions to user-friendly rephrased versions.
 """
 
 import logging
-import os
 from typing import Any, Optional
 
 import pandas as pd

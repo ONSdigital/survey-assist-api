@@ -5,7 +5,6 @@ look up SIC codes and descriptions.
 """
 
 import logging
-import os
 from pathlib import Path
 
 from industrial_classification.lookup.sic_lookup import SICLookup
