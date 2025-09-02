@@ -15,6 +15,8 @@ from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
+from api.services.sic_lookup_client import SICLookupClient
+from api.services.sic_rephrase_client import SICRephraseClient
 
 
 @asynccontextmanager
@@ -26,6 +28,11 @@ async def lifespan(fastapi_app: FastAPI):
     """
     # Startup
     fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-1.5-flash")
+    
+    # Create SIC clients once at startup
+    fastapi_app.state.sic_lookup_client = SICLookupClient()
+    fastapi_app.state.sic_rephrase_client = SICRephraseClient()
+    
     yield
     # Shutdown
     # Add any cleanup code here if needed
