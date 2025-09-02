@@ -4,7 +4,6 @@ This module contains the SIC lookup endpoint for the Survey Assist API.
 It defines the endpoint for looking up SIC codes based on descriptions.
 """
 
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 from survey_assist_utils.logging import get_logger
 
