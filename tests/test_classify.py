@@ -112,9 +112,8 @@ class TestClassifyEndpoint:
             None,
         )
         self.mock_llm.return_value = mock_llm_instance
-        
+
         # Mock app state for the new dependency injection pattern
-        from api.main import app
         app.state.sic_rephrase_client = mock_rephrase_instance
 
     @pytest.mark.parametrize(
@@ -216,7 +215,6 @@ def test_classify_followup_question(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
@@ -316,7 +314,6 @@ def test_classify_endpoint_success(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
@@ -397,7 +394,6 @@ def test_classify_endpoint_invalid_json(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
@@ -455,7 +451,6 @@ def test_classify_endpoint_invalid_llm(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
@@ -520,7 +515,6 @@ def test_classify_endpoint_invalid_type(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
@@ -581,7 +575,6 @@ def test_classify_endpoint_rephrasing_enabled(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
@@ -747,7 +740,6 @@ def test_classify_endpoint_rephrasing_default(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
@@ -822,7 +814,6 @@ def test_classify_endpoint_rephrasing_options_validation(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     # Mock LLM (not needed for validation test but required)
@@ -886,7 +877,6 @@ def test_classify_endpoint_meta_field_exclusion(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock app state for the new dependency injection pattern
-    from api.main import app
     app.state.sic_rephrase_client = mock_rephrase_instance
 
     mock_llm.sa_rag_sic_code.return_value = (
