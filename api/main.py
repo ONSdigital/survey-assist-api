@@ -28,11 +28,11 @@ async def lifespan(fastapi_app: FastAPI):
     """
     # Startup
     fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-1.5-flash")
-    
+
     # Create SIC clients once at startup
     fastapi_app.state.sic_lookup_client = SICLookupClient()
     fastapi_app.state.sic_rephrase_client = SICRephraseClient()
-    
+
     yield
     # Shutdown
     # Add any cleanup code here if needed
