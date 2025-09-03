@@ -351,11 +351,17 @@ Note: Both services must be running simultaneously for the embeddings endpoint t
 
 ### Docker Setup
 
-#### 1. Prepare Data Files
-Before building the Docker image, you need to create a `data/` folder with the required CSV files:
+#### 1. Prepare Data Files (Optional)
+The API now uses package data by default, so you don't need to prepare data files unless you want to use custom datasets.
+
+**Default Behaviour**: The API automatically uses example datasets from the `sic-classification-library` package:
+- SIC lookup data: 136 example codes
+- SIC rephrase data: 26 example descriptions
+
+**Optional - Custom Data Files**: If you want to use full datasets, create a `data/` folder with the required CSV files:
 
 ```bash
-# Create the data directory
+# Create the data directory (only if using custom data)
 mkdir -p data
 
 # Add your SIC classification data files to the data/ folder:
@@ -363,25 +369,13 @@ mkdir -p data
 # - sic_rephrased_descriptions_2025_02_03.csv (SIC rephrase data)
 ```
 
-**Important**: The `data/` folder is not committed to version control (it's in `.gitignore`), so you must create it locally with your data files before building the Docker image.
-
-**Required Data Folder Structure**:
-```
-survey-assist-api/
-├── data/
-│   ├── sic_knowledge_base_utf8.csv
-│   └── sic_rephrased_descriptions_2025_02_03.csv
-├── Dockerfile
-├── api/
-├── utils/
-└── ...
-```
+**Note**: The `data/` folder is not committed to version control (it's in `.gitignore`), so you must create it locally with your data files before building the Docker image if you want to use custom data.
 
 #### 2. Build the Docker Image
 Navigate to the survey-assist-api directory and build the image:
 ```bash
 cd survey-assist-api
-docker build -t sa_api .
+docker build -t survey-assist-api:latest .
 ```
 
 **Note**: The build process requires significant memory (recommended: 8GB+). If using Colima, ensure sufficient resources:
@@ -389,9 +383,9 @@ docker build -t sa_api .
 colima start --memory 8 --cpu 4
 ```
 
-**Data Files**: The Docker image will include the SIC classification data files from your local `data/` folder:
-- `data/sic_knowledge_base_utf8.csv` - SIC lookup data
-- `data/sic_rephrased_descriptions_2025_02_03.csv` - SIC rephrase data
+**Data Files**: 
+- **Default**: The Docker image uses package data automatically (no additional setup required)
+- **Custom Data**: If you created a `data/` folder, the image will include those files instead
 
 #### 3. Set Up Google Cloud Authentication
 The containerized API requires Google Cloud credentials for LLM functionality. You'll need to:
@@ -408,7 +402,7 @@ gcloud iam service-accounts keys create service-account-key.json \
   --iam-account=YOUR_SERVICE_ACCOUNT@YOUR_PROJECT.iam.gserviceaccount.com
 ```
 
-**Note**: The API requires GCP credentials to start up due to LLM initialization at startup.
+**Note**: The API requires GCP credentials to start up due to LLM initialisation at startup. The container will fail with exit code 3 if GCP credentials are not provided.
 
 #### 4. Start the Vector Store Service
 In a separate terminal, start the vector store service locally:
@@ -416,6 +410,13 @@ In a separate terminal, start the vector store service locally:
 cd sic-classification-vector-store
 make run-vector-store
 ```
+
+Wait for the vector store to be ready (this can take up to 10 minutes for initial setup). You can check the status:
+```bash
+curl http://localhost:8088/v1/sic-vector-store/status
+```
+
+Look for `"status": "ready"` in the response.
 
 #### 5. Get Host Machine IP Address
 Get the IP address of your host machine (not the Colima VM):
@@ -429,87 +430,90 @@ Look for your local network IP address (usually starts with `192.168.x.x` or `10
 #### 6. Run the API Container
 Run the survey assist API container with the proper configuration:
 ```bash
-docker run \
+docker run -d --name survey-assist-api-local \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
+  -e GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID \
   -v $(pwd)/service-account-key.json:/app/service-account-key.json \
   -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
-  -e SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
-  -e SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv \
-  sa_api
+  -p 8080:8080 \
+  survey-assist-api:latest
 ```
 
 **Environment Variables Explained:**
 - `GOOGLE_APPLICATION_CREDENTIALS`: Path to the service account key file inside the container
+- `GOOGLE_CLOUD_PROJECT`: Your GCP project ID (required for LLM initialisation)
 - `SIC_VECTOR_STORE`: URL of the locally running vector store service
-- `SIC_REPHRASE_DATA_PATH`: Path to the SIC rephrase data file within the container
-- `SIC_LOOKUP_DATA_PATH`: Path to the SIC lookup data file within the container
+- `-p 8080:8080`: Maps container port 8080 to host port 8080
 
 **Volume Mount:**
 - Maps the local `service-account-key.json` to `/app/service-account-key.json` inside the container
 
-**Note:** Port forwarding (`-p 8080:8080`) is not strictly necessary on macOS as Docker Desktop automatically provides host access to container ports. However, if you prefer explicit port forwarding, you can add `-p 8080:8080` to the command.
+**Note:** The `-d` flag runs the container in detached mode (background). Remove it if you want to see logs in the terminal.
 
-### Alternative: Run in Background
-To run the container in the background:
+### Alternative: Run in Foreground
+To run the container in the foreground (see logs in terminal):
 ```bash
-docker run -d \
+docker run --name survey-assist-api-local \
   -e GOOGLE_APPLICATION_CREDENTIALS=/app/service-account-key.json \
+  -e GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID \
   -v $(pwd)/service-account-key.json:/app/service-account-key.json \
   -e SIC_VECTOR_STORE=http://<host-ip-address>:8088 \
-  -e SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv \
-  -e SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv \
-  --name survey-assist-api \
-  sa_api
+  -p 8080:8080 \
+  survey-assist-api:latest
 ```
 
 ### Testing the Setup
 
-#### 1. Verify Data Files Are Loaded
-Check the Docker container logs to confirm the data files are loaded successfully:
-
-**Note**: The API currently uses the root endpoint `/` for status checks. Use `curl http://localhost:8080/` to verify the container is running.
+#### 1. Verify Container is Running
+Check that the container is running and the API is responding:
 ```bash
-# Get the container ID
+# Check container status
 docker ps
 
+# Test API root endpoint
+curl http://localhost:8080/
+```
+
+Expected response: `{"message":"Survey Assist API is running"}`
+
+#### 2. Verify Data Files Are Loaded
+Check the Docker container logs to confirm the data files are loaded successfully:
+```bash
 # Check the logs for data loading messages
-docker logs <container_id>
+docker logs survey-assist-api-local
 ```
 
 **Expected Log Messages**: Look for these indicators that data is loaded:
 - SIC lookup data loading messages
 - SIC rephrase data loading messages
-- No file not found errors for the CSV files
+- "Application startup complete" message
 
 **Example Successful Log Messages**:
 ```
-INFO:api.services.sic_lookup_client:Loaded XXXX SIC lookup codes from data/sic_knowledge_base_utf8.csv
-INFO:api.services.sic_rephrase_client:Loaded XXXX rephrased SIC descriptions from data/sic_rephrased_descriptions_2025_02_03.csv
+INFO:api.services.sic_lookup_client:Loaded 136 SIC lookup codes from /usr/local/lib/python3.12/site-packages/industrial_classification/data/example_sic_lookup_data.csv
+INFO:api.services.sic_rephrase_client:Loaded 26 rephrased SIC descriptions from /usr/local/lib/python3.12/site-packages/industrial_classification/data/example_rephrased_sic_data.csv
+INFO:     Application startup complete.
 ```
 
 **Data Source Confirmation**: 
-- **Package Data**: Look for paths containing `industrial_classification_utils/data/example/`
+- **Package Data (Default)**: Look for paths containing `industrial_classification_utils/data/example/`
 - **Local Data**: Look for paths containing `data/sic_knowledge_base_utf8.csv`
 
-**Note**: Both clients now use the same consistent format: "Loaded XXXX [type] from [filepath]"
+**Warning Signs**: If you see errors like "No such file or directory" or the container exits with code 3, check your GCP authentication setup.
 
-**Important**: The SIC lookup uses exact matching. Terms like "farmer" won't match "Arable farmers" - you need to use the exact description from the dataset.
-
-**Warning Signs**: If you see errors like "No such file or directory" or "File not found" for the CSV files, the data hasn't loaded properly.
-
-#### 2. Verify Vector Store
-Ensure the vector store is accessible:
+#### 3. Verify Vector Store Connection
+Ensure the vector store is accessible from the API:
 ```bash
-curl http://localhost:8088/health
+# Test vector store status endpoint
+curl http://localhost:8080/v1/survey-assist/embeddings
 ```
 
-#### 3. Test API Endpoints
+Expected response should show `"status": "ready"` and vector store details.
+
+#### 4. Test API Endpoints
 Test the survey assist API:
 ```bash
-# Root endpoint (API status)
-curl http://localhost:8080/
-
-# Configuration
+# Configuration endpoint
 curl http://localhost:8080/v1/survey-assist/config
 
 # Test classification (example)
@@ -518,17 +522,42 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
   -d '{
     "llm": "gemini",
     "type": "sic",
-    "job_title": "Farmer",
-    "job_description": "Grows crops and raises livestock",
-    "org_description": "Agricultural farm"
+    "job_title": "Electrician",
+    "job_description": "I install and maintain electrical systems",
+    "org_description": "Electrical installation company"
   }'
 ```
 
-**Note**: The API uses exact matching for SIC lookups. Partial matches (e.g., "farmer" vs "Arable farmers") will not return results.
+**Note**: The classification endpoint uses the vector store for similarity search, so it should work even with package data.
+
+#### 5. Clean Up Service Account Key (Security)
+After successful testing, remove the service account key file for security:
+```bash
+rm service-account-key.json
+```
+
+**Important**: Never commit the service account key file to version control. It's already in `.gitignore`.
 
 ### Troubleshooting
 
 #### Common Issues
+
+**Container Exits with Code 3 (GCP Authentication Error)**
+If the container fails to start with exit code 3:
+```bash
+# Check the logs for the specific error
+docker logs survey-assist-api-local
+```
+
+Common error messages:
+- `DefaultCredentialsError: Your default credentials were not found`
+- `GoogleAuthError: Unable to find your project`
+
+**Solutions:**
+1. Verify GCP authentication: `gcloud auth list`
+2. Set the correct project: `gcloud config set project YOUR_PROJECT_ID`
+3. Ensure the service account key file exists: `ls -la service-account-key.json`
+4. Check the service account has the right permissions for your project
 
 **Data Files Not Loading**
 If you see errors about missing data files in the logs:
@@ -541,9 +570,8 @@ docker exec <container_id> find /app -name "*.csv"
 ```
 
 **Data Loading Behavior**:
-- **Package Data (default)**: When no environment variables are set, the API uses example data from the `industrial_classification_utils` package
-- **Local Data**: When `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` are set, the API uses the full datasets copied into the container during build
-- **Exact Matching**: SIC lookups require exact matches (e.g., "Arable farmers" not "farmer")
+- **Package Data (default)**: The API always uses example data from the `industrial_classification_utils` package
+- **Custom Data Sources**: Can be specified per-request using the `data_path` parameter in API calls
 
 **Port Already in Use**
 ```bash
@@ -602,10 +630,11 @@ docker port <container_id>
 | Variable | Description | Example | Default Behaviour |
 |----------|-------------|---------|------------------|
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` | Required for container startup |
+| `GOOGLE_CLOUD_PROJECT` | GCP project ID | `your-project-id` | Required for LLM initialisation |
 | `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` | `http://localhost:8088` |
-| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup data file | `data/sic_knowledge_base_utf8.csv` | Uses package example data |
-| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase data file | `data/sic_rephrased_descriptions_2025_02_03.csv` | Uses package example data |
 | `PORT` | API port | `8080` | `8080` |
+
+**Note**: `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables are no longer used. The API automatically uses package data by default.
 
 ### Security Notes
 
@@ -673,9 +702,7 @@ When no environment variables are set, the API automatically uses example datase
 - **SIC Rephrase**: `example_rephrased_sic_data.csv` (contains 28 agricultural SIC codes with rephrased descriptions)
 
 #### **2. Local Data (Override)**
-When environment variables are set, the API uses custom datasets from specified paths:
-- **SIC Lookup**: `SIC_LOOKUP_DATA_PATH` environment variable
-- **SIC Rephrase**: `SIC_REPHRASE_DATA_PATH` environment variable
+When custom data files are provided in the `data/` folder during Docker build, the API uses those datasets instead of package data.
 
 #### **3. Mixed Configuration**
 You can mix data sources:
@@ -689,38 +716,28 @@ You can mix data sources:
 
 ### Testing Data Loading Configuration
 
-#### **Test 1: Package Data (No Environment Variables)**
+#### **Test 1: Package Data (Default)**
 ```bash
-# Clear any existing environment variables
-unset SIC_LOOKUP_DATA_PATH
-unset SIC_REPHRASE_DATA_PATH
-
-# Test SIC lookup with package data
+# Test SIC lookup with package data (default behaviour)
 curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy%20farming"
 
 # Expected response: SIC code 01410 with description "Raising of dairy cattle"
-
-# Test SIC lookup with local data
-curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy%20farming"
 ```
 
-#### **Test 2: Local Data (Environment Variables Set)**
+#### **Test 2: Custom Data (If Available)**
 ```bash
-# Note: Environment variables are no longer used for data loading
-# The API always uses packaged example data by default
+# If you built the Docker image with custom data files in the data/ folder,
+# the API will use those instead of package data
 
-# Test SIC lookup with local data
+# Test SIC lookup with custom data
 curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrician"
 
 # Expected response: SIC code 43210 with description "Electrical installation"
 ```
 
-#### **Test 3: Mixed Configuration**
+#### **Test 3: Classification with Vector Store**
 ```bash
-# Note: Environment variables are no longer used for data loading
-# The API always uses packaged example data by default
-
-# Test classification with local data
+# Test classification endpoint (works with both package and custom data)
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
