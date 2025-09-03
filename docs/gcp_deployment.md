@@ -37,6 +37,12 @@ docker tag survey-assist-api:latest europe-west2-docker.pkg.dev/{PROJECT_ID}/sur
 docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
 ```
 
+**Note**: If you encounter authentication errors during the push, you may need to refresh your credentials:
+```bash
+gcloud auth login
+gcloud auth application-default login
+```
+
 ### 3. Deploy to Cloud Run
 
 ```bash
@@ -48,7 +54,7 @@ gcloud run services update survey-assist-api \
   --timeout=60s \
   --cpu=1 \
   --memory=4Gi \
-  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp,SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
+  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},GOOGLE_CLOUD_PROJECT={PROJECT_ID},DATA_STORE=gcp,SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
   --region={REGION} \
   --project={PROJECT_ID}
 ```
@@ -58,8 +64,9 @@ gcloud run services update survey-assist-api \
 The deployment now includes environment variables for service communication and data loading:
 
 - `SIC_VECTOR_STORE`: URL of the SIC classification vector store service (required for classification functionality)
-- `GCP_BUCKET_NAME`: GCP storage bucket name for data storage
-- `DATA_STORE`: Data store type (set to "gcp")
+- `GCP_BUCKET_NAME`: GCP storage bucket name for data storage (required for result service)
+- `GOOGLE_CLOUD_PROJECT`: GCP project ID (required for LLM initialisation)
+- `DATA_STORE`: Data store type (set to "gcp" for GCP bucket storage)
 
 **Data Loading Behavior**:
 - **Package Data (default)**: The API always uses example data from the `industrial_classification_utils` package when no custom data paths are specified
@@ -104,7 +111,21 @@ gcloud run services update survey-assist-api \
   --project={PROJECT_ID}
 ```
 
-### 5. Test API Gateway Endpoints
+### 5. Verify Deployment
+
+Check that the deployment was successful by viewing the service logs:
+
+```bash
+# Check deployment logs for successful startup
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=survey-assist-api AND textPayload:\"Loaded\"" --limit=5 --project={PROJECT_ID}
+```
+
+Look for these success indicators:
+- `INFO:api.services.sic_lookup_client:Loaded XXXX SIC lookup codes`
+- `INFO:api.services.sic_rephrase_client:Loaded XXXX rephrased SIC descriptions`
+- `INFO: Application startup complete.`
+
+### 6. Test API Gateway Endpoints
 
 **Important**: All testing is done through the API Gateway using signed JWT tokens for authentication. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
 
@@ -195,6 +216,28 @@ curl -X POST \
 **Expected Response**: Successful SIC classification with proper authentication between services.
 
 **Data Loading Verification**: The deployed service will use the full datasets specified in the environment variables. You can verify this by checking the startup logs for data loading messages showing the local data paths.
+
+## Troubleshooting Deployment Issues
+
+### Common Authentication Errors
+
+**Error**: `PERMISSION_DENIED: Permission 'iam.serviceAccounts.signJwt' denied`
+**Solution**: Ensure you have the correct service account permissions. The JWT signing requires the service account specified in the API Gateway configuration.
+
+**Error**: `Unauthenticated request` when pushing to Artifact Registry
+**Solution**: Refresh your GCP credentials:
+```bash
+gcloud auth login
+gcloud auth application-default login
+```
+
+### Service Startup Issues
+
+**Error**: Container exits with code 3
+**Solution**: Check that `GOOGLE_CLOUD_PROJECT` environment variable is set correctly in the deployment command.
+
+**Error**: Vector store connection fails
+**Solution**: Verify the `SIC_VECTOR_STORE` URL is correct and the vector store service is running.
 
 #### Complete Working Example
 
