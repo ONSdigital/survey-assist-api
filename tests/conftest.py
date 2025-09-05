@@ -17,6 +17,8 @@ from industrial_classification_utils.llm.llm import ClassificationLLM
 from survey_assist_utils.logging import get_logger
 
 from api.main import app
+from api.services.sic_lookup_client import SICLookupClient
+from api.services.sic_rephrase_client import SICRephraseClient
 
 # Configure a global logger
 logger = get_logger(__name__)
@@ -58,7 +60,19 @@ def pytest_configure(config):  # pylint: disable=unused-argument
         None,
     )
 
+    # Mock the SIC lookup client
+    mock_sic_lookup_client = MagicMock(spec=SICLookupClient)
+    mock_sic_lookup_client.get_sic_codes_count.return_value = 1000
+
+    # Mock the SIC rephrase client
+    mock_sic_rephrase_client = MagicMock(spec=SICRephraseClient)
+    mock_sic_rephrase_client.get_rephrased_count.return_value = 500
+
+    # Set up app state with all required clients
     app.state.gemini_llm = mock_llm
+    app.state.sic_lookup_client = mock_sic_lookup_client
+    app.state.sic_rephrase_client = mock_sic_rephrase_client
+
     logger.info("Global Test Configuration Applied")
 
 
