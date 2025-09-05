@@ -256,12 +256,12 @@ def test_classify_followup_question(
     assert "plumbing" in result["followup"].lower()
 
 
-@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
+@patch("api.main.app.state.sic_rephrase_client")
 @patch("google.auth.default")
 def test_classify_endpoint_success(
-    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+    mock_auth, mock_rephrase_client, mock_llm, mock_vector_store
 ):
     """Test the structure of a successful classification response.
 
@@ -288,24 +288,9 @@ def test_classify_endpoint_success(
     )
 
     # Mock the rephrase client
-    mock_rephrase_instance = MagicMock()
-    mock_rephrase_instance.process_classification_response.return_value = {
-        "classified": True,
-        "followup": None,
-        "sic_code": EXPECTED_SIC_CODE,
-        "sic_description": EXPECTED_SIC_DESCRIPTION,
-        "sic_candidates": [
-            {
-                "sic_code": EXPECTED_SIC_CODE,
-                "sic_descriptive": EXPECTED_SIC_DESCRIPTION,
-                "likelihood": EXPECTED_LIKELIHOOD,
-            }
-        ],
-        "reasoning": "Mocked reasoning",
-        "prompt_used": None,
-    }
-    mock_rephrase_instance.get_rephrased_count.return_value = 0
-    mock_rephrase_client.return_value = mock_rephrase_instance
+    mock_rephrase_client.get_rephrased_description.return_value = (
+        EXPECTED_SIC_DESCRIPTION
+    )
 
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
@@ -530,12 +515,12 @@ def test_classify_endpoint_invalid_type(
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
+@patch("api.main.app.state.sic_rephrase_client")
 @patch("google.auth.default")
 def test_classify_endpoint_rephrasing_enabled(
-    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+    mock_auth, mock_rephrase_client, mock_llm, mock_vector_store
 ):
     """Test that rephrasing is enabled when explicitly set to True."""
     mock_auth.return_value = (MagicMock(), "test-project")
@@ -552,9 +537,7 @@ def test_classify_endpoint_rephrasing_enabled(
     )
 
     # Mock the rephrase client with rephrased descriptions
-    mock_rephrase_instance = MagicMock()
-    mock_rephrase_instance.get_rephrased_description.return_value = "Crop growing"
-    mock_rephrase_client.return_value = mock_rephrase_instance
+    mock_rephrase_client.get_rephrased_description.return_value = "Crop growing"
 
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
@@ -692,12 +675,12 @@ def test_classify_endpoint_rephrasing_disabled(
             )
 
 
-@patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
+@patch("api.main.app.state.sic_rephrase_client")
 @patch("google.auth.default")
 def test_classify_endpoint_rephrasing_default(
-    mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+    mock_auth, mock_rephrase_client, mock_llm, mock_vector_store
 ):
     """Test that rephrasing defaults to True when no options provided."""
     mock_auth.return_value = (MagicMock(), "test-project")
@@ -714,9 +697,7 @@ def test_classify_endpoint_rephrasing_default(
     )
 
     # Mock the rephrase client with rephrased descriptions
-    mock_rephrase_instance = MagicMock()
-    mock_rephrase_instance.get_rephrased_description.return_value = "Crop growing"
-    mock_rephrase_client.return_value = mock_rephrase_instance
+    mock_rephrase_client.get_rephrased_description.return_value = "Crop growing"
 
     mock_llm.sa_rag_sic_code.return_value = (
         MagicMock(
