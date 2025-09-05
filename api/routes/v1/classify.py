@@ -57,19 +57,16 @@ def get_soc_vector_store_client() -> SOCVectorStoreClient:
     return SOCVectorStoreClient()
 
 
-def get_rephrase_client() -> SICRephraseClient:
+def get_rephrase_client(request: Request) -> SICRephraseClient:
     """Get a SIC rephrase client instance.
+
+    Args:
+        request: The FastAPI request object containing the app state.
 
     Returns:
         SICRephraseClient: A SIC rephrase client instance.
     """
-    data_path = os.getenv("SIC_REPHRASE_DATA_PATH")
-    if data_path and data_path.strip():
-        logger.info(f"Using SIC rephrase data from environment: {data_path}")
-        return SICRephraseClient(data_path=data_path.strip())  # Pass the path!
-
-    logger.info("SIC_REPHRASE_DATA_PATH not set, using package example data")
-    return SICRephraseClient()  # No path = uses package data
+    return request.app.state.sic_rephrase_client
 
 
 def get_sic_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
