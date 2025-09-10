@@ -103,6 +103,8 @@ class LookupResponse(BaseModel):
     """Model for lookup response."""
 
     found: bool = Field(..., description="Whether matches were found")
+    code: Optional[str] = Field(None, description="The matched code")
+    code_division: Optional[str] = Field(None, description="The code division")
     potential_codes_count: int = Field(
         ..., description="Number of potential codes found"
     )
