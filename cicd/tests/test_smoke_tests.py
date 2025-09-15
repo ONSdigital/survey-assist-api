@@ -33,7 +33,7 @@ class TestSurveyAssistApi:
             response.status_code == 200  # noqa: PLR2004
         ), f"Expected status code 200, but got {response.status_code}."
 
-    def test_survey_assist_api_search_index(self) -> None:
+    def test_survey_assist_api_classify(self) -> None:
         """Test Survey Assist API returns successful /classify response."""
         retry_strategy = Retry(
             total=5,  # maximum number of retries
