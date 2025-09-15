@@ -39,13 +39,13 @@ black: ## Run black
 	poetry run black .
 
 unit-tests: ## Run the example unit tests
-	poetry run pytest -m utils --cov=utils --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
+	poetry run pytest -m utils --ignore=cicd --cov=utils --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
 
 api-tests: ## Run the example API tests
-	poetry run pytest -m api --cov=api --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
+	poetry run pytest -m api --ignore=cicd --cov=api --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
 
 all-tests: ## Run all tests with coverage
-	poetry run pytest --cov=. --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
+	poetry run pytest --ignore=cicd --cov=. --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc
 	
 install: ## Install the dependencies
 	poetry install --only main --no-root
