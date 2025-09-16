@@ -29,7 +29,7 @@ class TestSurveyAssistApi:
             timeout=30,
         )
 
-        assert (  # noqa: S101, CWE-703
+        assert (  # noqa: S101
             response.status_code == 200  # noqa: PLR2004
         ), f"Expected status code 200, but got {response.status_code}."
 
@@ -71,6 +71,6 @@ class TestSurveyAssistApi:
             timeout=30,
         )
 
-        assert (  # noqa: S101, CWE-703
+        assert (  # noqa: S101
             response.status_code == 200  # noqa: PLR2004
         ), f"Expected status code 200, but got {response.status_code}."
