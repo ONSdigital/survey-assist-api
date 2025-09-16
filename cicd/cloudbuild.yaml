@@ -1,0 +1,74 @@
+steps:
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - |
+        gcloud --version
+        make --version
+        pip --version
+        python --version
+        pytest --version
+        poetry --version
+    id: Verfiy Base Tooling Versions
+    entrypoint: bash
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - |
+        poetry install
+        make all-tests
+    id: Run API All Tests
+    entrypoint: bash
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - >
+        mkdir data
+
+        gsutil cp
+        $_SIC_KB_CSV
+        data/
+
+        gsutil cp
+        $_SIC_REPHRASE_CSV
+        data/
+    id: Get Data Files
+    entrypoint: bash
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - '-t'
+      - $_GAR_IMAGE
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - $_GAR_IMAGE
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - >
+        gcloud run deploy survey-assist-api
+        --image=$_GAR_IMAGE
+        --region $LOCATION --project $_SANDBOX_PROJECT_ID
+    id: Deploy Survey Assist API
+    entrypoint: bash
+  - name: gcr.io/$PROJECT_ID/testrunner
+    args:
+      - '-c'
+      - >
+        export SURVEY_ASSIST_API_URL=$(gcloud parametermanager parameters
+        versions describe sandbox --parameter=infra-test-config
+        --location=global --project $PROJECT_ID --format=json |
+        python3 -c "import sys, json;
+        print(json.load(sys.stdin)['payload']['data'])" | base64 --decode |
+        python3 -c "import sys, json;
+        print(json.load(sys.stdin)['cr-api-url'])")/v1/survey-assist export
+        SA_ID_TOKEN=`gcloud auth print-identity-token
+        --impersonate-service-account=$_API_SA`
+
+        pytest cicd
+    id: Run Survey Assist API Smoke Tests
+    entrypoint: bash
+options:
+  logging: CLOUD_LOGGING_ONLY
