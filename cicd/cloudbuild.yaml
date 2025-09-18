@@ -26,7 +26,7 @@ steps:
         mkdir data
 
         gsutil cp
-        $_SIC_KB_CSV
+        $_SIC_LOOKUP_CSV
         data/
 
         gsutil cp
