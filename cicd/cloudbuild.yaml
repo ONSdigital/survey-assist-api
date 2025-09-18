@@ -9,7 +9,7 @@ steps:
         python --version
         pytest --version
         poetry --version
-    id: Verfiy Base Tooling Versions
+    id: Verify Base Tooling Versions
     entrypoint: bash
   - name: gcr.io/$PROJECT_ID/testrunner
     args:
