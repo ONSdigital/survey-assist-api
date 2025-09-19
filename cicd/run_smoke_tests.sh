@@ -6,10 +6,21 @@
 # SURVEY_ASSIST_API_URL - The URL of the Survey Assist API to run the tests against
 # SA_ID_TOKEN - A valid Google Identity Token generated from your credentials (assuming you're running locally) 
 #
+#
+# Expected parameter: [sandbox|dev]
+#
+# Example ./run_smoke_tests.sh dev
+
+if [[ $1 = "sandbox" ]] || [[ $1 = "dev" ]]; then
+   echo Test environment "$1"
+else
+  echo "Please pass test environment of 'sandbox' or 'dev' e.g. ./run_smoke_tests.sh sandbox"
+  exit 1
+fi
 
 if [[ -z "${SURVEY_ASSIST_API_URL}" ]]; then
-    echo Environment variable SURVEY_ASSIST_API_URL was not set, getting sandbox url from parameter store:
-    SURVEY_ASSIST_API_URL=$(gcloud parametermanager parameters versions describe sandbox --parameter=infra-test-config --location=global --project ons-cicd-surveyassist --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-api-url'])")/v1/survey-assist
+    echo Environment variable SURVEY_ASSIST_API_URL was not set, getting $1 url from parameter store:
+    SURVEY_ASSIST_API_URL=$(gcloud parametermanager parameters versions describe $1 --parameter=infra-test-config --location=global --project ons-cicd-surveyassist --format=json | python3 -c "import sys, json; print(json.load(sys.stdin)['payload']['data'])" | base64 --decode | python3 -c "import sys, json; print(json.load(sys.stdin)['cr-api-url'])")/v1/survey-assist
     export SURVEY_ASSIST_API_URL
     echo "$SURVEY_ASSIST_API_URL"
 else

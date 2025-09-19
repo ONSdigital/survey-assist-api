@@ -38,19 +38,19 @@ steps:
     args:
       - build
       - '-t'
-      - $_GAR_IMAGE
+      - $_GAR_IMAGE:$SHORT_SHA
       - .
   - name: gcr.io/cloud-builders/docker
     args:
       - push
-      - $_GAR_IMAGE
+      - $_GAR_IMAGE:$SHORT_SHA
   - name: gcr.io/$PROJECT_ID/testrunner
     args:
       - '-c'
       - >
         gcloud run deploy survey-assist-api
-        --image=$_GAR_IMAGE
-        --region $LOCATION --project $_SANDBOX_PROJECT_ID
+        --image=$_GAR_IMAGE:$SHORT_SHA
+        --region $LOCATION --project $_TARGET_PROJECT_ID
     id: Deploy Survey Assist API
     entrypoint: bash
   - name: gcr.io/$PROJECT_ID/testrunner
@@ -58,12 +58,14 @@ steps:
       - '-c'
       - >
         export SURVEY_ASSIST_API_URL=$(gcloud parametermanager parameters
-        versions describe sandbox --parameter=infra-test-config
+        versions describe $_TARGET_ENVIRONMENT --parameter=infra-test-config
         --location=global --project $PROJECT_ID --format=json |
         python3 -c "import sys, json;
         print(json.load(sys.stdin)['payload']['data'])" | base64 --decode |
         python3 -c "import sys, json;
-        print(json.load(sys.stdin)['cr-api-url'])")/v1/survey-assist export
+        print(json.load(sys.stdin)['cr-api-url'])")/v1/survey-assist
+        
+        export
         SA_ID_TOKEN=`gcloud auth print-identity-token
         --impersonate-service-account=$_API_SA`
 
