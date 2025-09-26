@@ -51,13 +51,13 @@ def test_get_config(test_client):
 
     Assertions:
     - The response status code is HTTPStatus.OK.
-    - The `llm_model` in the response JSON is set to "gemini-1.5-flash".
+    - The `llm_model` in the response JSON is set to "gemini-2.5-flash".
     - The `embedding_model` field is present and is a string.
     - The `actual_prompt` field is present and is a string.
     """
     response = test_client.get("/v1/survey-assist/config")
     assert response.status_code == HTTPStatus.OK
-    assert response.json()["llm_model"] == "gemini-1.5-flash"
+    assert response.json()["llm_model"] == "gemini-2.5-flash"
     assert "embedding_model" in response.json()
     assert isinstance(response.json()["embedding_model"], str)
     # In test environment, embedding_model might be "unknown" if vector store is not available

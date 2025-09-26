@@ -28,7 +28,7 @@ async def lifespan(fastapi_app: FastAPI):
     It initialises the LLM model and client instances at startup.
     """
     # Startup
-    fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-1.5-flash")
+    fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-2.5-flash")
 
     # Create SIC lookup client
     sic_lookup_data_path = os.getenv("SIC_LOOKUP_DATA_PATH")
