@@ -29,7 +29,7 @@ The API is built using:
 - **Response Example**:
   ```json
   {
-    "llm_model": "gemini-1.5-flash",
+    "llm_model": "gemini-2.5-flash",
     "embedding_model": "all-MiniLM-L6-v2",
     "data_store": "some_data_store",
     "bucket_name": "my_bucket",
