@@ -65,8 +65,8 @@ def _get_llm_model_name(request: Request) -> str:
             if hasattr(llm, "model"):
                 return llm.model
             # Fallback to a default based on the LLM type
-            return "gemini-1.5-flash"
-        return "gemini-1.5-flash"  # Default from main.py
+            return "gemini-2.5-flash"
+        return "gemini-2.5-flash"  # Default from main.py
     except (AttributeError, TypeError) as e:
         logger.warning(f"Could not retrieve LLM model name: {e}")
         return "unknown"

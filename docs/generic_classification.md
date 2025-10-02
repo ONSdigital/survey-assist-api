@@ -28,7 +28,7 @@ Retrieve survey results using a result ID.
 
 ```json
 {
-  "llm": "gemini-1.5-flash",
+  "llm": "gemini-2.5-flash",
   "type": "sic|soc|sic_soc",
   "job_title": "string",
   "job_description": "string",

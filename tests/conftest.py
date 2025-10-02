@@ -37,7 +37,7 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     """
     # Mock the LLM initialisation
     mock_llm = MagicMock(spec=ClassificationLLM)
-    mock_llm.model_name = "gemini-1.5-flash"  # Set the model name for config endpoint
+    mock_llm.model_name = "gemini-2.5-flash"  # Set the model name for config endpoint
 
     # Mock the sa_rag_sic_code method to return expected values
     mock_llm.sa_rag_sic_code.return_value = (
