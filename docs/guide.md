@@ -82,10 +82,11 @@ The API is built using:
   - `reasoning` (string): Reasoning behind the classification
 
 The classification process works as follows:
-1. The input text is used to search the vector store for similar SIC codes
-2. The vector store returns a list of candidates with similarity scores
-3. The LLM analyses the candidates and input to determine the final classification
-4. If the classification is ambiguous, a follow-up question is provided
+1. The input text is used to search the vector store for a list of candidate SIC codes.
+2. The LLM first attempts to find an **unambiguous** classification from the candidates.
+3. If a definitive SIC code is found, the API returns a response with `classified: true` and the found code. The `followup` question will be empty.
+4. If the result is ambiguous and a definitive code cannot be determined, the LLM then formulates a **follow-up question** to gather more information from the user.
+5. In this case, the API returns a response with `classified: false`, no SIC code, and the `followup` question populated.
 
 ### Data Source Selection
 

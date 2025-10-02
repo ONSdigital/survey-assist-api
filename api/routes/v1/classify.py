@@ -203,7 +203,7 @@ async def _classify_sic(  # pylint: disable=unused-argument
     vector_store: SICVectorStoreClient,
     rephrase_client: SICRephraseClient,
 ) -> GenericClassificationResult:
-    """Classify using SIC classification.
+    """Classify using SIC classification with two-step process.
 
     Args:
         request (Request): The FastAPI request object.
@@ -213,62 +213,145 @@ async def _classify_sic(  # pylint: disable=unused-argument
 
     Returns:
         GenericClassificationResult: SIC classification result.
+
+    Raises:
+        HTTPException: If the two-step process fails with 422 status.
     """
-    # Get vector store search results
-    search_results = await vector_store.search(
-        industry_descr=classification_request.org_description,
-        job_title=classification_request.job_title,
-        job_description=classification_request.job_description,
-    )
-
-    # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
-    short_list = [
-        {
-            "code": result["code"],
-            "title": result["title"],
-            "distance": result["distance"],
-        }
-        for result in search_results
-    ]
-
-    # Get LLM instance and call sa_rag_sic_code
-    llm = request.app.state.gemini_llm
-    llm_response, _, actual_prompt = (  # pylint: disable=unused-variable
-        llm.sa_rag_sic_code(
-            industry_descr=classification_request.org_description or "",
+    try:
+        # Get vector store search results
+        search_results = await vector_store.search(
+            industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
             job_description=classification_request.job_description,
-            short_list=short_list,
-        )
-    )
-
-    # Map LLM response to generic format
-    candidates = [
-        GenericCandidate(
-            code=c.sic_code,
-            descriptive=c.sic_descriptive,
-            likelihood=c.likelihood,
-        )
-        for c in getattr(llm_response, "sic_candidates", [])
-    ]
-
-    result = GenericClassificationResult(
-        type="sic",
-        classified=getattr(llm_response, "codable", False),
-        followup=getattr(llm_response, "followup", None),
-        code=getattr(llm_response, "sic_code", None),
-        description=getattr(llm_response, "sic_descriptive", None),
-        candidates=candidates,
-        reasoning=getattr(llm_response, "reasoning", ""),
-    )
-
-    # Apply rephrasing if enabled
-    if rephrase_client and candidates:
-        result.candidates = _apply_rephrasing(
-            candidates, rephrase_client, classification_request
         )
 
-    return result
+        # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
+        short_list = [
+            {
+                "code": result["code"],
+                "title": result["title"],
+                "distance": result["distance"],
+            }
+            for result in search_results
+        ]
+
+        # Get LLM instance
+        llm = request.app.state.gemini_llm
+
+        # Step 1: Call unambiguous SIC code classification
+        try:
+            unambiguous_response, _ = llm.unambiguous_sic_code(
+                industry_descr=classification_request.org_description or "",
+                semantic_search_results=short_list,
+                job_title=classification_request.job_title,
+                job_description=classification_request.job_description,
+            )
+        except Exception as e:
+            logger.error("Error in unambiguous SIC classification", error=str(e))
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": {
+                        "type": "classification_error",
+                        "message": "The LLM could not generate a valid classification",
+                        "details": f"Unambiguous classification failed: {e!s}",
+                    }
+                },
+            ) from e
+
+        # Check if unambiguous classification found a match
+        if unambiguous_response.codable and unambiguous_response.class_code:
+            # SIC code found - return response with found code and candidates
+            candidates = [
+                GenericCandidate(
+                    code=c.class_code,
+                    descriptive=c.class_descriptive,
+                    likelihood=c.likelihood,
+                )
+                for c in unambiguous_response.alt_candidates
+            ]
+
+            result = GenericClassificationResult(
+                type="sic",
+                classified=True,
+                followup=None,  # No follow-up question needed
+                code=unambiguous_response.class_code,
+                description=unambiguous_response.class_descriptive,
+                candidates=candidates,
+                reasoning=unambiguous_response.reasoning,
+            )
+        else:
+            # No unambiguous match found - call formulate open question
+            try:
+                # Create a SicCandidate from the first alt_candidate for the open question
+                first_candidate = (
+                    unambiguous_response.alt_candidates[0]
+                    if unambiguous_response.alt_candidates
+                    else None
+                )
+
+                open_question_response, _ = llm.formulate_open_question(
+                    industry_descr=classification_request.org_description or "",
+                    job_title=classification_request.job_title,
+                    job_description=classification_request.job_description,
+                    llm_output=first_candidate,
+                )
+            except Exception as e:
+                logger.error("Error in formulate open question", error=str(e))
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": {
+                            "type": "classification_error",
+                            "message": "The LLM could not generate a valid classification",
+                            "details": f"Open question formulation failed: {e!s}",
+                        }
+                    },
+                ) from e
+
+            # Map candidates from unambiguous response
+            candidates = [
+                GenericCandidate(
+                    code=c.class_code,
+                    descriptive=c.class_descriptive,
+                    likelihood=c.likelihood,
+                )
+                for c in unambiguous_response.alt_candidates
+            ]
+
+            result = GenericClassificationResult(
+                type="sic",
+                classified=False,  # No matching SIC code found
+                followup=open_question_response.followup,
+                code=None,  # No matching SIC code
+                description=None,  # No matching SIC code
+                candidates=candidates,
+                reasoning=unambiguous_response.reasoning,
+            )
+
+        # Apply rephrasing if enabled
+        if rephrase_client and candidates:
+            result.candidates = _apply_rephrasing(
+                candidates, rephrase_client, classification_request
+            )
+
+        return result
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as they are already properly formatted
+        raise
+    except Exception as e:
+        logger.error("Unexpected error in SIC classification", error=str(e))
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": {
+                    "type": "classification_error",
+                    "message": "The LLM could not generate a valid classification",
+                    "details": f"Response was empty or invalid JSON: {e!s}",
+                }
+            },
+        ) from e
 
 
 def _apply_rephrasing(

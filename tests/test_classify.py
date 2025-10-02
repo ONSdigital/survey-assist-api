@@ -211,25 +211,27 @@ def test_classify_followup_question(
     mock_rephrase_instance.get_rephrased_count.return_value = 0
     mock_rephrase_client.return_value = mock_rephrase_instance
 
-    mock_llm.sa_rag_sic_code.return_value = (
+    # Mock the new two-step process - unambiguous returns no match, then open question
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = False
+    mock_unambiguous_response.class_code = None
+    mock_unambiguous_response.class_descriptive = None
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
         MagicMock(
-            classified=False,
-            codable=False,
-            followup="Please specify if this is electrical or plumbing installation.",
-            sic_code=None,
-            sic_descriptive=None,
-            reasoning="Mocked reasoning",
-            sic_candidates=[
-                MagicMock(
-                    sic_code=EXPECTED_SIC_CODE,
-                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
-                    likelihood=0.8,
-                )
-            ],
-        ),
-        None,
-        None,
+            class_code=EXPECTED_SIC_CODE,
+            class_descriptive=EXPECTED_SIC_DESCRIPTION,
+            likelihood=0.8,
+        )
+    ]
+
+    mock_open_question_response = MagicMock()
+    mock_open_question_response.followup = (
+        "Please specify if this is electrical or plumbing installation."
     )
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.formulate_open_question.return_value = (mock_open_question_response, None)
 
     request_data = {
         "llm": "chat-gpt",
@@ -292,24 +294,21 @@ def test_classify_endpoint_success(
         EXPECTED_SIC_DESCRIPTION
     )
 
-    mock_llm.sa_rag_sic_code.return_value = (
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = EXPECTED_SIC_CODE
+    mock_unambiguous_response.class_descriptive = EXPECTED_SIC_DESCRIPTION
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
         MagicMock(
-            classified=True,
-            followup=None,
-            sic_code=EXPECTED_SIC_CODE,
-            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
-            reasoning="Mocked reasoning",
-            sic_candidates=[
-                MagicMock(
-                    sic_code=EXPECTED_SIC_CODE,
-                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
-                    likelihood=EXPECTED_LIKELIHOOD,
-                )
-            ],
-        ),
-        None,
-        None,
-    )
+            class_code=EXPECTED_SIC_CODE,
+            class_descriptive=EXPECTED_SIC_DESCRIPTION,
+            likelihood=EXPECTED_LIKELIHOOD,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {
         "llm": "chat-gpt",
@@ -369,18 +368,21 @@ def test_classify_endpoint_invalid_json(
     mock_rephrase_instance = MagicMock()
     mock_rephrase_client.return_value = mock_rephrase_instance
 
-    mock_llm.sa_rag_sic_code.return_value = (
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = EXPECTED_SIC_CODE
+    mock_unambiguous_response.class_descriptive = EXPECTED_SIC_DESCRIPTION
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
         MagicMock(
-            classified=True,
-            followup=None,
             class_code=EXPECTED_SIC_CODE,
             class_descriptive=EXPECTED_SIC_DESCRIPTION,
-            reasoning="Mocked reasoning",
-            alt_candidates=[],
-        ),
-        None,
-        None,
-    )
+            likelihood=EXPECTED_LIKELIHOOD,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {"invalid": "data"}
     logger.info("Testing invalid JSON with data", request_data=request_data)
@@ -423,18 +425,21 @@ def test_classify_endpoint_invalid_llm(
     mock_rephrase_instance = MagicMock()
     mock_rephrase_client.return_value = mock_rephrase_instance
 
-    mock_llm.sa_rag_sic_code.return_value = (
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = EXPECTED_SIC_CODE
+    mock_unambiguous_response.class_descriptive = EXPECTED_SIC_DESCRIPTION
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
         MagicMock(
-            classified=True,
-            followup=None,
             class_code=EXPECTED_SIC_CODE,
             class_descriptive=EXPECTED_SIC_DESCRIPTION,
-            reasoning="Mocked reasoning",
-            alt_candidates=[],
-        ),
-        None,
-        None,
-    )
+            likelihood=EXPECTED_LIKELIHOOD,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {
         "llm": "invalid-model",
@@ -484,18 +489,21 @@ def test_classify_endpoint_invalid_type(
     mock_rephrase_instance = MagicMock()
     mock_rephrase_client.return_value = mock_rephrase_instance
 
-    mock_llm.sa_rag_sic_code.return_value = (
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = EXPECTED_SIC_CODE
+    mock_unambiguous_response.class_descriptive = EXPECTED_SIC_DESCRIPTION
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
         MagicMock(
-            classified=True,
-            followup=None,
             class_code=EXPECTED_SIC_CODE,
             class_descriptive=EXPECTED_SIC_DESCRIPTION,
-            reasoning="Mocked reasoning",
-            alt_candidates=[],
-        ),
-        None,
-        None,
-    )
+            likelihood=EXPECTED_LIKELIHOOD,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {
         "llm": "chat-gpt",
@@ -539,28 +547,23 @@ def test_classify_endpoint_rephrasing_enabled(
     # Mock the rephrase client with rephrased descriptions
     mock_rephrase_client.get_rephrased_description.return_value = "Crop growing"
 
-    mock_llm.sa_rag_sic_code.return_value = (
-        MagicMock(
-            codable=True,
-            followup=None,
-            sic_code="01110",
-            sic_descriptive=(
-                "Growing of cereals (except rice), leguminous crops and oil seeds"
-            ),
-            reasoning="Mocked reasoning",
-            sic_candidates=[
-                MagicMock(
-                    sic_code="01110",
-                    sic_descriptive=(
-                        "Growing of cereals (except rice), leguminous crops and oil seeds"
-                    ),
-                    likelihood=0.9,
-                )
-            ],
-        ),
-        None,
-        None,
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = "01110"
+    mock_unambiguous_response.class_descriptive = (
+        "Growing of cereals (except rice), leguminous crops and oil seeds"
     )
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
+        MagicMock(
+            class_code="01110",
+            class_descriptive="Growing of cereals (except rice), leguminous crops and oil seeds",
+            likelihood=0.9,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {
         "llm": "gemini",
@@ -618,28 +621,23 @@ def test_classify_endpoint_rephrasing_disabled(
     mock_rephrase_instance = MagicMock()
     mock_rephrase_client.return_value = mock_rephrase_instance
 
-    mock_llm.sa_rag_sic_code.return_value = (
-        MagicMock(
-            codable=True,
-            followup=None,
-            sic_code="01110",
-            sic_descriptive=(
-                "Growing of cereals (except rice), leguminous crops and oil seeds"
-            ),
-            reasoning="Mocked reasoning",
-            sic_candidates=[
-                MagicMock(
-                    sic_code="01110",
-                    sic_descriptive=(
-                        "Growing of cereals (except rice), leguminous crops and oil seeds"
-                    ),
-                    likelihood=0.9,
-                )
-            ],
-        ),
-        None,
-        None,
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = "01110"
+    mock_unambiguous_response.class_descriptive = (
+        "Growing of cereals (except rice), leguminous crops and oil seeds"
     )
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
+        MagicMock(
+            class_code="01110",
+            class_descriptive="Growing of cereals (except rice), leguminous crops and oil seeds",
+            likelihood=0.9,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {
         "llm": "gemini",
@@ -699,28 +697,23 @@ def test_classify_endpoint_rephrasing_default(
     # Mock the rephrase client with rephrased descriptions
     mock_rephrase_client.get_rephrased_description.return_value = "Crop growing"
 
-    mock_llm.sa_rag_sic_code.return_value = (
-        MagicMock(
-            codable=True,
-            followup=None,
-            sic_code="01110",
-            sic_descriptive=(
-                "Growing of cereals (except rice), leguminous crops and oil seeds"
-            ),
-            reasoning="Mocked reasoning",
-            sic_candidates=[
-                MagicMock(
-                    sic_code="01110",
-                    sic_descriptive=(
-                        "Growing of cereals (except rice), leguminous crops and oil seeds"
-                    ),
-                    likelihood=0.9,
-                )
-            ],
-        ),
-        None,
-        None,
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = "01110"
+    mock_unambiguous_response.class_descriptive = (
+        "Growing of cereals (except rice), leguminous crops and oil seeds"
     )
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
+        MagicMock(
+            class_code="01110",
+            class_descriptive="Growing of cereals (except rice), leguminous crops and oil seeds",
+            likelihood=0.9,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {
         "llm": "gemini",
@@ -771,7 +764,21 @@ def test_classify_endpoint_rephrasing_options_validation(
     mock_rephrase_client.return_value = mock_rephrase_instance
 
     # Mock LLM (not needed for validation test but required)
-    mock_llm.sa_rag_sic_code.return_value = (MagicMock(), None, None)
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = EXPECTED_SIC_CODE
+    mock_unambiguous_response.class_descriptive = EXPECTED_SIC_DESCRIPTION
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
+        MagicMock(
+            class_code=EXPECTED_SIC_CODE,
+            class_descriptive=EXPECTED_SIC_DESCRIPTION,
+            likelihood=EXPECTED_LIKELIHOOD,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     request_data = {
         "llm": "gemini",
@@ -830,24 +837,21 @@ def test_classify_endpoint_meta_field_exclusion(
     mock_rephrase_instance.get_rephrased_count.return_value = 0
     mock_rephrase_client.return_value = mock_rephrase_instance
 
-    mock_llm.sa_rag_sic_code.return_value = (
+    # Mock the new two-step process
+    mock_unambiguous_response = MagicMock()
+    mock_unambiguous_response.codable = True
+    mock_unambiguous_response.class_code = EXPECTED_SIC_CODE
+    mock_unambiguous_response.class_descriptive = EXPECTED_SIC_DESCRIPTION
+    mock_unambiguous_response.reasoning = "Mocked reasoning"
+    mock_unambiguous_response.alt_candidates = [
         MagicMock(
-            classified=True,
-            followup=None,
-            sic_code=EXPECTED_SIC_CODE,
-            sic_descriptive=EXPECTED_SIC_DESCRIPTION,
-            reasoning="Mocked reasoning",
-            sic_candidates=[
-                MagicMock(
-                    sic_code=EXPECTED_SIC_CODE,
-                    sic_descriptive=EXPECTED_SIC_DESCRIPTION,
-                    likelihood=EXPECTED_LIKELIHOOD,
-                )
-            ],
-        ),
-        None,
-        None,
-    )
+            class_code=EXPECTED_SIC_CODE,
+            class_descriptive=EXPECTED_SIC_DESCRIPTION,
+            likelihood=EXPECTED_LIKELIHOOD,
+        )
+    ]
+
+    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
 
     # Test request without options
     request_data_without_options = {
