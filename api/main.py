@@ -14,6 +14,7 @@ from industrial_classification_utils.llm.llm import ClassificationLLM
 from api.routes.v1.classify import router as classify_router
 from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
+from api.routes.v1.feedback import router as feedback_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
 from api.services.sic_lookup_client import SICLookupClient
@@ -69,6 +70,7 @@ app.include_router(embeddings_router, prefix="/v1/survey-assist")
 app.include_router(sic_lookup_router, prefix="/v1/survey-assist")
 app.include_router(classify_router, prefix="/v1/survey-assist")
 app.include_router(result_router, prefix="/v1/survey-assist")
+app.include_router(feedback_router, prefix="/v1/survey-assist")
 
 
 @app.get("/", tags=["Root"])
