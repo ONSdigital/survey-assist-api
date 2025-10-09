@@ -42,27 +42,26 @@ def test_store_feedback_success():
     """
     test_data = {
         "case_id": "0710-25AA-XXXX-YYYY",
-        "feedback": [
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
             {
-                "person_id": "000001_01",
-                "response": [
-                    {
-                        "question": "How satisfied are you with the survey experience?",
-                        "options": [
-                            "Very satisfied",
-                            "Satisfied",
-                            "Neutral",
-                            "Dissatisfied",
-                            "Very dissatisfied",
-                        ],
-                        "answer": "Very satisfied",
-                    },
-                    {
-                        "question": "Any additional comments?",
-                        "answer": "The survey was easy to complete and helpful.",
-                    },
+                "response": "Very satisfied",
+                "response_name": "satisfaction_question",
+                "response_options": [
+                    "Very satisfied",
+                    "Satisfied",
+                    "Neutral",
+                    "Dissatisfied",
+                    "Very dissatisfied",
                 ],
-            }
+            },
+            {
+                "response": "The survey was easy to complete and helpful.",
+                "response_name": "comments_question",
+                "response_options": None,
+            },
         ],
     }
 
@@ -80,15 +79,13 @@ def test_store_feedback_empty_fields():
     """
     test_data = {
         "case_id": "0710-25AA-XXXX-YYYY",
-        "feedback": [
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
             {
-                "person_id": "000001_01",
-                "response": [
-                    {
-                        "question": "Test question",
-                        # Missing required "answer" field
-                    }
-                ],
+                "response_name": "test_question",
+                # Missing required "response" field
             }
         ],
     }
@@ -106,16 +103,14 @@ def test_store_feedback_invalid_data():
     """
     test_data = {
         "case_id": "0710-25AA-XXXX-YYYY",
-        "feedback": [
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
             {
-                "person_id": "000001_01",
-                "response": [
-                    {
-                        "question": "Test question",
-                        "options": "invalid_options_format",  # Should be array
-                        "answer": "Test answer",
-                    }
-                ],
+                "response": "Test answer",
+                "response_name": "test_question",
+                "response_options": "invalid_options_format",  # Should be array
             }
         ],
     }
@@ -124,46 +119,40 @@ def test_store_feedback_invalid_data():
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-def test_store_feedback_multiple_people():
-    """Test storing feedback for multiple people.
+def test_store_feedback_multiple_questions():
+    """Test storing feedback with multiple questions.
 
     This test verifies that:
-    1. Feedback can be stored for multiple people in a single request
-    2. Each person's feedback is processed correctly
+    1. Feedback can be stored with multiple questions in a single request
+    2. Each question's feedback is processed correctly
     3. The response indicates successful processing
     """
     test_data = {
         "case_id": "0710-25AA-XXXX-YYYY",
-        "feedback": [
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
             {
-                "person_id": "000001_01",
-                "response": [
-                    {
-                        "question": "How satisfied are you with the survey experience?",
-                        "options": [
-                            "Very satisfied",
-                            "Satisfied",
-                            "Neutral",
-                            "Dissatisfied",
-                            "Very dissatisfied",
-                        ],
-                        "answer": "Very satisfied",
-                    }
+                "response": "Very satisfied",
+                "response_name": "satisfaction_question",
+                "response_options": [
+                    "Very satisfied",
+                    "Satisfied",
+                    "Neutral",
+                    "Dissatisfied",
+                    "Very dissatisfied",
                 ],
             },
             {
-                "person_id": "000002_01",
-                "response": [
-                    {
-                        "question": "Rate the clarity of questions",
-                        "options": ["Excellent", "Good", "Fair", "Poor"],
-                        "answer": "Good",
-                    },
-                    {
-                        "question": "Suggestions for improvement",
-                        "answer": "Could use more examples in the job description section.",
-                    },
-                ],
+                "response": "Good",
+                "response_name": "clarity_question",
+                "response_options": ["Excellent", "Good", "Fair", "Poor"],
+            },
+            {
+                "response": "Could use more examples in the job description section.",
+                "response_name": "suggestions_question",
+                "response_options": None,
             },
         ],
     }
@@ -183,32 +172,31 @@ def test_store_feedback_different_question_types():
     """
     test_data = {
         "case_id": "0710-25AA-XXXX-YYYY",
-        "feedback": [
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
             {
-                "person_id": "000001_01",
-                "response": [
-                    {
-                        "question": "How satisfied are you with the survey experience?",
-                        "options": [
-                            "Very satisfied",
-                            "Satisfied",
-                            "Neutral",
-                            "Dissatisfied",
-                            "Very dissatisfied",
-                        ],
-                        "answer": "Very satisfied",
-                    },
-                    {
-                        "question": "Any additional comments?",
-                        "answer": "The survey was easy to complete and helpful.",
-                    },
-                    {
-                        "question": "Rate the clarity of questions",
-                        "options": ["Excellent", "Good", "Fair", "Poor"],
-                        "answer": "Good",
-                    },
+                "response": "Very satisfied",
+                "response_name": "satisfaction_question",
+                "response_options": [
+                    "Very satisfied",
+                    "Satisfied",
+                    "Neutral",
+                    "Dissatisfied",
+                    "Very dissatisfied",
                 ],
-            }
+            },
+            {
+                "response": "The survey was easy to complete and helpful.",
+                "response_name": "comments_question",
+                "response_options": None,
+            },
+            {
+                "response": "Good",
+                "response_name": "clarity_question",
+                "response_options": ["Excellent", "Good", "Fair", "Poor"],
+            },
         ],
     }
 
@@ -225,12 +213,16 @@ def test_store_feedback_missing_case_id():
     2. The error message indicates the missing field
     """
     test_data = {
-        "feedback": [
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
             {
-                "person_id": "000001_01",
-                "response": [{"question": "Test question", "answer": "Test answer"}],
+                "response": "Test answer",
+                "response_name": "test_question",
+                "response_options": None,
             }
-        ]
+        ],
     }
 
     response = client.post("/v1/survey-assist/feedback", json=test_data)
@@ -246,8 +238,14 @@ def test_store_feedback_missing_person_id():
     """
     test_data = {
         "case_id": "0710-25AA-XXXX-YYYY",
-        "feedback": [
-            {"response": [{"question": "Test question", "answer": "Test answer"}]}
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
+            {
+                "response": "Test answer",
+                "response_name": "test_question",
+                "response_options": None,
+            }
         ],
     }
 
@@ -255,30 +253,67 @@ def test_store_feedback_missing_person_id():
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-def test_store_feedback_empty_feedback_array():
-    """Test storing feedback with empty feedback array.
+def test_store_feedback_missing_survey_id():
+    """Test storing feedback without survey_id.
 
     This test verifies that:
-    1. An empty feedback array is handled gracefully
-    2. The response indicates successful processing
+    1. Attempting to store feedback without survey_id returns a 422 status code
+    2. The error message indicates the missing field
     """
-    test_data = {"case_id": "0710-25AA-XXXX-YYYY", "feedback": []}
+    test_data = {
+        "case_id": "0710-25AA-XXXX-YYYY",
+        "person_id": "000001_01",
+        "wave_id": "wave_456",
+        "questions": [
+            {
+                "response": "Test answer",
+                "response_name": "test_question",
+                "response_options": None,
+            }
+        ],
+    }
 
     response = client.post("/v1/survey-assist/feedback", json=test_data)
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json()["message"] == "Feedback received successfully"
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
-def test_store_feedback_empty_response_array():
-    """Test storing feedback with empty response array.
+def test_store_feedback_missing_wave_id():
+    """Test storing feedback without wave_id.
 
     This test verifies that:
-    1. An empty response array for a person is handled gracefully
+    1. Attempting to store feedback without wave_id returns a 422 status code
+    2. The error message indicates the missing field
+    """
+    test_data = {
+        "case_id": "0710-25AA-XXXX-YYYY",
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "questions": [
+            {
+                "response": "Test answer",
+                "response_name": "test_question",
+                "response_options": None,
+            }
+        ],
+    }
+
+    response = client.post("/v1/survey-assist/feedback", json=test_data)
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+def test_store_feedback_empty_questions_array():
+    """Test storing feedback with empty questions array.
+
+    This test verifies that:
+    1. An empty questions array is handled gracefully
     2. The response indicates successful processing
     """
     test_data = {
         "case_id": "0710-25AA-XXXX-YYYY",
-        "feedback": [{"person_id": "000001_01", "response": []}],
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [],
     }
 
     response = client.post("/v1/survey-assist/feedback", json=test_data)
