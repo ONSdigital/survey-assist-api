@@ -187,6 +187,9 @@ class SurveyAssistResult(BaseModel):
     case_id: str = Field(
         ..., description="Identifier for the case", examples=["test-case-456"]
     )
+    wave_id: str = Field(
+        ..., description="Identifier for the wave", examples=["wave-789"]
+    )
     user: str = Field(
         ...,
         description="User identifier in format 'name.surname'",
@@ -209,6 +212,9 @@ class GenericSurveyAssistResult(BaseModel):
     )
     case_id: str = Field(
         ..., description="Identifier for the case", examples=["test-case-456"]
+    )
+    wave_id: str = Field(
+        ..., description="Identifier for the wave", examples=["wave-789"]
     )
     user: str = Field(
         ...,
