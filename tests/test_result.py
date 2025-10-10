@@ -574,5 +574,5 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_get_result.side_effect = Exception("Retrieval error")
 
         response = client.get("/v1/survey-assist/result?result_id=test-id")
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-        assert "Retrieval error" in response.json()["detail"]
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "Internal server error: Retrieval error" in response.json()["detail"]
