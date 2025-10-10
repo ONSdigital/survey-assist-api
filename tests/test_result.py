@@ -53,6 +53,7 @@ def test_store_result_success():
     test_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
+        "wave_id": "wave-789",
         "user": "test.userSA187",
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
@@ -108,6 +109,7 @@ def test_store_result_empty_fields():
     """
     test_data = {
         "case_id": "test-case-456",
+        "wave_id": "wave-789",
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
         "responses": [],
@@ -127,6 +129,7 @@ def test_store_result_invalid_data():
     test_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
+        "wave_id": "wave-789",
         "time_start": "invalid-date",
         "time_end": "2024-03-19T10:05:00Z",
         "responses": [],
@@ -147,6 +150,7 @@ def test_get_result():
     store_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
+        "wave_id": "wave-789",
         "user": "test.userSA187",
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
@@ -244,6 +248,7 @@ def test_datetime_serialisation():
     test_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
+        "wave_id": "wave-789",
         "user": "test.userSA187",
         "time_start": datetime.now().isoformat(),
         "time_end": datetime.now().isoformat(),
@@ -320,6 +325,7 @@ def create_test_data(survey_id, case_id, user, job_title, job_code):
     return {
         "survey_id": survey_id,
         "case_id": case_id,
+        "wave_id": "wave-789",
         "user": user,
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
@@ -452,6 +458,7 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         result_data = {
             "survey_id": "test-survey-123",
             "case_id": "test-case-456",
+            "wave_id": "wave-789",
             "user": "test.userSA187",
             "time_start": "2024-03-19T10:00:00Z",
             "time_end": "2024-03-19T10:05:00Z",
@@ -519,6 +526,7 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         result_data = {
             "survey_id": "test-survey-123",
             "case_id": "test-case-456",
+            "wave_id": "wave-789",
             "user": "test.userSA187",
             "time_start": "2024-03-19T10:00:00Z",
             "time_end": "2024-03-19T10:05:00Z",
@@ -535,6 +543,7 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_result_data = {
             "survey_id": "test-survey-123",
             "case_id": "test-case-456",
+            "wave_id": "wave-789",
             "user": "test.userSA187",
             "time_start": "2024-03-19T10:00:00Z",
             "time_end": "2024-03-19T10:05:00Z",

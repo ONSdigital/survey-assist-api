@@ -36,6 +36,10 @@ def store_result(result_data: dict[str, Any], filename: str) -> None:
         Exception: If there is an error storing the result.
     """
     try:
+        logger.info(
+            f"Attempting to store result in bucket '{settings.GCP_BUCKET_NAME}' as '{filename}'"
+        )
+
         # Initialise GCP client
         client = storage.Client()
         bucket = client.bucket(settings.GCP_BUCKET_NAME)
@@ -49,21 +53,39 @@ def store_result(result_data: dict[str, Any], filename: str) -> None:
 
         logger.info(f"Successfully stored result in {filename}")
     except google_exceptions.NotFound as e:
-        logger.error(f"Bucket or blob not found: {e}")
-        raise ValueError(f"GCP bucket not found: {e!s}") from e
+        logger.error(f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e}")
+        raise ValueError(
+            f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e!s}"
+        ) from e
     except google_exceptions.Forbidden as e:
-        logger.error(f"Permission denied when accessing bucket: {e}")
-        raise ValueError(f"Permission denied to access GCP bucket: {e!s}") from e
+        logger.error(
+            f"Permission denied accessing GCP bucket '{settings.GCP_BUCKET_NAME}': {e}"
+        )
+        raise ValueError(
+            f"Permission denied to access GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        ) from e
     except google_exceptions.Conflict as e:
-        logger.error(f"Conflict occurred during storage: {e}")
-        raise RuntimeError(f"Conflict storing object to GCP bucket: {e!s}") from e
+        logger.error(
+            f"Conflict occurred during storage to GCP bucket '{settings.GCP_BUCKET_NAME}': {e}"
+        )
+        raise RuntimeError(
+            f"Conflict storing object to GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        ) from e
     except google_exceptions.GoogleAPIError as e:
-        logger.error(f"GCP API error: {e}")
-        raise RuntimeError(f"GCP API error: {e!s}") from e
+        logger.error(
+            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e}"
+        )
+        raise RuntimeError(
+            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        ) from e
     except Exception as e:
-        logger.error(f"Error storing result: {e!s}")
-        # Raising a general exception here because storage errors can be varied and unpredictable.
-        raise RuntimeError(f"Failed to store result: {e!s}") from e
+        logger.error(
+            f"Unexpected error storing result to GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        )
+        # Raising a general exception here because storage errors can be abit unpredictable.
+        raise RuntimeError(
+            f"Failed to store result to GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        ) from e
 
 
 def get_result(result_id: str) -> dict[str, Any]:
@@ -79,6 +101,10 @@ def get_result(result_id: str) -> dict[str, Any]:
         Exception: If the result is not found or there is an error retrieving it.
     """
     try:
+        logger.info(
+            f"Attempting to retrieve result '{result_id}' from bucket '{settings.GCP_BUCKET_NAME}'"
+        )
+
         # Initialise GCP client
         client = storage.Client()
         bucket = client.bucket(settings.GCP_BUCKET_NAME)
@@ -86,6 +112,9 @@ def get_result(result_id: str) -> dict[str, Any]:
         # Get the blob and download the result data
         blob = bucket.blob(result_id)
         if not blob.exists():
+            logger.warning(
+                f"Result '{result_id}' not found in bucket '{settings.GCP_BUCKET_NAME}'"
+            )
             raise FileNotFoundError(f"Result not found: {result_id}")
 
         result_data = json.loads(blob.download_as_string())
@@ -95,15 +124,30 @@ def get_result(result_id: str) -> dict[str, Any]:
     except FileNotFoundError:
         raise
     except google_exceptions.NotFound as e:
-        logger.error(f"Bucket or blob not found: {e}")
-        raise ValueError(f"GCP bucket not found: {e!s}") from e
+        logger.error(f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e}")
+        raise ValueError(
+            f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e!s}"
+        ) from e
     except google_exceptions.Forbidden as e:
-        logger.error(f"Permission denied when accessing bucket: {e}")
-        raise ValueError(f"Permission denied to access GCP bucket: {e!s}") from e
+        logger.error(
+            f"Permission denied accessing GCP bucket '{settings.GCP_BUCKET_NAME}': {e}"
+        )
+        raise ValueError(
+            f"Permission denied to access GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        ) from e
     except google_exceptions.GoogleAPIError as e:
-        logger.error(f"GCP API error: {e}")
-        raise RuntimeError(f"GCP API error: {e!s}") from e
+        logger.error(
+            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e}"
+        )
+        raise RuntimeError(
+            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        ) from e
     except Exception as e:
-        logger.error(f"Error retrieving result: {e!s}")
+        logger.error(
+            f"Unexpected error retrieving result from GCP bucket "
+            f"'{settings.GCP_BUCKET_NAME}': {e!s}"
+        )
         # Raising a general exception here because retrieval errors can be varied and unpredictable.
-        raise RuntimeError(f"Failed to retrieve result: {e!s}") from e
+        raise RuntimeError(
+            f"Failed to retrieve result from GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
+        ) from e

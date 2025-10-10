@@ -44,8 +44,24 @@ async def store_survey_result(result: SurveyAssistResult) -> ResultResponse:
         store_result(result.model_dump(), filename)
 
         return ResultResponse(message="Result stored successfully", result_id=filename)
+    except ValueError as e:
+        # GCP bucket/permission errors
+        logger.error(f"GCP storage error: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Storage service unavailable: {e!s}"
+        ) from e
+    except RuntimeError as e:
+        # Other GCP API errors
+        logger.error(f"GCP API error: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Storage service error: {e!s}"
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        # Unexpected errors
+        logger.error(f"Unexpected error storing result: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {e!s}"
+        ) from e
 
 
 @router.get("/result", response_model=SurveyAssistResult)
@@ -65,6 +81,23 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
         result_data = get_result(result_id)
         return SurveyAssistResult(**result_data)
     except FileNotFoundError as e:
+        logger.warning(f"Result not found: {result_id}")
         raise HTTPException(status_code=404, detail="Result not found") from e
+    except ValueError as e:
+        # GCP bucket/permission errors
+        logger.error(f"GCP storage error retrieving result: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Storage service unavailable: {e!s}"
+        ) from e
+    except RuntimeError as e:
+        # Other GCP API errors
+        logger.error(f"GCP API error retrieving result: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Storage service error: {e!s}"
+        ) from e
     except Exception as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+        # Unexpected errors
+        logger.error(f"Unexpected error retrieving result: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {e!s}"
+        ) from e
