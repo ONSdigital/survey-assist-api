@@ -240,8 +240,10 @@ async def _classify_sic(  # pylint: disable=unused-argument
 
         # Step 1: Call unambiguous SIC code classification
         logger.info(
-            f"Calling LLM for unambiguous SIC classification - job_title: '{classification_request.job_title}', "
-            f"job_description: '{classification_request.job_description}', org_description: '{classification_request.org_description or ''}'"
+            f"Calling LLM for unambiguous SIC classification - "
+            f"job_title: '{classification_request.job_title}', "
+            f"job_description: '{classification_request.job_description}', "
+            f"org_description: '{classification_request.org_description or ''}'"
         )
         try:
             unambiguous_response, _ = llm.unambiguous_sic_code(
@@ -287,8 +289,10 @@ async def _classify_sic(  # pylint: disable=unused-argument
         else:
             # No unambiguous match found - call formulate open question
             logger.info(
-                f"Calling LLM to formulate open question - job_title: '{classification_request.job_title}', "
-                f"job_description: '{classification_request.job_description}', org_description: '{classification_request.org_description or ''}'"
+                f"Calling LLM to formulate open question - "
+                f"job_title: '{classification_request.job_title}', "
+                f"job_description: '{classification_request.job_description}', "
+                f"org_description: '{classification_request.org_description or ''}'"
             )
             try:
                 # Create a SicCandidate from the first alt_candidate for the open question
