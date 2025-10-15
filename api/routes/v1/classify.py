@@ -239,6 +239,10 @@ async def _classify_sic(  # pylint: disable=unused-argument
         llm = request.app.state.gemini_llm
 
         # Step 1: Call unambiguous SIC code classification
+        logger.info(
+            f"Calling LLM for unambiguous SIC classification - job_title: '{classification_request.job_title}', "
+            f"job_description: '{classification_request.job_description}', org_description: '{classification_request.org_description or ''}'"
+        )
         try:
             unambiguous_response, _ = llm.unambiguous_sic_code(
                 industry_descr=classification_request.org_description or "",
