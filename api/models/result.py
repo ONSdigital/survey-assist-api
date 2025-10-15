@@ -59,8 +59,8 @@ class ClassificationResponse(BaseModel):
     """Model for classification response."""
 
     classified: bool = Field(..., description="Whether the input was classified")
-    code: str = Field(..., description="The classification code")
-    description: str = Field(..., description="The classification description")
+    code: Optional[str] = Field(None, description="The classification code")
+    description: Optional[str] = Field(None, description="The classification description")
     reasoning: str = Field(..., description="Reasoning behind the classification")
     candidates: list[Candidate] = Field(
         ..., description="List of potential classifications"
