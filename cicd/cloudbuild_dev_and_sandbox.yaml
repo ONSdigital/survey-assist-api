@@ -15,6 +15,7 @@ steps:
     args:
       - '-c'
       - |
+        set -e
         poetry install
         make all-tests
     id: Run API All Tests
@@ -23,6 +24,7 @@ steps:
     args:
       - '-c'
       - >
+        set -e
         mkdir data
 
         gsutil cp
@@ -57,6 +59,7 @@ steps:
     args:
       - '-c'
       - >
+        set -e
         export SURVEY_ASSIST_API_URL=$(gcloud parametermanager parameters
         versions describe $_TARGET_ENVIRONMENT --parameter=infra-test-config
         --location=global --project $PROJECT_ID --format=json |

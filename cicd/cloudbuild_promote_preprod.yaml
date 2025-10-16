@@ -3,6 +3,7 @@ steps:
     args:
       - '-c'
       - >
+        set -e
         echo Pulling image dev image with tag $SHORT_SHA ...
 
         docker pull
