@@ -30,6 +30,15 @@ from api.services.soc_vector_store_client import SOCVectorStoreClient
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 
+MAX_LEN = 12
+
+
+def truncate(value: str | None, max_len: int = MAX_LEN) -> str:
+    """Return a truncated string safely, handling None and short values."""
+    if not value:
+        return ""
+    return value if len(value) <= max_len else value[:max_len] + "…"
+
 
 def get_sic_vector_store_client() -> SICVectorStoreClient:
     """Get a SIC vector store client instance.
@@ -241,9 +250,9 @@ async def _classify_sic(  # pylint: disable=unused-argument
         # Step 1: Call unambiguous SIC code classification
         logger.info(
             f"Calling LLM for unambiguous SIC classification - "
-            f"job_title: '{classification_request.job_title}', "
-            f"job_description: '{classification_request.job_description}', "
-            f"org_description: '{classification_request.org_description or ''}'"
+            f"job_title: '{truncate(classification_request.job_title)}', "
+            f"job_description: '{truncate(classification_request.job_description)}', "
+            f"org_description: '{truncate(classification_request.org_description)}'"
         )
         try:
             unambiguous_response, _ = llm.unambiguous_sic_code(
@@ -290,9 +299,9 @@ async def _classify_sic(  # pylint: disable=unused-argument
             # No unambiguous match found - call formulate open question
             logger.info(
                 f"Calling LLM to formulate open question - "
-                f"job_title: '{classification_request.job_title}', "
-                f"job_description: '{classification_request.job_description}', "
-                f"org_description: '{classification_request.org_description or ''}'"
+                f"job_title: '{truncate(classification_request.job_title)}', "
+                f"job_description: '{truncate(classification_request.job_description)}', "
+                f"org_description: '{truncate(classification_request.org_description)}'"
             )
             try:
                 # Create a SicCandidate from the first alt_candidate for the open question
