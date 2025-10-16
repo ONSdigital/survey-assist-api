@@ -37,7 +37,7 @@ def truncate(value: str | None, max_len: int = MAX_LEN) -> str:
     """Return a truncated string safely, handling None and short values."""
     if not value:
         return ""
-    return value if len(value) <= max_len else value[:max_len] + "…"
+    return value if len(value) <= max_len else value[:max_len] + "..."
 
 
 def get_sic_vector_store_client() -> SICVectorStoreClient:
