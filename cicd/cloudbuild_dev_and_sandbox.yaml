@@ -27,13 +27,9 @@ steps:
         set -e
         mkdir data
 
-        gsutil cp
-        $_SIC_LOOKUP_CSV
-        data/
+        gsutil cp $_SIC_LOOKUP_CSV data/.
 
-        gsutil cp
-        $_SIC_REPHRASE_CSV
-        data/
+        gsutil cp $_SIC_REPHRASE_CSV data/.
     id: Get Data Files
     entrypoint: bash
   - name: gcr.io/cloud-builders/docker
