@@ -30,7 +30,7 @@ Dependencies:
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from fastapi import status
 from fastapi.testclient import TestClient
@@ -43,13 +43,7 @@ client = TestClient(app)
 
 
 def test_store_result_success():
-    """Test storing a result with valid data.
-
-    This test verifies that:
-    1. A valid result can be stored successfully
-    2. The response contains the correct result_id
-    3. The stored data matches the input data
-    """
+    """Test storing a result with valid data via Firestore-backed route."""
     test_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
@@ -89,15 +83,13 @@ def test_store_result_success():
         ],
     }
 
-    with patch("google.cloud.storage.Client") as mock_client:
-        mock_bucket = MagicMock()
-        mock_blob = MagicMock()
-        mock_client.return_value.bucket.return_value = mock_bucket
-        mock_bucket.blob.return_value = mock_blob
+    with patch("api.routes.v1.result.store_result") as mock_store:
+        mock_store.return_value = "doc123"
         response = client.post("/v1/survey-assist/result", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     assert "result_id" in response.json()
     assert response.json()["message"] == "Result stored successfully"
+    assert response.json()["result_id"] == "doc123"
 
 
 def test_store_result_empty_fields():
@@ -140,13 +132,7 @@ def test_store_result_invalid_data():
 
 
 def test_get_result():
-    """Test retrieving a stored result.
-
-    This test verifies that:
-    1. A stored result can be retrieved using its result_id
-    2. The retrieved data matches the stored data
-    """
-    # First store a result
+    """Test retrieving a stored result via Firestore-backed route."""
     store_data = {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
@@ -185,40 +171,21 @@ def test_get_result():
             }
         ],
     }
-
-    with patch("google.cloud.storage.Client") as mock_client:
-        mock_bucket = MagicMock()
-        mock_blob = MagicMock()
-        # Simulate storing and retrieving JSON
-        stored_json = {}
-
-        def upload_from_string(data, content_type=None):
-            _ = content_type  # Mark as used to silence linter
-            stored_json["data"] = data
-
-        def download_as_string():
-            return stored_json["data"]
-
-        mock_blob.upload_from_string.side_effect = upload_from_string
-        mock_blob.download_as_string.side_effect = download_as_string
-        mock_blob.exists.return_value = True
-        mock_client.return_value.bucket.return_value = mock_bucket
-        mock_bucket.blob.return_value = mock_blob
+    with patch("api.routes.v1.result.store_result") as mock_store, patch(
+        "api.routes.v1.result.get_result"
+    ) as mock_get:
+        mock_store.return_value = "doc123"
+        mock_get.return_value = store_data
 
         store_response = client.post("/v1/survey-assist/result", json=store_data)
         assert store_response.status_code == status.HTTP_200_OK
         result_id = store_response.json()["result_id"]
 
-        # Then retrieve it
         get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
         assert get_response.status_code == status.HTTP_200_OK
 
         response_data = get_response.json()
-        assert response_data["survey_id"] == store_data["survey_id"]
-        assert response_data["case_id"] == store_data["case_id"]
-        assert response_data["time_start"] == store_data["time_start"]
-        assert response_data["time_end"] == store_data["time_end"]
-        assert response_data["responses"] == store_data["responses"]
+        assert response_data == store_data
 
 
 def test_get_result_not_found():
@@ -227,23 +194,17 @@ def test_get_result_not_found():
     This test verifies that:
     1. Attempting to retrieve a non-existent result returns a 404 status code
     """
-    with patch("google.cloud.storage.Client") as mock_client:
-        mock_bucket = MagicMock()
-        mock_blob = MagicMock()
-        mock_blob.exists.return_value = False
-        mock_client.return_value.bucket.return_value = mock_bucket
-        mock_bucket.blob.return_value = mock_blob
+    with patch("api.routes.v1.result.get_result") as mock_get:
+        mock_get.side_effect = FileNotFoundError("Result not found")
         response = client.get("/v1/survey-assist/result?result_id=non-existent-result")
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["detail"] == "Result not found"
 
 
 def test_datetime_serialisation():
-    """Test proper serialisation of datetime objects in result data.
+    """Test storing and retrieving datetime strings via route.
 
-    This test verifies that:
-    1. Datetime objects are properly serialised to ISO format
-    2. The serialised data can be stored and retrieved correctly
+    Serialisation is handled by Pydantic and stored as provided.
     """
     test_data = {
         "survey_id": "test-survey-123",
@@ -283,41 +244,21 @@ def test_datetime_serialisation():
             }
         ],
     }
+    with patch("api.routes.v1.result.store_result") as mock_store, patch(
+        "api.routes.v1.result.get_result"
+    ) as mock_get:
+        mock_store.return_value = "doc123"
+        mock_get.return_value = test_data
 
-    with patch("google.cloud.storage.Client") as mock_client:
-        mock_bucket = MagicMock()
-        mock_blob = MagicMock()
-        # Simulate storing and retrieving JSON
-        stored_json = {}
-
-        def upload_from_string(data, content_type=None):
-            _ = content_type  # Mark as used to silence linter
-            stored_json["data"] = data
-
-        def download_as_string():
-            return stored_json["data"]
-
-        mock_blob.upload_from_string.side_effect = upload_from_string
-        mock_blob.download_as_string.side_effect = download_as_string
-        mock_blob.exists.return_value = True
-        mock_client.return_value.bucket.return_value = mock_bucket
-        mock_bucket.blob.return_value = mock_blob
-
-        # Store the result
         store_response = client.post("/v1/survey-assist/result", json=test_data)
         assert store_response.status_code == status.HTTP_200_OK
         result_id = store_response.json()["result_id"]
 
-        # Retrieve and verify the result
         get_response = client.get(f"/v1/survey-assist/result?result_id={result_id}")
         assert get_response.status_code == status.HTTP_200_OK
 
         response_data = get_response.json()
-        assert response_data["survey_id"] == test_data["survey_id"]
-        assert response_data["case_id"] == test_data["case_id"]
-        assert response_data["time_start"] == test_data["time_start"]
-        assert response_data["time_end"] == test_data["time_end"]
-        assert response_data["responses"] == test_data["responses"]
+        assert response_data == test_data
 
 
 def create_test_data(survey_id, case_id, user, job_title, job_code):
@@ -363,21 +304,8 @@ def create_test_data(survey_id, case_id, user, job_title, job_code):
 
 
 def validate_filename_structure(result_id):
-    """Validate the filename follows the expected structure."""
-    expected_slashes = 3
-    expected_parts = 4
-    date_format_length = 10
-    time_format_length = 8
-    assert result_id.count("/") == expected_slashes
-    assert result_id.endswith(".json")
-    parts = result_id.split("/")
-    assert len(parts) == expected_parts
-    date_part = parts[2]
-    assert len(date_part) == date_format_length
-    assert date_part[4] == "-" and date_part[7] == "-"
-    time_part = parts[3].replace(".json", "")
-    assert len(time_part) == time_format_length
-    assert time_part[2] == "_" and time_part[5] == "_"
+    """Deprecated: no filename structure under Firestore; keep for compatibility."""
+    assert isinstance(result_id, str)
 
 
 def store_and_verify(test_data, expected_survey_user, test_client, http_status):
@@ -391,30 +319,10 @@ def store_and_verify(test_data, expected_survey_user, test_client, http_status):
 
 
 def test_multiple_results_same_day():
-    """Test storing multiple results on the same day."""
-    with patch("google.cloud.storage.Client") as mock_client:
-        mock_bucket = MagicMock()
-        mock_blob = MagicMock()
-        stored_files = {}
+    """Test storing multiple results returns different document IDs."""
+    with patch("api.routes.v1.result.store_result") as mock_store:
+        mock_store.side_effect = ["doc1", "doc2"]
 
-        def upload_from_string(data, content_type=None):
-            _ = content_type
-            stored_files[mock_blob.name] = data
-
-        def download_as_string():
-            return stored_files.get(mock_blob.name, "")
-
-        def blob_side_effect(filename):
-            mock_blob.name = filename
-            mock_blob.exists.return_value = filename in stored_files
-            return mock_blob
-
-        mock_blob.upload_from_string.side_effect = upload_from_string
-        mock_blob.download_as_string.side_effect = download_as_string
-        mock_client.return_value.bucket.return_value = mock_bucket
-        mock_bucket.blob.side_effect = blob_side_effect
-
-        # Store two results with different data
         test_data_1 = create_test_data(
             "test-survey-123",
             "test-case-456",
@@ -426,14 +334,11 @@ def test_multiple_results_same_day():
             "test-survey-456", "test-case-789", "test.userSA188", "Plumber", "432200"
         )
 
-        result_id_1 = store_and_verify(
-            test_data_1, "test-survey-123/test.userSA187", client, status
-        )
-        result_id_2 = store_and_verify(
-            test_data_2, "test-survey-456/test.userSA188", client, status
-        )
+        response1 = client.post("/v1/survey-assist/result", json=test_data_1)
+        response2 = client.post("/v1/survey-assist/result", json=test_data_2)
 
-        # Verify the result IDs are different
+        result_id_1 = response1.json()["result_id"]
+        result_id_2 = response2.json()["result_id"]
         assert result_id_1 != result_id_2
 
 
@@ -453,7 +358,7 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
     @patch("api.routes.v1.result.store_result")
     def test_store_survey_result_success(self, mock_store_result):
         """Test successful storage of a survey result."""
-        mock_store_result.return_value = None
+        mock_store_result.return_value = "doc123"
 
         result_data = {
             "survey_id": "test-survey-123",
@@ -514,9 +419,7 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
 
         data = response.json()
         assert data["message"] == "Result stored successfully"
-        assert data["result_id"] is not None
-        assert "test-survey-123/test.userSA187/" in data["result_id"]
-        assert data["result_id"].endswith(".json")
+        assert data["result_id"] == "doc123"
 
     @patch("api.routes.v1.result.store_result")
     def test_store_survey_result_error(self, mock_store_result):
