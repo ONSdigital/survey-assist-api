@@ -22,6 +22,8 @@ Dependencies:
     - fastapi.status: Provides standard HTTP status codes for assertions.
 """
 
+from unittest.mock import patch
+
 from fastapi import status
 from fastapi.testclient import TestClient
 from survey_assist_utils.logging import get_logger
@@ -65,9 +67,12 @@ def test_store_feedback_success():
         ],
     }
 
-    response = client.post("/v1/survey-assist/feedback", json=test_data)
+    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+        mock_db.return_value.collection.return_value.document.return_value.id = "fb123"
+        response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["message"] == "Feedback received successfully"
+    assert response.json()["feedback_id"] == "fb123"
 
 
 def test_store_feedback_empty_fields():
@@ -157,7 +162,9 @@ def test_store_feedback_multiple_questions():
         ],
     }
 
-    response = client.post("/v1/survey-assist/feedback", json=test_data)
+    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+        mock_db.return_value.collection.return_value.document.return_value.id = "fb456"
+        response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["message"] == "Feedback received successfully"
 
@@ -200,7 +207,9 @@ def test_store_feedback_different_question_types():
         ],
     }
 
-    response = client.post("/v1/survey-assist/feedback", json=test_data)
+    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+        mock_db.return_value.collection.return_value.document.return_value.id = "fb789"
+        response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["message"] == "Feedback received successfully"
 
@@ -316,6 +325,10 @@ def test_store_feedback_empty_questions_array():
         "questions": [],
     }
 
-    response = client.post("/v1/survey-assist/feedback", json=test_data)
+    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+        mock_db.return_value.collection.return_value.document.return_value.id = (
+            "fb_empty"
+        )
+        response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
     assert response.json()["message"] == "Feedback received successfully"
