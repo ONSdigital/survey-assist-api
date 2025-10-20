@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     """Settings for the Survey Assist API."""
 
     GCP_BUCKET_NAME: str = os.getenv("GCP_BUCKET_NAME", "sandbox-survey-assist")
+    GCP_PROJECT_ID: str | None = os.getenv("GCP_PROJECT_ID")
+    FIRESTORE_DB_ID: str | None = os.getenv("FIRESTORE_DB_ID")
 
     # Data file paths - defaults to example datasets from sic-classification-library package
     SIC_LOOKUP_DATA_PATH: str | None = os.getenv("SIC_LOOKUP_DATA_PATH")
@@ -20,6 +22,14 @@ class Settings(BaseSettings):
 
     def __post_init__(self):
         """Post-initialisation hook to log warnings about missing environment variables."""
+        if not self.GCP_PROJECT_ID:
+            logger.warning(
+                "GCP_PROJECT_ID not set - default project discovery will be used if available"
+            )
+        if not self.FIRESTORE_DB_ID:
+            logger.warning(
+                "FIRESTORE_DB_ID not set - Firestore features will be disabled until set"
+            )
         if not self.SIC_LOOKUP_DATA_PATH:
             logger.warning(
                 "SIC_LOOKUP_DATA_PATH not set - will use default example dataset "
