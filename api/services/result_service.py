@@ -1,19 +1,11 @@
-"""Module that provides the result service for the Survey Assist API.
+"""Result service for storing and retrieving results in Firestore."""
 
-This module contains the result service that handles storing and retrieving
-classification results in GCP. It provides functionality to store results
-in a GCP bucket and retrieve them using a unique identifier.
-"""
-
-import json
 from datetime import datetime
 from typing import Any
 
-from google.api_core import exceptions as google_exceptions
-from google.cloud import storage
 from survey_assist_utils.logging import get_logger
 
-from api.config import settings
+from api.services.firestore_client import get_firestore_client
 
 logger = get_logger(__name__)
 
@@ -25,129 +17,35 @@ def datetime_handler(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serialisable")
 
 
-def store_result(result_data: dict[str, Any], filename: str) -> None:
-    """Store a result in GCP.
+def store_result(result_data: dict[str, Any]) -> str:
+    """Store a result document in Firestore `survey_results` and return its ID.
 
     Args:
         result_data (dict[str, Any]): The result data to store.
-        filename (str): The filename to store the result under.
 
-    Raises:
-        Exception: If there is an error storing the result.
+    Returns:
+        str: Firestore document ID.
     """
-    try:
-        logger.info(
-            f"Attempting to store result in bucket '{settings.GCP_BUCKET_NAME}' as '{filename}'"
-        )
-
-        # Initialise GCP client
-        client = storage.Client()
-        bucket = client.bucket(settings.GCP_BUCKET_NAME)
-
-        # Create a new blob and upload the result data
-        blob = bucket.blob(filename)
-        blob.upload_from_string(
-            json.dumps(result_data, indent=2, default=datetime_handler),
-            content_type="application/json",
-        )
-
-        logger.info(f"Successfully stored result in {filename}")
-    except google_exceptions.NotFound as e:
-        logger.error(f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e}")
-        raise ValueError(
-            f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e!s}"
-        ) from e
-    except google_exceptions.Forbidden as e:
-        logger.error(
-            f"Permission denied accessing GCP bucket '{settings.GCP_BUCKET_NAME}': {e}"
-        )
-        raise ValueError(
-            f"Permission denied to access GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        ) from e
-    except google_exceptions.Conflict as e:
-        logger.error(
-            f"Conflict occurred during storage to GCP bucket '{settings.GCP_BUCKET_NAME}': {e}"
-        )
-        raise RuntimeError(
-            f"Conflict storing object to GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        ) from e
-    except google_exceptions.GoogleAPIError as e:
-        logger.error(
-            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e}"
-        )
-        raise RuntimeError(
-            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        ) from e
-    except Exception as e:
-        logger.error(
-            f"Unexpected error storing result to GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        )
-        # Raising a general exception here because storage errors can be abit unpredictable.
-        raise RuntimeError(
-            f"Failed to store result to GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        ) from e
+    db = get_firestore_client()
+    doc_ref = db.collection("survey_results").document()
+    doc_ref.set(result_data)
+    logger.info(f"Stored result in Firestore with id {doc_ref.id}")
+    return doc_ref.id
 
 
 def get_result(result_id: str) -> dict[str, Any]:
-    """Retrieve a result from GCP.
+    """Retrieve a result document from Firestore by ID.
 
     Args:
-        result_id (str): The unique identifier of the result to retrieve.
+        result_id (str): Firestore document ID.
 
     Returns:
-        dict[str, Any]: The retrieved result data.
-
-    Raises:
-        Exception: If the result is not found or there is an error retrieving it.
+        dict[str, Any]: The retrieved document data.
     """
-    try:
-        logger.info(
-            f"Attempting to retrieve result '{result_id}' from bucket '{settings.GCP_BUCKET_NAME}'"
-        )
-
-        # Initialise GCP client
-        client = storage.Client()
-        bucket = client.bucket(settings.GCP_BUCKET_NAME)
-
-        # Get the blob and download the result data
-        blob = bucket.blob(result_id)
-        if not blob.exists():
-            logger.warning(
-                f"Result '{result_id}' not found in bucket '{settings.GCP_BUCKET_NAME}'"
-            )
-            raise FileNotFoundError(f"Result not found: {result_id}")
-
-        result_data = json.loads(blob.download_as_string())
-
-        logger.info(f"Successfully retrieved result from {result_id}")
-        return result_data
-    except FileNotFoundError:
-        raise
-    except google_exceptions.NotFound as e:
-        logger.error(f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e}")
-        raise ValueError(
-            f"GCP bucket '{settings.GCP_BUCKET_NAME}' not found: {e!s}"
-        ) from e
-    except google_exceptions.Forbidden as e:
-        logger.error(
-            f"Permission denied accessing GCP bucket '{settings.GCP_BUCKET_NAME}': {e}"
-        )
-        raise ValueError(
-            f"Permission denied to access GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        ) from e
-    except google_exceptions.GoogleAPIError as e:
-        logger.error(
-            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e}"
-        )
-        raise RuntimeError(
-            f"GCP API error accessing bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        ) from e
-    except Exception as e:
-        logger.error(
-            f"Unexpected error retrieving result from GCP bucket "
-            f"'{settings.GCP_BUCKET_NAME}': {e!s}"
-        )
-        # Raising a general exception here because retrieval errors can be varied and unpredictable.
-        raise RuntimeError(
-            f"Failed to retrieve result from GCP bucket '{settings.GCP_BUCKET_NAME}': {e!s}"
-        ) from e
+    db = get_firestore_client()
+    doc = db.collection("survey_results").document(result_id).get()
+    if not doc.exists:
+        raise FileNotFoundError(f"Result not found: {result_id}")
+    data = doc.to_dict()
+    logger.info(f"Retrieved result id {result_id} from Firestore")
+    return data
