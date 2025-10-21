@@ -483,6 +483,7 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
     @patch("api.routes.v1.result.list_results")
     def test_list_survey_results_success(self, mock_list_results):
         """Test successful listing of survey results."""
+        expected_count = 2
         mock_results_data = [
             {
                 "survey_id": "test-survey-123",
@@ -508,13 +509,14 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_list_results.return_value = mock_results_data
 
         response = client.get(
-            "/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+            "/v1/survey-assist/results?"
+            "survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
         )
         assert response.status_code == status.HTTP_200_OK
 
         data = response.json()
-        assert data["count"] == 2
-        assert len(data["results"]) == 2
+        assert data["count"] == expected_count
+        assert len(data["results"]) == expected_count
         assert data["results"][0]["document_id"] == "doc123"
         assert data["results"][1]["document_id"] == "doc456"
         assert data["results"][0]["survey_id"] == "test-survey-123"
@@ -526,7 +528,8 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_list_results.return_value = []
 
         response = client.get(
-            "/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+            "/v1/survey-assist/results?"
+            "survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -540,7 +543,8 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_list_results.side_effect = Exception("List error")
 
         response = client.get(
-            "/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+            "/v1/survey-assist/results?"
+            "survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
         )
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Internal server error: List error" in response.json()["detail"]
