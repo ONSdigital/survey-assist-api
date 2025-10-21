@@ -4,10 +4,12 @@ from fastapi import APIRouter, HTTPException
 from survey_assist_utils.logging import get_logger
 
 from api.models.result import (
+    ListResultsResponse,
     ResultResponse,
+    ResultWithId,
     SurveyAssistResult,
 )
-from api.services.result_service import get_result, store_result
+from api.services.result_service import get_result, list_results, store_result
 
 router = APIRouter(tags=["Result"])
 
@@ -68,6 +70,45 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
         ) from e
     except Exception as e:
         logger.error(f"Unexpected error retrieving result: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Internal server error: {e!s}"
+        ) from e
+
+
+@router.get("/results", response_model=ListResultsResponse)
+async def list_survey_results(
+    survey_id: str, wave_id: str, case_id: str
+) -> ListResultsResponse:
+    """List survey results filtered by survey_id, wave_id, and case_id.
+
+    Args:
+        survey_id (str): Survey identifier to filter by.
+        wave_id (str): Wave identifier to filter by.
+        case_id (str): Case identifier to filter by.
+
+    Returns:
+        ListResultsResponse: List of matching survey results with their document IDs.
+
+    Raises:
+        HTTPException: If there is an error retrieving the results.
+    """
+    try:
+        results_data = list_results(survey_id, wave_id, case_id)
+        results = [ResultWithId(**data) for data in results_data]
+        
+        return ListResultsResponse(results=results, count=len(results))
+    except ValueError as e:
+        logger.error(f"Storage error retrieving results: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Storage service unavailable: {e!s}"
+        ) from e
+    except RuntimeError as e:
+        logger.error(f"Storage service error retrieving results: {e}")
+        raise HTTPException(
+            status_code=503, detail=f"Storage service error: {e!s}"
+        ) from e
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving results: {e}")
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {e!s}"
         ) from e
