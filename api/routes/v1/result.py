@@ -95,7 +95,7 @@ async def list_survey_results(
     try:
         results_data = list_results(survey_id, wave_id, case_id)
         results = [ResultWithId(**data) for data in results_data]
-        
+
         return ListResultsResponse(results=results, count=len(results))
     except ValueError as e:
         logger.error(f"Storage error retrieving results: {e}")
