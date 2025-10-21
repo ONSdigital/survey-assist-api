@@ -49,3 +49,30 @@ def get_result(result_id: str) -> dict[str, Any]:
     data = doc.to_dict()
     logger.info(f"Retrieved result id {result_id} from Firestore")
     return data
+
+
+def list_results(survey_id: str, wave_id: str, case_id: str) -> list[dict[str, Any]]:
+    """List result documents from Firestore filtered by survey_id, wave_id, and case_id.
+
+    Args:
+        survey_id (str): Survey identifier to filter by.
+        wave_id (str): Wave identifier to filter by.
+        case_id (str): Case identifier to filter by.
+
+    Returns:
+        list[dict[str, Any]]: List of matching result documents with their IDs.
+    """
+    db = get_firestore_client()
+    collection = db.collection("survey_results")
+    
+    # Query documents where survey_id, wave_id, and case_id match
+    query = collection.where("survey_id", "==", survey_id).where("wave_id", "==", wave_id).where("case_id", "==", case_id)
+    
+    results = []
+    for doc in query.stream():
+        data = doc.to_dict()
+        data["document_id"] = doc.id  # Include the Firestore document ID
+        results.append(data)
+    
+    logger.info(f"Retrieved {len(results)} results for survey_id={survey_id}, wave_id={wave_id}, case_id={case_id}")
+    return results
