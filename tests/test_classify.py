@@ -387,7 +387,9 @@ def test_classify_endpoint_invalid_json(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {"invalid": "data"}
     logger.info("Testing invalid JSON with data", request_data=request_data)
@@ -444,7 +446,9 @@ def test_classify_endpoint_invalid_llm(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "invalid-model",
@@ -508,7 +512,9 @@ def test_classify_endpoint_invalid_type(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "chat-gpt",
