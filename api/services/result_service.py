@@ -64,15 +64,22 @@ def list_results(survey_id: str, wave_id: str, case_id: str) -> list[dict[str, A
     """
     db = get_firestore_client()
     collection = db.collection("survey_results")
-    
+
     # Query documents where survey_id, wave_id, and case_id match
-    query = collection.where("survey_id", "==", survey_id).where("wave_id", "==", wave_id).where("case_id", "==", case_id)
-    
+    query = (
+        collection.where("survey_id", "==", survey_id)
+        .where("wave_id", "==", wave_id)
+        .where("case_id", "==", case_id)
+    )
+
     results = []
     for doc in query.stream():
         data = doc.to_dict()
         data["document_id"] = doc.id  # Include the Firestore document ID
         results.append(data)
-    
-    logger.info(f"Retrieved {len(results)} results for survey_id={survey_id}, wave_id={wave_id}, case_id={case_id}")
+
+    logger.info(
+        f"Retrieved {len(results)} results for survey_id={survey_id}, "
+        f"wave_id={wave_id}, case_id={case_id}"
+    )
     return results
