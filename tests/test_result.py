@@ -479,3 +479,68 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         response = client.get("/v1/survey-assist/result?result_id=test-id")
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Internal server error: Retrieval error" in response.json()["detail"]
+
+    @patch("api.routes.v1.result.list_results")
+    def test_list_survey_results_success(self, mock_list_results):
+        """Test successful listing of survey results."""
+        mock_results_data = [
+            {
+                "survey_id": "test-survey-123",
+                "case_id": "test-case-456",
+                "wave_id": "wave-789",
+                "user": "test.userSA187",
+                "time_start": "2024-03-19T10:00:00Z",
+                "time_end": "2024-03-19T10:05:00Z",
+                "responses": [],
+                "document_id": "doc123",
+            },
+            {
+                "survey_id": "test-survey-123",
+                "case_id": "test-case-456",
+                "wave_id": "wave-789",
+                "user": "test.userSA188",
+                "time_start": "2024-03-19T11:00:00Z",
+                "time_end": "2024-03-19T11:05:00Z",
+                "responses": [],
+                "document_id": "doc456",
+            },
+        ]
+        mock_list_results.return_value = mock_results_data
+
+        response = client.get(
+            "/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["count"] == 2
+        assert len(data["results"]) == 2
+        assert data["results"][0]["document_id"] == "doc123"
+        assert data["results"][1]["document_id"] == "doc456"
+        assert data["results"][0]["survey_id"] == "test-survey-123"
+        assert data["results"][1]["user"] == "test.userSA188"
+
+    @patch("api.routes.v1.result.list_results")
+    def test_list_survey_results_empty(self, mock_list_results):
+        """Test listing survey results when no results are found."""
+        mock_list_results.return_value = []
+
+        response = client.get(
+            "/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert data["count"] == 0
+        assert len(data["results"]) == 0
+
+    @patch("api.routes.v1.result.list_results")
+    def test_list_survey_results_error(self, mock_list_results):
+        """Test error handling when listing survey results fails."""
+        mock_list_results.side_effect = Exception("List error")
+
+        response = client.get(
+            "/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+        )
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+        assert "Internal server error: List error" in response.json()["detail"]
