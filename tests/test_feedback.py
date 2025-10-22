@@ -67,7 +67,7 @@ def test_store_feedback_success():
         ],
     }
 
-    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+    with patch("api.services.feedback_service.get_firestore_client") as mock_db:
         mock_db.return_value.collection.return_value.document.return_value.id = "fb123"
         response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
@@ -162,7 +162,7 @@ def test_store_feedback_multiple_questions():
         ],
     }
 
-    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+    with patch("api.services.feedback_service.get_firestore_client") as mock_db:
         mock_db.return_value.collection.return_value.document.return_value.id = "fb456"
         response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
@@ -207,7 +207,7 @@ def test_store_feedback_different_question_types():
         ],
     }
 
-    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+    with patch("api.services.feedback_service.get_firestore_client") as mock_db:
         mock_db.return_value.collection.return_value.document.return_value.id = "fb789"
         response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
@@ -325,7 +325,7 @@ def test_store_feedback_empty_questions_array():
         "questions": [],
     }
 
-    with patch("api.routes.v1.feedback.get_firestore_client") as mock_db:
+    with patch("api.services.feedback_service.get_firestore_client") as mock_db:
         mock_db.return_value.collection.return_value.document.return_value.id = (
             "fb_empty"
         )
