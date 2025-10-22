@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     """Settings for the Survey Assist API."""
 
-    GCP_BUCKET_NAME: str = os.getenv("GCP_BUCKET_NAME", "sandbox-survey-assist")
     GCP_PROJECT_ID: str | None = os.getenv("GCP_PROJECT_ID")
     FIRESTORE_DB_ID: str | None = os.getenv("FIRESTORE_DB_ID")
 
@@ -49,6 +48,7 @@ class Settings(BaseSettings):
         """Pydantic config."""
 
         env_file = ".env"
+        extra = "ignore"  # Ignore extra environment variables
 
 
 settings = Settings()
