@@ -230,9 +230,12 @@ def test_classify_followup_question(
         "Please specify if this is electrical or plumbing installation."
     )
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
-    mock_llm.formulate_open_question.return_value = (mock_open_question_response, None)
-
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
+    mock_llm.formulate_open_question = AsyncMock(
+        return_value=(mock_open_question_response, None)
+    )
     request_data = {
         "llm": "chat-gpt",
         "type": "sic",
@@ -308,7 +311,9 @@ def test_classify_endpoint_success(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "chat-gpt",
@@ -382,7 +387,9 @@ def test_classify_endpoint_invalid_json(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {"invalid": "data"}
     logger.info("Testing invalid JSON with data", request_data=request_data)
@@ -439,7 +446,9 @@ def test_classify_endpoint_invalid_llm(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "invalid-model",
@@ -503,7 +512,9 @@ def test_classify_endpoint_invalid_type(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "chat-gpt",
@@ -563,7 +574,9 @@ def test_classify_endpoint_rephrasing_enabled(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "gemini",
@@ -637,7 +650,9 @@ def test_classify_endpoint_rephrasing_disabled(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "gemini",
@@ -713,7 +728,9 @@ def test_classify_endpoint_rephrasing_default(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "gemini",
@@ -778,7 +795,9 @@ def test_classify_endpoint_rephrasing_options_validation(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     request_data = {
         "llm": "gemini",
@@ -851,7 +870,9 @@ def test_classify_endpoint_meta_field_exclusion(
         )
     ]
 
-    mock_llm.unambiguous_sic_code.return_value = (mock_unambiguous_response, None)
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(mock_unambiguous_response, None)
+    )
 
     # Test request without options
     request_data_without_options = {
