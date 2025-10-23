@@ -14,6 +14,7 @@ from survey_assist_utils.logging import get_logger
 try:
     from google.auth.transport.requests import Request
     from google.oauth2 import id_token
+    from google.auth.exceptions import DefaultCredentialsError
 
     GOOGLE_AUTH_AVAILABLE = True
 except ImportError:
@@ -66,9 +67,10 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             )
             return {"Authorization": f"Bearer {id_token_value}"}
 
-        except (ValueError, OSError, RuntimeError) as e:
+        except (ValueError, OSError, RuntimeError, DefaultCredentialsError) as e:
             logger.warning(f"Failed to get Google Cloud ID token: {e}")
             return {}
+        
 
     @abstractmethod
     def get_status_url(self) -> str:
