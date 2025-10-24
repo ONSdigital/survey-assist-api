@@ -255,7 +255,7 @@ async def _classify_sic(  # pylint: disable=unused-argument
             f"org_description: '{truncate(classification_request.org_description)}'"
         )
         try:
-            unambiguous_response, _ = llm.unambiguous_sic_code(
+            unambiguous_response, _ = await llm.unambiguous_sic_code(
                 industry_descr=classification_request.org_description or "",
                 semantic_search_results=short_list,
                 job_title=classification_request.job_title,
@@ -311,7 +311,7 @@ async def _classify_sic(  # pylint: disable=unused-argument
                     else None
                 )
 
-                open_question_response, _ = llm.formulate_open_question(
+                open_question_response, _ = await llm.formulate_open_question(
                     industry_descr=classification_request.org_description or "",
                     job_title=classification_request.job_title,
                     job_description=classification_request.job_description,
