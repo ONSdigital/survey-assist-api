@@ -1,13 +1,10 @@
-"""Module that provides the feedback endpoint for the Survey Assist API.
-
-This module contains the feedback endpoint that allows storing feedback data.
-It provides functionality to receive and process feedback requests.
-"""
+"""Feedback endpoint backed by Firestore."""
 
 from fastapi import APIRouter, HTTPException
 from survey_assist_utils.logging import get_logger
 
 from api.models.feedback import FeedbackResult, FeedbackResultResponse
+from api.services.feedback_service import store_feedback
 
 router = APIRouter(tags=["Feedback"])
 
@@ -15,7 +12,7 @@ logger = get_logger(__name__)
 
 
 @router.post("/feedback", response_model=FeedbackResultResponse)
-async def store_feedback(feedback_request: FeedbackResult) -> FeedbackResultResponse:
+def store_feedback_endpoint(feedback_request: FeedbackResult) -> FeedbackResultResponse:
     """Store feedback data.
 
     Args:
@@ -42,8 +39,10 @@ async def store_feedback(feedback_request: FeedbackResult) -> FeedbackResultResp
             if question.response_options:
                 logger.info(f"Response options: {question.response_options}")
 
+        document_id = store_feedback(feedback_request.model_dump())
+        logger.info(f"Stored feedback in Firestore with document ID: {document_id}")
         return FeedbackResultResponse(
-            message="Feedback received successfully", feedback_id=None
+            message="Feedback received successfully", feedback_id=document_id
         )
     except Exception as e:
         logger.error(f"Error processing feedback: {e}")

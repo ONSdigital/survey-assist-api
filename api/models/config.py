@@ -37,7 +37,7 @@ class ConfigResponse(BaseModel):
     Attributes:
         llm_model (str): The name of the language model.
         data_store (str): The data store used.
-        bucket_name (str): The name of the bucket.
+        firestore_database_id (str): The Firestore database ID.
         v1v2 (dict[str, list[ClassificationModel]]):
           A dictionary mapping v1 and 2 to their classifications.
         v3 (dict[str, list[ClassificationModel]]):
@@ -48,7 +48,7 @@ class ConfigResponse(BaseModel):
 
     llm_model: str
     data_store: str
-    bucket_name: str
+    firestore_database_id: str
     v1v2: dict[str, list[ClassificationModel]]
     v3: dict[str, list[ClassificationModel]]
     embedding_model: str | None = None

@@ -239,3 +239,16 @@ class ResultResponse(BaseModel):
     result_id: Optional[str] = Field(
         None, description="Unique identifier for the stored result"
     )
+
+
+class ResultWithId(SurveyAssistResult):
+    """Model for survey result with document ID."""
+
+    document_id: str = Field(..., description="Firestore document ID")
+
+
+class ListResultsResponse(BaseModel):
+    """Response model for list results endpoint."""
+
+    results: list[ResultWithId] = Field(..., description="List of matching results")
+    count: int = Field(..., description="Number of results returned")

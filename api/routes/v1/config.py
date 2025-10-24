@@ -10,6 +10,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from survey_assist_utils.logging import get_logger
 
+from api.config import settings
 from api.models.config import ClassificationModel, ConfigResponse, PromptModel
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
@@ -185,8 +186,8 @@ async def get_config(
     # Return config with actual model names and prompts
     return ConfigResponse(
         llm_model=actual_llm_model,
-        data_store="some_data_store",
-        bucket_name="my_bucket",
+        data_store="Firestore",
+        firestore_database_id=settings.FIRESTORE_DB_ID or "not-configured",
         v1v2={
             "classification": [
                 ClassificationModel(

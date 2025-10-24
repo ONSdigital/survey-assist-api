@@ -8,12 +8,15 @@ The Survey Assist API implemented in Fast API
 
 ## Features
 
-- Fast API with endpoints for lookup and classification of SIC (Standard Industrial Classifier) and SOC (Standard Occupational Classification)
+- Fast API with endpoints for lookup and classification of SIC (Standard Industrial Classifier)
 - **Rephrasing Toggle**: Control SIC description rephrasing via API options for testing and development
+- **Firestore Integration**: Store survey results and feedback data in Google Cloud Firestore
+- **List Results Endpoint**: Query survey results
 - Deployed in GCP using Terraform
 - Uses the following cloud services:
   - Cloud Run
   - API Gateway
+  - Firestore Database
   - JWT Authentication with backend API
   - CI/CD pipeline for automated deployment
 
@@ -102,6 +105,10 @@ All tests can be run using
 make all-tests
 ```
 
-### Environment Variables
+The API supports the following environment variables:
 
-Placeholder
+- `GCP_PROJECT_ID`: Google Cloud Project ID
+- `FIRESTORE_DB_ID`: Firestore Database ID
+- `SIC_LOOKUP_DATA_PATH`: Path to SIC lookup data file
+- `SIC_REPHRASE_DATA_PATH`: Path to SIC rephrase data file 
+- `SIC_VECTOR_STORE`: URL of the vector store service
