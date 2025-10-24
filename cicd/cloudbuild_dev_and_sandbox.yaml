@@ -3,77 +3,39 @@ steps:
     args:
       - '-c'
       - |
+        set -e
         gcloud --version
         make --version
         pip --version
         python --version
         pytest --version
         poetry --version
-    id: Verify Base Tooling Versions
-    entrypoint: bash
-  - name: gcr.io/$PROJECT_ID/testrunner
-    args:
-      - '-c'
-      - |
-        set -e
+
         poetry install
-        make all-tests
-    id: Run API All Tests
-    entrypoint: bash
-  - name: gcr.io/$PROJECT_ID/testrunner
-    args:
-      - '-c'
-      - >
-        set -e
+        poetry run pytest --ignore=cicd --cov=. --cov-report=term-missing --cov-fail-under=80 --cov-config=.coveragerc | tee coverage-report.txt
+        if grep -q "FAIL Required test coverage" coverage-report.txt; then
+          echo "ERROR: Target coverage was not reached, stopping pipeline."
+          exit 1
+        fi
+
         mkdir data
+        gsutil cp $_SIC_LOOKUP_CSV data/
+        gsutil cp $_SIC_REPHRASE_CSV data/
+        ls data
 
-        gsutil cp
-        $_SIC_LOOKUP_CSV
-        data/
+        docker build -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
 
-        gsutil cp
-        $_SIC_REPHRASE_CSV
-        data/
-    id: Get Data Files
-    entrypoint: bash
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - build
-      - '-t'
-      - $_GAR_IMAGE:$SHORT_SHA
-      - .
-  - name: gcr.io/cloud-builders/docker
-    args:
-      - push
-      - $_GAR_IMAGE:$SHORT_SHA
-  - name: gcr.io/$PROJECT_ID/testrunner
-    args:
-      - '-c'
-      - >
-        gcloud run deploy survey-assist-api
-        --image=$_GAR_IMAGE:$SHORT_SHA
-        --region $LOCATION --project $_TARGET_PROJECT_ID
-    id: Deploy Survey Assist API
-    entrypoint: bash
-  - name: gcr.io/$PROJECT_ID/testrunner
-    args:
-      - '-c'
-      - >
-        set -e
-        export SURVEY_ASSIST_API_URL=$(gcloud parametermanager parameters
-        versions describe $_TARGET_ENVIRONMENT --parameter=infra-test-config
-        --location=global --project $PROJECT_ID --format=json |
-        python3 -c "import sys, json;
-        print(json.load(sys.stdin)['payload']['data'])" | base64 --decode |
-        python3 -c "import sys, json;
-        print(json.load(sys.stdin)['cr-api-url'])")/v1/survey-assist
+        docker push $_GAR_IMAGE:latest
+        docker push $_GAR_IMAGE:$SHORT_SHA
+
+        gcloud run deploy survey-assist-api --image=$_GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $_TARGET_PROJECT_ID
         
-        export
-        SA_ID_TOKEN=`gcloud auth print-identity-token
-        --impersonate-service-account=$_API_SA`
+        export SURVEY_ASSIST_API_URL="https://survey-assist-api-$_TARGET_PROJECT_NUMBER.$LOCATION.run.app/$_API_VERSION/survey-assist"
+        export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_API_SA)
 
         pytest cicd
-    id: Run Survey Assist API Smoke Tests
+    id: Run tests, build, tag, deploy survey assist API and run survey assist API smoke tests
     entrypoint: bash
+timeout: 1800s
 options:
   logging: CLOUD_LOGGING_ONLY
