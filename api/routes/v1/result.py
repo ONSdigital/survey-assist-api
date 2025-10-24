@@ -77,14 +77,15 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
 
 @router.get("/results", response_model=ListResultsResponse)
 async def list_survey_results(
-    survey_id: str, wave_id: str, case_id: str
+    survey_id: str, wave_id: str, case_id: str | None = None
 ) -> ListResultsResponse:
-    """List survey results filtered by survey_id, wave_id, and case_id.
+    """List survey results filtered by survey_id, wave_id, and optionally case_id.
 
     Args:
         survey_id (str): Survey identifier to filter by.
         wave_id (str): Wave identifier to filter by.
-        case_id (str): Case identifier to filter by.
+        case_id (str | None): Optional case identifier to filter by.
+            If None, returns all results for the survey/wave.
 
     Returns:
         ListResultsResponse: List of matching survey results with their document IDs.
