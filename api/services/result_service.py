@@ -63,13 +63,13 @@ def get_result(result_id: str) -> dict[str, Any]:
     return data
 
 
-def list_results(survey_id: str, wave_id: str, case_id: str) -> list[dict[str, Any]]:
-    """List result documents from Firestore filtered by survey_id, wave_id, and case_id.
+def list_results(survey_id: str, wave_id: str, case_id: str | None = None) -> list[dict[str, Any]]:
+    """List result documents from Firestore filtered by survey_id, wave_id, and optionally case_id.
 
     Args:
         survey_id (str): Survey identifier to filter by.
         wave_id (str): Wave identifier to filter by.
-        case_id (str): Case identifier to filter by.
+        case_id (str | None): Optional case identifier to filter by. If None, returns all results for the survey/wave.
 
     Returns:
         list[dict[str, Any]]: List of matching result documents with their IDs.
@@ -77,12 +77,15 @@ def list_results(survey_id: str, wave_id: str, case_id: str) -> list[dict[str, A
     db = get_firestore_client()
     collection = db.collection("survey_results")
 
-    # Query documents where survey_id, wave_id, and case_id match
+    # Query documents where survey_id and wave_id match, optionally case_id
     query = (
         collection.where("survey_id", "==", survey_id)
         .where("wave_id", "==", wave_id)
-        .where("case_id", "==", case_id)
     )
+    
+    # Add case_id filter if provided
+    if case_id is not None:
+        query = query.where("case_id", "==", case_id)
 
     results = []
     for doc in query.stream():
