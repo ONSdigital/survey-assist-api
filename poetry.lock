@@ -6798,7 +6798,7 @@ resolved_reference = "3487e260c58072337818b314d74dce8ba24750b3"
 
 [[package]]
 name = "sic-classification-utils"
-version = "0.1.6"
+version = "0.1.7"
 description = "Utility functions used for SIC classification"
 optional = false
 python-versions = "^3.12"
@@ -6828,8 +6828,8 @@ torch = "2.7.1"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/sic-classification-utils.git"
-reference = "v0.1.6"
-resolved_reference = "5cdf158a40dc23300434a14a7119736ec9e3fec0"
+reference = "v0.1.7"
+resolved_reference = "6f31b5667db28355d6b8ead1d2a831a07ebdfccf"
 
 [[package]]
 name = "six"
@@ -8232,4 +8232,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "44efbb6a88b19ec685fcd061e43074d3982557afbd9a2d29acef95c76038d114"
+content-hash = "5368286d54408ff9a3babc973932ca959c95dca46ef22093cb7b17180330161b"
