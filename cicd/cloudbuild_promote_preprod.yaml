@@ -18,7 +18,7 @@ steps:
         gcloud run deploy survey-assist-api --image=$LOCATION-docker.pkg.dev/$PROJECT_ID/$_GAR_RELEASES_REPO/$_GAR_PACKAGE:$TAG_NAME --region $LOCATION --project $_PREPROD_PROJECT_ID
 
         export SURVEY_ASSIST_API_URL="https://survey-assist-api-$_PREPROD_PROJECT_NUMBER.$LOCATION.run.app/$_API_VERSION/survey-assist"
-        export SA_ID_TOKEN=`gcloud auth print-identity-token --impersonate-service-account=$_API_SA`
+        export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_API_SA)
 
         echo Running smoke tests against Survey Assist API $$SURVEY_ASSIST_API_URL
 
