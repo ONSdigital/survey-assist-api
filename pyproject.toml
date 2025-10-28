@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "survey-assist-api"
-version = "0.1.2"
+version = "0.1.3"
 description = "Survey Assist API to backend data services"
 authors = ["Steve Gibbard <steve.gibbard@ons.gov.uk>"]
 license = "MIT"
