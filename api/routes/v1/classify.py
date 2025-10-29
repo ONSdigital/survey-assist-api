@@ -27,7 +27,7 @@ from api.models.classify import (
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
-from api.utils.logging_utils import truncate_identifier
+from utils.survey import truncate_identifier
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
