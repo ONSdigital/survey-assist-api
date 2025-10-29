@@ -1,5 +1,7 @@
 """Feedback endpoint backed by Firestore."""
 
+import time
+
 from fastapi import APIRouter, HTTPException
 from survey_assist_utils.logging import get_logger
 
@@ -26,21 +28,23 @@ def store_feedback_endpoint(feedback_request: FeedbackResult) -> FeedbackResultR
         HTTPException: If there is an error processing the feedback.
     """
     try:
-        logger.info(f"Received feedback for case_id: {feedback_request.case_id}")
-        logger.info(f"Person ID: {feedback_request.person_id}")
-        logger.info(f"Survey ID: {feedback_request.survey_id}")
-        logger.info(f"Wave ID: {feedback_request.wave_id}")
-        logger.info(f"Number of questions: {len(feedback_request.questions)}")
-
-        # Log feedback details for debugging
-        for question in feedback_request.questions:
-            logger.info(f"Question response_name: {question.response_name}")
-            logger.info(f"Response: {question.response[:50]}...")
-            if question.response_options:
-                logger.info(f"Response options: {question.response_options}")
+        start_time = time.perf_counter()
+        logger.info(
+            "Request received for feedback",
+            case_id=str(feedback_request.case_id),
+            person_id=str(feedback_request.person_id),
+            survey_id=str(feedback_request.survey_id),
+            wave_id=str(feedback_request.wave_id),
+            questions_count=str(len(feedback_request.questions)),
+        )
 
         document_id = store_feedback(feedback_request.model_dump())
-        logger.info(f"Stored feedback in Firestore with document ID: {document_id}")
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        logger.info(
+            "Response sent for feedback",
+            feedback_id=str(document_id),
+            duration_ms=str(duration_ms),
+        )
         return FeedbackResultResponse(
             message="Feedback received successfully", feedback_id=document_id
         )
