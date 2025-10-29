@@ -4,10 +4,13 @@ This module contains the SIC lookup endpoint for the Survey Assist API.
 It defines the endpoint for looking up SIC codes based on descriptions.
 """
 
+import time
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from survey_assist_utils.logging import get_logger
 
 from api.services.sic_lookup_client import SICLookupClient
+from api.utils.logging_utils import truncate_identifier
 
 router = APIRouter(tags=["SIC Lookup"])
 logger = get_logger(__name__)
@@ -60,6 +63,13 @@ async def sic_lookup(
         }
     ```
     """
+    start_time = time.perf_counter()
+    logger.info(
+        "Request received for sic-lookup",
+        description=truncate_identifier(description),
+        similarity=str(similarity),
+    )
+
     if not description:
         logger.error("Empty description provided in SIC lookup request")
         raise HTTPException(status_code=400, detail="Description cannot be empty")
@@ -72,4 +82,11 @@ async def sic_lookup(
             detail=f"No SIC code found for description: {description}",
         )
 
+    duration_ms = int((time.perf_counter() - start_time) * 1000)
+    logger.info(
+        "Response sent for sic-lookup",
+        found=str(bool(result)),
+        similarity=str(similarity),
+        duration_ms=str(duration_ms),
+    )
     return result
