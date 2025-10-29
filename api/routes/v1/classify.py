@@ -6,6 +6,7 @@ vector store and LLM.
 """
 
 import os
+import time
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -26,18 +27,12 @@ from api.models.classify import (
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
+from api.utils.logging_utils import truncate_identifier
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 
 MAX_LEN = 12
-
-
-def truncate(value: str | None, max_len: int = MAX_LEN) -> str:
-    """Return a truncated string safely, handling None and short values."""
-    if not value:
-        return ""
-    return value if len(value) <= max_len else value[:max_len] + "..."
 
 
 def get_sic_vector_store_client() -> SICVectorStoreClient:
@@ -51,7 +46,7 @@ def get_sic_vector_store_client() -> SICVectorStoreClient:
         logger.info(f"Using SIC vector store URL from environment: {env_url}")
         return SICVectorStoreClient(base_url=env_url.strip())
 
-    logger.warning(
+    logger.info(
         "SIC_VECTOR_STORE environment variable not set, using default localhost URL"
     )
     return SICVectorStoreClient()
@@ -131,6 +126,14 @@ async def classify_text(
         HTTPException: If the input is invalid or classification fails.
     """
     # Validate input
+    start_time = time.perf_counter()
+    logger.info(
+        "Request received for classify",
+        type=classification_request.type,
+        job_title=truncate_identifier(classification_request.job_title),
+        job_description=truncate_identifier(classification_request.job_description),
+        org_description=truncate_identifier(classification_request.org_description),
+    )
     if (
         not classification_request.job_title.strip()
         or not classification_request.job_description.strip()
@@ -188,15 +191,34 @@ async def classify_text(
 
         # Build response without meta field if it's None
         if meta is None:
-            return GenericClassificationResponseWithoutMeta(
+            response_obj: Union[
+                GenericClassificationResponse, GenericClassificationResponseWithoutMeta
+            ] = GenericClassificationResponseWithoutMeta(
                 requested_type=classification_request.type,
                 results=results,
             )
-        return GenericClassificationResponse(
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                "Response sent for classify",
+                requested_type=classification_request.type,
+                results_count=len(results),
+                duration_ms=str(duration_ms),
+            )
+            return response_obj
+        response_obj = GenericClassificationResponse(
             requested_type=classification_request.type,
             results=results,
             meta=meta,
         )
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        logger.info(
+            "Response sent for classify",
+            requested_type=classification_request.type,
+            results_count=len(results),
+            has_meta=str(meta is not None),
+            duration_ms=str(duration_ms),
+        )
+        return response_obj
 
     except Exception as e:
         logger.error("Error in classify endpoint", error=str(e))
@@ -206,7 +228,7 @@ async def classify_text(
         ) from e
 
 
-async def _classify_sic(  # pylint: disable=unused-argument
+async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient,
@@ -250,16 +272,26 @@ async def _classify_sic(  # pylint: disable=unused-argument
         # Step 1: Call unambiguous SIC code classification
         logger.info(
             f"Calling LLM for unambiguous SIC classification - "
-            f"job_title: '{truncate(classification_request.job_title)}', "
-            f"job_description: '{truncate(classification_request.job_description)}', "
-            f"org_description: '{truncate(classification_request.org_description)}'"
+            f"job_title: '{truncate_identifier(classification_request.job_title)}', "
+            f"job_description: '{truncate_identifier(classification_request.job_description)}', "
+            f"org_description: '{truncate_identifier(classification_request.org_description)}'"
         )
         try:
+            llm_start = time.perf_counter()
             unambiguous_response, _ = await llm.unambiguous_sic_code(
                 industry_descr=classification_request.org_description or "",
                 semantic_search_results=short_list,
                 job_title=classification_request.job_title,
                 job_description=classification_request.job_description,
+            )
+            llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
+            logger.info(
+                "Gemini response received (unambiguous)",
+                codable=str(bool(getattr(unambiguous_response, "codable", False))),
+                alt_candidates_count=str(
+                    len(getattr(unambiguous_response, "alt_candidates", []) or [])
+                ),
+                duration_ms=str(llm_duration_ms),
             )
         except Exception as e:
             logger.error("Error in unambiguous SIC classification", error=str(e))
@@ -297,11 +329,14 @@ async def _classify_sic(  # pylint: disable=unused-argument
             )
         else:
             # No unambiguous match found - call formulate open question
+            job_title_trunc = truncate_identifier(classification_request.job_title)
+            job_desc_trunc = truncate_identifier(classification_request.job_description)
+            org_desc_trunc = truncate_identifier(classification_request.org_description)
             logger.info(
                 f"Calling LLM to formulate open question - "
-                f"job_title: '{truncate(classification_request.job_title)}', "
-                f"job_description: '{truncate(classification_request.job_description)}', "
-                f"org_description: '{truncate(classification_request.org_description)}'"
+                f"job_title: '{job_title_trunc}', "
+                f"job_description: '{job_desc_trunc}', "
+                f"org_description: '{org_desc_trunc}'"
             )
             try:
                 # Create a SicCandidate from the first alt_candidate for the open question
@@ -311,11 +346,20 @@ async def _classify_sic(  # pylint: disable=unused-argument
                     else None
                 )
 
+                llm_start2 = time.perf_counter()
                 open_question_response, _ = await llm.formulate_open_question(
                     industry_descr=classification_request.org_description or "",
                     job_title=classification_request.job_title,
                     job_description=classification_request.job_description,
                     llm_output=first_candidate,
+                )
+                llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
+                logger.info(
+                    "Gemini response received (open question)",
+                    has_followup=str(
+                        bool(getattr(open_question_response, "followup", None))
+                    ),
+                    duration_ms=str(llm_duration2_ms),
                 )
             except Exception as e:
                 logger.error("Error in formulate open question", error=str(e))
