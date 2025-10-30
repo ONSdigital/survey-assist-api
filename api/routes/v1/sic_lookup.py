@@ -64,29 +64,39 @@ async def sic_lookup(
     ```
     """
     start_time = time.perf_counter()
+    request_timestamp = int(time.time())
+    lookup_id = f"{truncate_identifier(description)}_{request_timestamp}"
     logger.info(
         "Request received for sic-lookup",
         description=truncate_identifier(description),
         similarity=str(similarity),
+        lookup_id=lookup_id,
     )
 
     if not description:
-        logger.error("Empty description provided in SIC lookup request")
+        logger.error(
+            "Empty description provided in SIC lookup request", lookup_id=lookup_id
+        )
         raise HTTPException(status_code=400, detail="Description cannot be empty")
 
     result = lookup_client.get_result(description, similarity)
     if not result:
-        logger.error(f"No SIC code found for description: {description}")
+        logger.error(
+            f"No SIC code found for description: {description}", lookup_id=lookup_id
+        )
         raise HTTPException(
             status_code=404,
             detail=f"No SIC code found for description: {description}",
         )
 
+    # Match found - log the result
     duration_ms = int((time.perf_counter() - start_time) * 1000)
     logger.info(
         "Response sent for sic-lookup",
         found=str(bool(result)),
+        code=str(result.get("code", "")) if isinstance(result, dict) else "",
         similarity=str(similarity),
         duration_ms=str(duration_ms),
+        lookup_id=lookup_id,
     )
     return result
