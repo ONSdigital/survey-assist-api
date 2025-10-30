@@ -127,9 +127,15 @@ async def classify_text(
     """
     # Validate input
     start_time = time.perf_counter()
+    body_id = (
+        truncate_identifier(classification_request.job_title)
+        + truncate_identifier(classification_request.job_description)
+        + truncate_identifier(classification_request.org_description)
+    )
     logger.info(
         "Request received for classify",
         type=classification_request.type,
+        body_id=body_id,
         job_title=truncate_identifier(classification_request.job_title),
         job_description=truncate_identifier(classification_request.job_description),
         org_description=truncate_identifier(classification_request.org_description),
@@ -202,6 +208,7 @@ async def classify_text(
                 "Response sent for classify",
                 requested_type=classification_request.type,
                 results_count=len(results),
+                body_id=body_id,
                 duration_ms=str(duration_ms),
             )
             return response_obj
@@ -216,6 +223,7 @@ async def classify_text(
             requested_type=classification_request.type,
             results_count=len(results),
             has_meta=str(meta is not None),
+            body_id=body_id,
             duration_ms=str(duration_ms),
         )
         return response_obj
