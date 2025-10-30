@@ -170,7 +170,11 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             ) from e
 
     async def search(
-        self, industry_descr: str | None, job_title: str, job_description: str
+        self,
+        industry_descr: str | None,
+        job_title: str,
+        job_description: str,
+        correlation_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search the vector store for similar codes.
 
@@ -178,6 +182,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             industry_descr (str | None): The industry description.
             job_title (str): The job title.
             job_description (str): The job description.
+            correlation_id (str | None): Optional correlation ID for request tracking.
 
         Returns:
             list[dict[str, Any]]: A list of search results, each containing a code,
@@ -245,7 +250,11 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                     return result["results"]
                 return result
         except httpx.HTTPError as e:
-            logger.error(f"Failed to search {self.get_service_name()}", error=str(e))
+            logger.error(
+                f"Failed to search {self.get_service_name()}",
+                error=str(e),
+                correlation_id=correlation_id,
+            )
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to search {self.get_service_name()}: {e!s}",
@@ -253,7 +262,9 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Catch-all for truly unexpected errors, convert to HTTPException
             logger.error(
-                f"Unexpected error searching {self.get_service_name()}", error=str(e)
+                f"Unexpected error searching {self.get_service_name()}",
+                error=str(e),
+                correlation_id=correlation_id,
             )
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
