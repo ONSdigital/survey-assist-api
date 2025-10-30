@@ -149,7 +149,9 @@ async def list_survey_results(
             case_id=str(case_id),
             result_id=result_id,
         )
-        results_data = list_results(survey_id, wave_id, case_id, correlation_id=result_id)
+        results_data = list_results(
+            survey_id, wave_id, case_id, correlation_id=result_id
+        )
         results = [ResultWithId(**data) for data in results_data]
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
