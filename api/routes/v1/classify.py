@@ -157,7 +157,11 @@ async def classify_text(
         # Handle SIC classification
         if classification_request.type in ["sic", "sic_soc"]:
             sic_result = await _classify_sic(
-                request, classification_request, sic_vector_store, rephrase_client
+                request,
+                classification_request,
+                sic_vector_store,
+                rephrase_client,
+                body_id,
             )
             results.append(sic_result)
 
@@ -241,6 +245,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient,
     rephrase_client: SICRephraseClient,
+    body_id: str,
 ) -> GenericClassificationResult:
     """Classify using SIC classification with two-step process.
 
@@ -249,6 +254,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
         classification_request (ClassificationRequest): The classification request.
         vector_store (SICVectorStoreClient): SIC vector store client.
         rephrase_client (SICRephraseClient): SIC rephrase client.
+        body_id (str): Pseudo correlation ID built from truncated request fields.
 
     Returns:
         GenericClassificationResult: SIC classification result.
@@ -282,7 +288,8 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
             f"Calling LLM for unambiguous SIC classification - "
             f"job_title: '{truncate_identifier(classification_request.job_title)}', "
             f"job_description: '{truncate_identifier(classification_request.job_description)}', "
-            f"org_description: '{truncate_identifier(classification_request.org_description)}'"
+            f"org_description: '{truncate_identifier(classification_request.org_description)}'",
+            body_id=body_id,
         )
         try:
             llm_start = time.perf_counter()
@@ -294,12 +301,18 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
             )
             llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
             logger.info(
-                "Gemini response received (unambiguous)",
+                "LLM response received for unambiguous sic prompt",
                 codable=str(bool(getattr(unambiguous_response, "codable", False))),
+                selected_code=(
+                    str(getattr(unambiguous_response, "class_code", ""))
+                    if bool(getattr(unambiguous_response, "codable", False))
+                    else ""
+                ),
                 alt_candidates_count=str(
                     len(getattr(unambiguous_response, "alt_candidates", []) or [])
                 ),
                 duration_ms=str(llm_duration_ms),
+                body_id=body_id,
             )
         except Exception as e:
             logger.error("Error in unambiguous SIC classification", error=str(e))
@@ -344,7 +357,8 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                 f"Calling LLM to formulate open question - "
                 f"job_title: '{job_title_trunc}', "
                 f"job_description: '{job_desc_trunc}', "
-                f"org_description: '{org_desc_trunc}'"
+                f"org_description: '{org_desc_trunc}'",
+                body_id=body_id,
             )
             try:
                 # Create a SicCandidate from the first alt_candidate for the open question
@@ -363,11 +377,12 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                 )
                 llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
                 logger.info(
-                    "Gemini response received (open question)",
+                    "LLM response received for open question prompt",
                     has_followup=str(
                         bool(getattr(open_question_response, "followup", None))
                     ),
                     duration_ms=str(llm_duration2_ms),
+                    body_id=body_id,
                 )
             except Exception as e:
                 logger.error("Error in formulate open question", error=str(e))
