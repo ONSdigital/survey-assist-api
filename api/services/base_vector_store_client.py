@@ -12,6 +12,8 @@ import httpx
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
+from utils.survey import truncate_identifier
+
 try:
     from google.auth.exceptions import DefaultCredentialsError
     from google.auth.transport.requests import Request
@@ -206,6 +208,10 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             logger.info(
                 f"Vector store request sent - {self.get_service_name()} search",
                 url=url,
+                job_title=truncate_identifier(job_title),
+                job_description=truncate_identifier(job_description),
+                org_description=truncate_identifier(industry_descr),
+                correlation_id=correlation_id,
             )
             async with httpx.AsyncClient() as client:
                 response = await client.post(
