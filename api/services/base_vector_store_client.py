@@ -228,6 +228,10 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                     f"Vector store response received - {self.get_service_name()} search",
                     status_code=str(response.status_code),
                     duration_ms=str(duration_ms),
+                    job_title=truncate_identifier(job_title),
+                    job_description=truncate_identifier(job_description),
+                    org_description=truncate_identifier(industry_descr),
+                    correlation_id=correlation_id,
                 )
                 response.raise_for_status()
                 result = response.json()
