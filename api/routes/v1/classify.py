@@ -316,7 +316,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                 body_id=body_id,
             )
         except Exception as e:
-            logger.error("Error in unambiguous SIC classification", error=str(e))
+            logger.error("Error in unambiguous SIC classification", error=str(e), body_id=body_id)
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -386,7 +386,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                     body_id=body_id,
                 )
             except Exception as e:
-                logger.error("Error in formulate open question", error=str(e))
+                logger.error("Error in formulate open question", error=str(e), body_id=body_id)
                 raise HTTPException(
                     status_code=422,
                     detail={
