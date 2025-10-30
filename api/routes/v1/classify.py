@@ -168,7 +168,7 @@ async def classify_text(
         # Handle SOC classification
         if classification_request.type in ["soc", "sic_soc"]:
             soc_result = await _classify_soc(
-                request, classification_request, soc_vector_store
+                request, classification_request, soc_vector_store, body_id
             )
             results.append(soc_result)
 
@@ -268,6 +268,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
             industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
             job_description=classification_request.job_description,
+            correlation_id=body_id,
         )
 
         # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
@@ -496,6 +497,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
     request: Request,  # pylint: disable=unused-argument
     classification_request: ClassificationRequest,
     vector_store: SOCVectorStoreClient,
+    body_id: str,
 ) -> GenericClassificationResult:
     """Classify using SOC classification.
 
@@ -503,6 +505,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
         request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The classification request.
         vector_store (SOCVectorStoreClient): SOC vector store client.
+        body_id (str): Pseudo correlation ID built from truncated request fields.
 
     Returns:
         GenericClassificationResult: SOC classification result.
@@ -512,6 +515,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
         industry_descr=classification_request.org_description,
         job_title=classification_request.job_title,
         job_description=classification_request.job_description,
+        correlation_id=body_id,
     )
 
     # For SOC, we'll use a simple approach for now
