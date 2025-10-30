@@ -31,7 +31,7 @@ async def store_survey_result(result: SurveyAssistResult) -> ResultResponse:
             case_id=str(result.case_id),
             result_id=result_id,
         )
-        doc_id = store_result(result.model_dump())
+        doc_id = store_result(result.model_dump(), correlation_id=result_id)
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
             "Response sent for result store",
@@ -80,7 +80,7 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
             result_id=str(result_id),
             correlation_result_id=correlation_result_id,
         )
-        result_data = get_result(result_id)
+        result_data = get_result(result_id, correlation_id=correlation_result_id)
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
             "Response sent for result get",
@@ -149,7 +149,7 @@ async def list_survey_results(
             case_id=str(case_id),
             result_id=result_id,
         )
-        results_data = list_results(survey_id, wave_id, case_id)
+        results_data = list_results(survey_id, wave_id, case_id, correlation_id=result_id)
         results = [ResultWithId(**data) for data in results_data]
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
