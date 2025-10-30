@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from survey_assist_utils.logging import get_logger
 
 from api.services.sic_lookup_client import SICLookupClient
-from api.utils.logging_utils import truncate_identifier
+from utils.survey import truncate_identifier
 
 router = APIRouter(tags=["SIC Lookup"])
 logger = get_logger(__name__)
