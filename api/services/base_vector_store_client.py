@@ -244,16 +244,28 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                     logger.info(
                         f"{self.get_service_name()} search results summary",
                         results_count=str(len(result["results"])),
+                        job_title=truncate_identifier(job_title),
+                        job_description=truncate_identifier(job_description),
+                        org_description=truncate_identifier(industry_descr),
+                        correlation_id=correlation_id,
                     )
                 elif isinstance(result, list):
                     logger.info(
                         f"{self.get_service_name()} search results summary",
                         results_count=str(len(result)),
+                        job_title=truncate_identifier(job_title),
+                        job_description=truncate_identifier(job_description),
+                        org_description=truncate_identifier(industry_descr),
+                        correlation_id=correlation_id,
                     )
                 else:
                     logger.debug(
                         f"{self.get_service_name()} search results type",
                         type=str(type(result).__name__),
+                        job_title=truncate_identifier(job_title),
+                        job_description=truncate_identifier(job_description),
+                        org_description=truncate_identifier(industry_descr),
+                        correlation_id=correlation_id,
                     )
                 # Handle different response formats
                 if isinstance(result, dict) and "results" in result:
