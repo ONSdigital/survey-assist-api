@@ -46,7 +46,7 @@ def get_sic_vector_store_client() -> SICVectorStoreClient:
         logger.info(f"Using SIC vector store URL from environment: {env_url}")
         return SICVectorStoreClient(base_url=env_url.strip())
 
-    logger.info(
+    logger.warning(
         "SIC_VECTOR_STORE environment variable not set, using default localhost URL"
     )
     return SICVectorStoreClient()
