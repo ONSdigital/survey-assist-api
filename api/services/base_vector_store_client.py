@@ -275,6 +275,9 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             logger.error(
                 f"Failed to search {self.get_service_name()}",
                 error=str(e),
+                job_title=truncate_identifier(job_title),
+                job_description=truncate_identifier(job_description),
+                org_description=truncate_identifier(industry_descr),
                 correlation_id=correlation_id,
             )
             raise HTTPException(
@@ -286,6 +289,9 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             logger.error(
                 f"Unexpected error searching {self.get_service_name()}",
                 error=str(e),
+                job_title=truncate_identifier(job_title),
+                job_description=truncate_identifier(job_description),
+                org_description=truncate_identifier(industry_descr),
                 correlation_id=correlation_id,
             )
             raise HTTPException(
