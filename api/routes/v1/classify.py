@@ -145,7 +145,8 @@ async def classify_text(
         or not classification_request.job_description.strip()
     ):
         logger.error(
-            "Empty job title or description provided in classification request"
+            "Empty job title or description provided in classification request",
+            body_id=body_id,
         )
         raise HTTPException(
             status_code=400, detail="Job title and description cannot be empty"
@@ -233,7 +234,7 @@ async def classify_text(
         return response_obj
 
     except Exception as e:
-        logger.error("Error in classify endpoint", error=str(e))
+        logger.error("Error in classify endpoint", error=str(e), body_id=body_id)
         raise HTTPException(
             status_code=500,
             detail=f"Error during classification: {e!s}",
@@ -316,7 +317,9 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                 body_id=body_id,
             )
         except Exception as e:
-            logger.error("Error in unambiguous SIC classification", error=str(e), body_id=body_id)
+            logger.error(
+                "Error in unambiguous SIC classification", error=str(e), body_id=body_id
+            )
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -386,7 +389,9 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                     body_id=body_id,
                 )
             except Exception as e:
-                logger.error("Error in formulate open question", error=str(e), body_id=body_id)
+                logger.error(
+                    "Error in formulate open question", error=str(e), body_id=body_id
+                )
                 raise HTTPException(
                     status_code=422,
                     detail={
