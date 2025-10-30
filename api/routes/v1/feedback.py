@@ -29,6 +29,11 @@ def store_feedback_endpoint(feedback_request: FeedbackResult) -> FeedbackResultR
     """
     try:
         start_time = time.perf_counter()
+        feedback_id = (
+            f"{feedback_request.case_id}:"
+            f"{feedback_request.person_id}:"
+            f"{feedback_request.wave_id}"
+        )
         logger.info(
             "Request received for feedback",
             case_id=str(feedback_request.case_id),
@@ -36,6 +41,7 @@ def store_feedback_endpoint(feedback_request: FeedbackResult) -> FeedbackResultR
             survey_id=str(feedback_request.survey_id),
             wave_id=str(feedback_request.wave_id),
             questions_count=str(len(feedback_request.questions)),
+            feedback_id=feedback_id,
         )
 
         document_id = store_feedback(feedback_request.model_dump())
@@ -43,6 +49,7 @@ def store_feedback_endpoint(feedback_request: FeedbackResult) -> FeedbackResultR
         logger.info(
             "Response sent for feedback",
             feedback_id=str(document_id),
+            correlation_feedback_id=feedback_id,
             duration_ms=str(duration_ms),
         )
         return FeedbackResultResponse(
