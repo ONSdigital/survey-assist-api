@@ -4,7 +4,7 @@ This module contains general utility functions used across the API,
 including logging helpers for consistent, privacy-preserving identifier truncation.
 """
 
-DEFAULT_TRUNCATE_LEN = 12
+DEFAULT_TRUNCATE_LEN = 8
 
 
 def truncate_identifier(value: str | None, max_len: int = DEFAULT_TRUNCATE_LEN) -> str:
@@ -14,7 +14,7 @@ def truncate_identifier(value: str | None, max_len: int = DEFAULT_TRUNCATE_LEN) 
 
     Args:
         value (str | None): The string to truncate.
-        max_len (int): Maximum length before truncation. Defaults to 12.
+        max_len (int): Maximum length before truncation. Defaults to 8.
 
     Returns:
         str: Empty string if value is None/empty, otherwise truncated string
