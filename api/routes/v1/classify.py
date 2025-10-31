@@ -6,6 +6,7 @@ vector store and LLM.
 """
 
 import os
+import time
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -26,18 +27,12 @@ from api.models.classify import (
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
+from utils.survey import truncate_identifier
 
 router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 
 MAX_LEN = 12
-
-
-def truncate(value: str | None, max_len: int = MAX_LEN) -> str:
-    """Return a truncated string safely, handling None and short values."""
-    if not value:
-        return ""
-    return value if len(value) <= max_len else value[:max_len] + "..."
 
 
 def get_sic_vector_store_client() -> SICVectorStoreClient:
@@ -131,12 +126,27 @@ async def classify_text(
         HTTPException: If the input is invalid or classification fails.
     """
     # Validate input
+    start_time = time.perf_counter()
+    body_id = (
+        truncate_identifier(classification_request.job_title)
+        + truncate_identifier(classification_request.job_description)
+        + truncate_identifier(classification_request.org_description)
+    )
+    logger.info(
+        "Request received for classify",
+        type=classification_request.type,
+        body_id=body_id,
+        job_title=truncate_identifier(classification_request.job_title),
+        job_description=truncate_identifier(classification_request.job_description),
+        org_description=truncate_identifier(classification_request.org_description),
+    )
     if (
         not classification_request.job_title.strip()
         or not classification_request.job_description.strip()
     ):
         logger.error(
-            "Empty job title or description provided in classification request"
+            "Empty job title or description provided in classification request",
+            body_id=body_id,
         )
         raise HTTPException(
             status_code=400, detail="Job title and description cannot be empty"
@@ -148,14 +158,18 @@ async def classify_text(
         # Handle SIC classification
         if classification_request.type in ["sic", "sic_soc"]:
             sic_result = await _classify_sic(
-                request, classification_request, sic_vector_store, rephrase_client
+                request,
+                classification_request,
+                sic_vector_store,
+                rephrase_client,
+                body_id,
             )
             results.append(sic_result)
 
         # Handle SOC classification
         if classification_request.type in ["soc", "sic_soc"]:
             soc_result = await _classify_soc(
-                request, classification_request, soc_vector_store
+                request, classification_request, soc_vector_store, body_id
             )
             results.append(soc_result)
 
@@ -188,29 +202,51 @@ async def classify_text(
 
         # Build response without meta field if it's None
         if meta is None:
-            return GenericClassificationResponseWithoutMeta(
+            response_obj: Union[
+                GenericClassificationResponse, GenericClassificationResponseWithoutMeta
+            ] = GenericClassificationResponseWithoutMeta(
                 requested_type=classification_request.type,
                 results=results,
             )
-        return GenericClassificationResponse(
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                "Response sent for classify",
+                requested_type=classification_request.type,
+                results_count=len(results),
+                body_id=body_id,
+                duration_ms=str(duration_ms),
+            )
+            return response_obj
+        response_obj = GenericClassificationResponse(
             requested_type=classification_request.type,
             results=results,
             meta=meta,
         )
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        logger.info(
+            "Response sent for classify",
+            requested_type=classification_request.type,
+            results_count=len(results),
+            has_meta=str(meta is not None),
+            body_id=body_id,
+            duration_ms=str(duration_ms),
+        )
+        return response_obj
 
     except Exception as e:
-        logger.error("Error in classify endpoint", error=str(e))
+        logger.error("Error in classify endpoint", error=str(e), body_id=body_id)
         raise HTTPException(
             status_code=500,
             detail=f"Error during classification: {e!s}",
         ) from e
 
 
-async def _classify_sic(  # pylint: disable=unused-argument
+async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient,
     rephrase_client: SICRephraseClient,
+    body_id: str,
 ) -> GenericClassificationResult:
     """Classify using SIC classification with two-step process.
 
@@ -219,6 +255,7 @@ async def _classify_sic(  # pylint: disable=unused-argument
         classification_request (ClassificationRequest): The classification request.
         vector_store (SICVectorStoreClient): SIC vector store client.
         rephrase_client (SICRephraseClient): SIC rephrase client.
+        body_id (str): Pseudo correlation ID built from truncated request fields.
 
     Returns:
         GenericClassificationResult: SIC classification result.
@@ -232,6 +269,7 @@ async def _classify_sic(  # pylint: disable=unused-argument
             industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
             job_description=classification_request.job_description,
+            correlation_id=body_id,
         )
 
         # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
@@ -250,19 +288,38 @@ async def _classify_sic(  # pylint: disable=unused-argument
         # Step 1: Call unambiguous SIC code classification
         logger.info(
             f"Calling LLM for unambiguous SIC classification - "
-            f"job_title: '{truncate(classification_request.job_title)}', "
-            f"job_description: '{truncate(classification_request.job_description)}', "
-            f"org_description: '{truncate(classification_request.org_description)}'"
+            f"job_title: '{truncate_identifier(classification_request.job_title)}', "
+            f"job_description: '{truncate_identifier(classification_request.job_description)}', "
+            f"org_description: '{truncate_identifier(classification_request.org_description)}'",
+            body_id=body_id,
         )
         try:
+            llm_start = time.perf_counter()
             unambiguous_response, _ = await llm.unambiguous_sic_code(
                 industry_descr=classification_request.org_description or "",
                 semantic_search_results=short_list,
                 job_title=classification_request.job_title,
                 job_description=classification_request.job_description,
             )
+            llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
+            logger.info(
+                "LLM response received for unambiguous sic prompt",
+                codable=str(bool(getattr(unambiguous_response, "codable", False))),
+                selected_code=(
+                    str(getattr(unambiguous_response, "class_code", ""))
+                    if bool(getattr(unambiguous_response, "codable", False))
+                    else ""
+                ),
+                alt_candidates_count=str(
+                    len(getattr(unambiguous_response, "alt_candidates", []) or [])
+                ),
+                duration_ms=str(llm_duration_ms),
+                body_id=body_id,
+            )
         except Exception as e:
-            logger.error("Error in unambiguous SIC classification", error=str(e))
+            logger.error(
+                "Error in unambiguous SIC classification", error=str(e), body_id=body_id
+            )
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -297,11 +354,15 @@ async def _classify_sic(  # pylint: disable=unused-argument
             )
         else:
             # No unambiguous match found - call formulate open question
+            job_title_trunc = truncate_identifier(classification_request.job_title)
+            job_desc_trunc = truncate_identifier(classification_request.job_description)
+            org_desc_trunc = truncate_identifier(classification_request.org_description)
             logger.info(
                 f"Calling LLM to formulate open question - "
-                f"job_title: '{truncate(classification_request.job_title)}', "
-                f"job_description: '{truncate(classification_request.job_description)}', "
-                f"org_description: '{truncate(classification_request.org_description)}'"
+                f"job_title: '{job_title_trunc}', "
+                f"job_description: '{job_desc_trunc}', "
+                f"org_description: '{org_desc_trunc}'",
+                body_id=body_id,
             )
             try:
                 # Create a SicCandidate from the first alt_candidate for the open question
@@ -311,14 +372,26 @@ async def _classify_sic(  # pylint: disable=unused-argument
                     else None
                 )
 
+                llm_start2 = time.perf_counter()
                 open_question_response, _ = await llm.formulate_open_question(
                     industry_descr=classification_request.org_description or "",
                     job_title=classification_request.job_title,
                     job_description=classification_request.job_description,
                     llm_output=first_candidate,
                 )
+                llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
+                logger.info(
+                    "LLM response received for open question prompt",
+                    has_followup=str(
+                        bool(getattr(open_question_response, "followup", None))
+                    ),
+                    duration_ms=str(llm_duration2_ms),
+                    body_id=body_id,
+                )
             except Exception as e:
-                logger.error("Error in formulate open question", error=str(e))
+                logger.error(
+                    "Error in formulate open question", error=str(e), body_id=body_id
+                )
                 raise HTTPException(
                     status_code=422,
                     detail={
@@ -429,6 +502,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
     request: Request,  # pylint: disable=unused-argument
     classification_request: ClassificationRequest,
     vector_store: SOCVectorStoreClient,
+    body_id: str,
 ) -> GenericClassificationResult:
     """Classify using SOC classification.
 
@@ -436,6 +510,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
         request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The classification request.
         vector_store (SOCVectorStoreClient): SOC vector store client.
+        body_id (str): Pseudo correlation ID built from truncated request fields.
 
     Returns:
         GenericClassificationResult: SOC classification result.
@@ -445,6 +520,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
         industry_descr=classification_request.org_description,
         job_title=classification_request.job_title,
         job_description=classification_request.job_description,
+        correlation_id=body_id,
     )
 
     # For SOC, we'll use a simple approach for now

@@ -29,11 +29,12 @@ def datetime_handler(obj):
     raise TypeError(f"Object of type {type(obj)} is not JSON serialisable")
 
 
-def store_result(result_data: dict[str, Any]) -> str:
+def store_result(result_data: dict[str, Any], correlation_id: str | None = None) -> str:
     """Store a result document in Firestore `survey_results` and return its ID.
 
     Args:
         result_data (dict[str, Any]): The result data to store.
+        correlation_id (str | None): Optional correlation ID for request tracking.
 
     Returns:
         str: Firestore document ID.
@@ -41,15 +42,19 @@ def store_result(result_data: dict[str, Any]) -> str:
     db = get_firestore_client()
     doc_ref = db.collection("survey_results").document()
     doc_ref.set(result_data)
-    logger.info(f"Stored result in Firestore with id {doc_ref.id}")
+    logger.info(
+        f"Stored result in Firestore with id {doc_ref.id}",
+        correlation_id=correlation_id,
+    )
     return doc_ref.id
 
 
-def get_result(result_id: str) -> dict[str, Any]:
+def get_result(result_id: str, correlation_id: str | None = None) -> dict[str, Any]:
     """Retrieve a result document from Firestore by ID.
 
     Args:
         result_id (str): Firestore document ID.
+        correlation_id (str | None): Optional correlation ID for request tracking.
 
     Returns:
         dict[str, Any]: The retrieved document data.
@@ -59,12 +64,17 @@ def get_result(result_id: str) -> dict[str, Any]:
     if not doc.exists:
         raise FileNotFoundError(f"Result not found: {result_id}")
     data = doc.to_dict()
-    logger.info(f"Retrieved result id {result_id} from Firestore")
+    logger.info(
+        f"Retrieved result id {result_id} from Firestore", correlation_id=correlation_id
+    )
     return data
 
 
 def list_results(
-    survey_id: str, wave_id: str, case_id: str | None = None
+    survey_id: str,
+    wave_id: str,
+    case_id: str | None = None,
+    correlation_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """List result documents from Firestore filtered by survey_id, wave_id, and optionally case_id.
 
@@ -73,6 +83,7 @@ def list_results(
         wave_id (str): Wave identifier to filter by.
         case_id (str | None): Optional case identifier to filter by.
             If None, returns all results for the survey/wave.
+        correlation_id (str | None): Optional correlation ID for request tracking.
 
     Returns:
         list[dict[str, Any]]: List of matching result documents with their IDs.
@@ -97,6 +108,7 @@ def list_results(
 
     logger.info(
         f"Retrieved {len(results)} results for survey_id={survey_id}, "
-        f"wave_id={wave_id}, case_id={case_id}"
+        f"wave_id={wave_id}, case_id={case_id}",
+        correlation_id=correlation_id,
     )
     return results

@@ -3,6 +3,7 @@
 This module provides a base client for vector store services to eliminate code duplication.
 """
 
+import time
 from abc import ABC, abstractmethod
 from http import HTTPStatus
 from typing import Any
@@ -11,13 +12,17 @@ import httpx
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
+from utils.survey import truncate_identifier
+
 try:
+    from google.auth.exceptions import DefaultCredentialsError
     from google.auth.transport.requests import Request
     from google.oauth2 import id_token
 
     GOOGLE_AUTH_AVAILABLE = True
 except ImportError:
     GOOGLE_AUTH_AVAILABLE = False
+    DefaultCredentialsError = Exception  # type: ignore[misc,assignment]
 
 logger = get_logger(__name__)
 
@@ -61,13 +66,19 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             auth_req = Request()
             id_token_value = id_token.fetch_id_token(auth_req, audience)
 
-            logger.info(
+            logger.debug(
                 f"Successfully obtained Google Cloud ID token for audience: {audience}"
             )
             return {"Authorization": f"Bearer {id_token_value}"}
 
         except (ValueError, OSError, RuntimeError) as e:
             logger.warning(f"Failed to get Google Cloud ID token: {e}")
+            return {}
+        except DefaultCredentialsError as e:  # pylint: disable=broad-exception-caught
+            # DefaultCredentialsError may be Exception when google.auth is unavailable
+            logger.warning(
+                f"Default credentials not found, proceeding without auth: {e}"
+            )
             return {}
 
     @abstractmethod
@@ -112,19 +123,34 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             # Get authentication headers
             headers = self._get_auth_headers()
             if headers:
-                logger.info(
+                logger.debug(
                     f"Using authentication headers for {self.get_service_name()}"
                 )
 
+            start_time = time.perf_counter()
+            logger.info(
+                f"Vector store request sent - {self.get_service_name()} status",
+                url=url,
+            )
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, headers=headers)
+                duration_ms = int((time.perf_counter() - start_time) * 1000)
                 logger.info(
-                    f"{self.get_service_name()} response status",
+                    f"Vector store response received - {self.get_service_name()} status",
                     status_code=str(response.status_code),
+                    duration_ms=str(duration_ms),
                 )
                 response.raise_for_status()
                 result = response.json()
-                logger.info(f"{self.get_service_name()} status", result=str(result))
+                # Log only summary information, not full payloads
+                summary: dict[str, Any] = (
+                    {"keys": list(result.keys())[:5]}
+                    if isinstance(result, dict)
+                    else {"type": type(result).__name__}
+                )
+                logger.debug(
+                    f"{self.get_service_name()} status summary", summary=str(summary)
+                )
                 return result
         except httpx.HTTPError as e:
             logger.error(
@@ -134,7 +160,8 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to check {self.get_service_name()} status: {e!s}",
             ) from e
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Catch-all for truly unexpected errors, convert to HTTPException
             logger.error(
                 f"Unexpected error checking {self.get_service_name()} status",
                 error=str(e),
@@ -145,7 +172,11 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             ) from e
 
     async def search(
-        self, industry_descr: str | None, job_title: str, job_description: str
+        self,
+        industry_descr: str | None,
+        job_title: str,
+        job_description: str,
+        correlation_id: str | None = None,
     ) -> list[dict[str, Any]]:
         """Search the vector store for similar codes.
 
@@ -153,6 +184,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             industry_descr (str | None): The industry description.
             job_title (str): The job title.
             job_description (str): The job description.
+            correlation_id (str | None): Optional correlation ID for request tracking.
 
         Returns:
             list[dict[str, Any]]: A list of search results, each containing a code,
@@ -168,10 +200,19 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             # Get authentication headers
             headers = self._get_auth_headers()
             if headers:
-                logger.info(
+                logger.debug(
                     f"Using authentication headers for {self.get_service_name()}"
                 )
 
+            start_time = time.perf_counter()
+            logger.info(
+                f"Vector store request sent - {self.get_service_name()} search",
+                url=url,
+                job_title=truncate_identifier(job_title),
+                job_description=truncate_identifier(job_description),
+                org_description=truncate_identifier(industry_descr),
+                correlation_id=correlation_id,
+            )
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     url,
@@ -182,28 +223,76 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                     },
                     headers=headers,
                 )
+                duration_ms = int((time.perf_counter() - start_time) * 1000)
                 logger.info(
-                    f"{self.get_service_name()} response status",
+                    f"Vector store response received - {self.get_service_name()} search",
                     status_code=str(response.status_code),
+                    duration_ms=str(duration_ms),
+                    job_title=truncate_identifier(job_title),
+                    job_description=truncate_identifier(job_description),
+                    org_description=truncate_identifier(industry_descr),
+                    correlation_id=correlation_id,
                 )
                 response.raise_for_status()
                 result = response.json()
-                logger.info(
-                    f"{self.get_service_name()} search results", result=str(result)
-                )
+                # Log only counts/summaries, not full payloads
+                if (
+                    isinstance(result, dict)
+                    and "results" in result
+                    and isinstance(result["results"], list)
+                ):
+                    logger.info(
+                        f"{self.get_service_name()} search results summary",
+                        results_count=str(len(result["results"])),
+                        job_title=truncate_identifier(job_title),
+                        job_description=truncate_identifier(job_description),
+                        org_description=truncate_identifier(industry_descr),
+                        correlation_id=correlation_id,
+                    )
+                elif isinstance(result, list):
+                    logger.info(
+                        f"{self.get_service_name()} search results summary",
+                        results_count=str(len(result)),
+                        job_title=truncate_identifier(job_title),
+                        job_description=truncate_identifier(job_description),
+                        org_description=truncate_identifier(industry_descr),
+                        correlation_id=correlation_id,
+                    )
+                else:
+                    logger.debug(
+                        f"{self.get_service_name()} search results type",
+                        type=str(type(result).__name__),
+                        job_title=truncate_identifier(job_title),
+                        job_description=truncate_identifier(job_description),
+                        org_description=truncate_identifier(industry_descr),
+                        correlation_id=correlation_id,
+                    )
                 # Handle different response formats
                 if isinstance(result, dict) and "results" in result:
                     return result["results"]
                 return result
         except httpx.HTTPError as e:
-            logger.error(f"Failed to search {self.get_service_name()}", error=str(e))
+            logger.error(
+                f"Failed to search {self.get_service_name()}",
+                error=str(e),
+                job_title=truncate_identifier(job_title),
+                job_description=truncate_identifier(job_description),
+                org_description=truncate_identifier(industry_descr),
+                correlation_id=correlation_id,
+            )
             raise HTTPException(
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to search {self.get_service_name()}: {e!s}",
             ) from e
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
+            # Catch-all for truly unexpected errors, convert to HTTPException
             logger.error(
-                f"Unexpected error searching {self.get_service_name()}", error=str(e)
+                f"Unexpected error searching {self.get_service_name()}",
+                error=str(e),
+                job_title=truncate_identifier(job_title),
+                job_description=truncate_identifier(job_description),
+                org_description=truncate_identifier(industry_descr),
+                correlation_id=correlation_id,
             )
             raise HTTPException(
                 status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
