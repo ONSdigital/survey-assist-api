@@ -23,36 +23,36 @@ async def store_survey_result(result: SurveyAssistResult) -> ResultResponse:
     """Store a survey result in Firestore and return its document ID."""
     try:
         start_time = time.perf_counter()
-        result_id = f"{result.survey_id}:{result.wave_id}:{result.case_id}"
+        result_body_id = f"{result.survey_id}:{result.wave_id}:{result.case_id}"
         logger.info(
             "Request received for result store",
             survey_id=str(result.survey_id),
             wave_id=str(result.wave_id),
             case_id=str(result.case_id),
-            result_id=result_id,
+            result_body_id=result_body_id,
         )
-        doc_id = store_result(result.model_dump(), correlation_id=result_id)
+        doc_id = store_result(result.model_dump(), correlation_id=result_body_id)
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
             "Response sent for result store",
             result_id=str(doc_id),
-            correlation_result_id=result_id,
+            result_body_id=result_body_id,
             duration_ms=str(duration_ms),
         )
         return ResultResponse(message="Result stored successfully", result_id=doc_id)
     except ValueError as e:
-        logger.error(f"Storage error: {e}", correlation_result_id=result_id)
+        logger.error(f"Storage error: {e}", result_body_id=result_body_id)
         raise HTTPException(
             status_code=503, detail=f"Storage service unavailable: {e!s}"
         ) from e
     except RuntimeError as e:
-        logger.error(f"Storage service error: {e}", correlation_result_id=result_id)
+        logger.error(f"Storage service error: {e}", result_body_id=result_body_id)
         raise HTTPException(
             status_code=503, detail=f"Storage service error: {e!s}"
         ) from e
     except Exception as e:
         logger.error(
-            f"Unexpected error storing result: {e}", correlation_result_id=result_id
+            f"Unexpected error storing result: {e}", result_body_id=result_body_id
         )
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {e!s}"
@@ -74,31 +74,31 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
     """
     try:
         start_time = time.perf_counter()
-        correlation_result_id = result_id
+        result_body_id = result_id
         logger.info(
             "Request received for result get",
             result_id=str(result_id),
-            correlation_result_id=correlation_result_id,
+            result_body_id=result_body_id,
         )
-        result_data = get_result(result_id, correlation_id=correlation_result_id)
+        result_data = get_result(result_id, correlation_id=result_body_id)
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
             "Response sent for result get",
             result_id=str(result_id),
-            correlation_result_id=correlation_result_id,
+            result_body_id=result_body_id,
             duration_ms=str(duration_ms),
         )
         return SurveyAssistResult(**result_data)
     except FileNotFoundError as e:
         logger.warning(
             f"Result not found: {result_id}",
-            correlation_result_id=correlation_result_id,
+            result_body_id=result_body_id,
         )
         raise HTTPException(status_code=404, detail="Result not found") from e
     except ValueError as e:
         logger.error(
             f"Storage error retrieving result: {e}",
-            correlation_result_id=correlation_result_id,
+            result_body_id=result_body_id,
         )
         raise HTTPException(
             status_code=503, detail=f"Storage service unavailable: {e!s}"
@@ -106,7 +106,7 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
     except RuntimeError as e:
         logger.error(
             f"Storage service error retrieving result: {e}",
-            correlation_result_id=correlation_result_id,
+            result_body_id=result_body_id,
         )
         raise HTTPException(
             status_code=503, detail=f"Storage service error: {e!s}"
@@ -114,7 +114,7 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
     except Exception as e:
         logger.error(
             f"Unexpected error retrieving result: {e}",
-            correlation_result_id=correlation_result_id,
+            result_body_id=result_body_id,
         )
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {e!s}"
@@ -141,29 +141,29 @@ async def list_survey_results(
     """
     try:
         start_time = time.perf_counter()
-        result_id = f"{survey_id}:{wave_id}:{case_id or ''}"
+        result_body_id = f"{survey_id}:{wave_id}:{case_id or ''}"
         logger.info(
             "Request received for results list",
             survey_id=str(survey_id),
             wave_id=str(wave_id),
             case_id=str(case_id),
-            result_id=result_id,
+            result_body_id=result_body_id,
         )
         results_data = list_results(
-            survey_id, wave_id, case_id, correlation_id=result_id
+            survey_id, wave_id, case_id, correlation_id=result_body_id
         )
         results = [ResultWithId(**data) for data in results_data]
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
             "Response sent for results list",
             count=str(len(results)),
-            correlation_result_id=result_id,
+            result_body_id=result_body_id,
             duration_ms=str(duration_ms),
         )
         return ListResultsResponse(results=results, count=len(results))
     except ValueError as e:
         logger.error(
-            f"Storage error retrieving results: {e}", correlation_result_id=result_id
+            f"Storage error retrieving results: {e}", result_body_id=result_body_id
         )
         raise HTTPException(
             status_code=503, detail=f"Storage service unavailable: {e!s}"
@@ -171,14 +171,14 @@ async def list_survey_results(
     except RuntimeError as e:
         logger.error(
             f"Storage service error retrieving results: {e}",
-            correlation_result_id=result_id,
+            result_body_id=result_body_id,
         )
         raise HTTPException(
             status_code=503, detail=f"Storage service error: {e!s}"
         ) from e
     except Exception as e:
         logger.error(
-            f"Unexpected error retrieving results: {e}", correlation_result_id=result_id
+            f"Unexpected error retrieving results: {e}", result_body_id=result_body_id
         )
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {e!s}"
