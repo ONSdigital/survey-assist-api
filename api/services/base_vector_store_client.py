@@ -259,7 +259,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                         correlation_id=correlation_id,
                     )
                 else:
-                    logger.debug(
+                    logger.warning(
                         f"{self.get_service_name()} search results type",
                         type=str(type(result).__name__),
                         job_title=truncate_identifier(job_title),
