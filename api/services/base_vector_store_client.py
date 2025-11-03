@@ -195,7 +195,6 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         """
         try:
             url = self.get_search_url()
-            logger.info(f"Attempting to search {self.get_service_name()}", url=url)
 
             # Get authentication headers
             headers = self._get_auth_headers()
