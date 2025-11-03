@@ -487,7 +487,7 @@ def _apply_rephrasing(
                 )
             else:
                 # Keep original description if no rephrased version available
-                logger.info(
+                logger.debug(
                     f"No rephrased description found for SIC code {candidate.code}, "
                     "keeping original description"
                 )
