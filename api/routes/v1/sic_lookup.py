@@ -91,10 +91,11 @@ async def sic_lookup(
 
     # Match found - log the result
     duration_ms = int((time.perf_counter() - start_time) * 1000)
+    code = result.get("code") if isinstance(result, dict) else None
     logger.info(
         "Response sent for sic-lookup",
-        found=str(bool(result)),
-        code=str(result.get("code", "")) if isinstance(result, dict) else "",
+        found=str(bool(code)),
+        code=str(code or ""),
         similarity=str(similarity),
         duration_ms=str(duration_ms),
         lookup_id=lookup_id,
