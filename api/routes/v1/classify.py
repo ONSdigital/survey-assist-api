@@ -287,7 +287,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
 
         # Step 1: Call unambiguous SIC code classification
         logger.info(
-            f"Calling LLM for unambiguous SIC classification - "
+            f"LLM request sent for unambiguous SIC classification - "
             f"job_title: '{truncate_identifier(classification_request.job_title)}', "
             f"job_description: '{truncate_identifier(classification_request.job_description)}', "
             f"org_description: '{truncate_identifier(classification_request.org_description)}'",
@@ -358,7 +358,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
             job_desc_trunc = truncate_identifier(classification_request.job_description)
             org_desc_trunc = truncate_identifier(classification_request.org_description)
             logger.info(
-                f"Calling LLM to formulate open question - "
+                f"LLM request sent to formulate open question - "
                 f"job_title: '{job_title_trunc}', "
                 f"job_description: '{job_desc_trunc}', "
                 f"org_description: '{org_desc_trunc}'",
