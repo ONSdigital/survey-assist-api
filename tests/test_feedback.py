@@ -31,6 +31,9 @@ Functions:
     test_list_feedbacks_success():
         Tests successful listing of feedbacks by survey_id and wave_id.
 
+    test_list_feedbacks_with_case_id():
+        Tests successful listing of feedbacks by survey_id, wave_id, and case_id.
+
     test_list_feedbacks_empty():
         Tests listing feedbacks when no results are found.
 
@@ -470,6 +473,39 @@ def test_list_feedbacks_success():
         assert len(data["results"]) == expected_count
         assert data["results"][0]["document_id"] == "fb123"
         assert data["results"][1]["document_id"] == "fb456"
+
+
+def test_list_feedbacks_with_case_id():
+    """Test listing feedbacks by survey_id, wave_id, and case_id.
+
+    This test verifies that:
+    1. Feedbacks can be retrieved by survey_id, wave_id, and case_id
+    2. The response contains a list with document_id field included
+    """
+    expected_count = 1
+    mock_feedbacks_data = [
+        {
+            "case_id": "0710-25AA-XXXX-YYYY",
+            "person_id": "000001_01",
+            "survey_id": "survey_123",
+            "wave_id": "wave_456",
+            "questions": [],
+            "document_id": "fb123",
+        }
+    ]
+
+    with patch("api.routes.v1.feedback.list_feedbacks") as mock_list:
+        mock_list.return_value = mock_feedbacks_data
+        response = client.get(
+            "/v1/survey-assist/feedbacks?"
+            "survey_id=survey_123&wave_id=wave_456&case_id=0710-25AA-XXXX-YYYY"
+        )
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["count"] == expected_count
+        assert len(data["results"]) == expected_count
+        assert data["results"][0]["document_id"] == "fb123"
+        assert data["results"][0]["case_id"] == "0710-25AA-XXXX-YYYY"
 
 
 def test_list_feedbacks_empty():
