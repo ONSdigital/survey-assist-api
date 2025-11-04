@@ -50,3 +50,18 @@ class FeedbackResultResponse(BaseModel):
     feedback_id: Optional[str] = Field(
         None, description="Unique identifier for the stored feedback"
     )
+
+
+class FeedbackWithId(FeedbackResult):
+    """Model for feedback result with document ID."""
+
+    document_id: str = Field(..., description="Firestore document ID")
+
+
+class ListFeedbacksResponse(BaseModel):
+    """Response model for list feedbacks endpoint."""
+
+    results: list[FeedbackWithId] = Field(
+        ..., description="List of matching feedback results"
+    )
+    count: int = Field(..., description="Number of results returned")
