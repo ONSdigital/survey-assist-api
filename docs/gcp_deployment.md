@@ -346,7 +346,12 @@ All endpoints are accessible via the API Gateway at `{API_GATEWAY_URL}/v1/survey
 - **Embeddings**: `embeddings` - Get vector store status and metadata
 - **SIC Lookup**: `sic-lookup` - Lookup SIC codes by description
 - **Classification**: `classify` - Classify job descriptions to SIC/SOC codes
-- **Results**: `result` - Store survey interaction results
+- **Results**: `result` - Store and retrieve survey interaction results
+  - `GET /result?result_id={id}` - Retrieve a result by ID
+  - `GET /results?survey_id={id}&wave_id={id}&case_id={id}` - List results by survey/wave/case
+- **Feedback**: `feedback` - Store and retrieve survey feedback
+  - `GET /feedback?feedback_id={id}` - Retrieve feedback by ID
+  - `GET /feedbacks?survey_id={id}&wave_id={id}&case_id={id}` - List feedback by survey/wave/case
 
 ## API Gateway Authentication with JWT Tokens
 
