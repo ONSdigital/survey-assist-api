@@ -23,7 +23,9 @@ class FollowUpQuestion(BaseModel):
     id: str = Field(..., description="Question identifier")
     text: str = Field(..., description="Question text")
     type: str = Field(
-        ..., description="Question type (text, textarea or select)", pattern="^(text|textarea|select)$"
+        ...,
+        description="Question type (text, textarea or select)",
+        pattern="^(text|textarea|select)$",
     )
     select_options: Optional[list[str]] = Field(
         None, description="Options for select type questions"
