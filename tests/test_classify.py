@@ -161,7 +161,7 @@ class TestClassifyEndpoint:
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_followup_question(
+def test_classify_followup_question(  # pylint: disable=too-many-locals
     mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
 ):
     """Test the follow-up question functionality of the classification endpoint.
@@ -172,6 +172,7 @@ def test_classify_followup_question(
     2. Sets classified to False.
     3. Provides appropriate candidate codes.
     4. Includes relevant keywords in the follow-up question.
+    5. Passes all alternative candidates to formulate_open_question (not just the first).
 
     Assertions:
         - The response status code is 200.
@@ -179,6 +180,7 @@ def test_classify_followup_question(
         - A follow-up question is present.
         - sic_code and sic_description are None.
         - The follow-up question contains relevant keywords.
+        - All candidates from alt_candidates are passed to formulate_open_question.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
     mock_vector_store.return_value.search = AsyncMock(
@@ -217,13 +219,24 @@ def test_classify_followup_question(
     mock_unambiguous_response.class_code = None
     mock_unambiguous_response.class_descriptive = None
     mock_unambiguous_response.reasoning = "Mocked reasoning"
-    mock_unambiguous_response.alt_candidates = [
-        MagicMock(
-            class_code=EXPECTED_SIC_CODE,
-            class_descriptive=EXPECTED_SIC_DESCRIPTION,
-            likelihood=0.8,
-        )
-    ]
+    # Create multiple candidates to verify all are passed to formulate_open_question
+    candidate1 = MagicMock(
+        class_code=EXPECTED_SIC_CODE,
+        class_descriptive=EXPECTED_SIC_DESCRIPTION,
+        likelihood=0.8,
+    )
+    candidate2 = MagicMock(
+        class_code="43320",
+        class_descriptive="Plumbing installation",
+        likelihood=0.75,
+    )
+    candidate3 = MagicMock(
+        class_code="43330",
+        class_descriptive="Other building installation",
+        likelihood=0.65,
+    )
+    mock_unambiguous_response.alt_candidates = [candidate1, candidate2, candidate3]
+    expected_candidates_count = len(mock_unambiguous_response.alt_candidates)
 
     mock_open_question_response = MagicMock()
     mock_open_question_response.followup = (
@@ -259,6 +272,20 @@ def test_classify_followup_question(
     assert "installation" in result["followup"].lower()
     assert "electrical" in result["followup"].lower()
     assert "plumbing" in result["followup"].lower()
+
+    # Verify that all candidates were passed to formulate_open_question
+    assert mock_llm.formulate_open_question.called
+    call_args = mock_llm.formulate_open_question.call_args
+    assert call_args is not None
+    llm_output = call_args.kwargs.get("llm_output")
+    assert llm_output == mock_unambiguous_response.alt_candidates, (
+        "formulate_open_question should receive the full list of candidates, "
+        f"not just the first one. Expected {len(mock_unambiguous_response.alt_candidates)} "
+        f"candidates, got {len(llm_output) if llm_output else 0}"
+    )
+    assert (
+        len(llm_output) == expected_candidates_count
+    ), f"Expected {expected_candidates_count} candidates to be passed, got {len(llm_output)}"
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
