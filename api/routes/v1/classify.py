@@ -366,7 +366,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
             )
             try:
                 # Pass all alt_candidates for the open question
-                candidates = (
+                alt_candidates = (
                     unambiguous_response.alt_candidates
                     if unambiguous_response.alt_candidates
                     else None
@@ -377,7 +377,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                     industry_descr=classification_request.org_description or "",
                     job_title=classification_request.job_title,
                     job_description=classification_request.job_description,
-                    llm_output=candidates,
+                    llm_output=alt_candidates,
                 )
                 llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
                 logger.info(
