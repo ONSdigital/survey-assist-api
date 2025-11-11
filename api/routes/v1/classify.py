@@ -365,9 +365,9 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                 body_id=body_id,
             )
             try:
-                # Create a SicCandidate from the first alt_candidate for the open question
-                first_candidate = (
-                    unambiguous_response.alt_candidates[0]
+                # Pass all alt_candidates for the open question
+                candidates = (
+                    unambiguous_response.alt_candidates
                     if unambiguous_response.alt_candidates
                     else None
                 )
@@ -377,7 +377,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
                     industry_descr=classification_request.org_description or "",
                     job_title=classification_request.job_title,
                     job_description=classification_request.job_description,
-                    llm_output=first_candidate,
+                    llm_output=candidates,
                 )
                 llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
                 logger.info(
