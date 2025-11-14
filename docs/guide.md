@@ -179,17 +179,18 @@ curl --header "Authorization: Bearer ${JWT_TOKEN}" \
   ```json
   {
     "message": "Result stored successfully",
-    "result_id": "test-survey-123/test.userSA187/2024-03-19/10_30_15.json"
+    "result_id": "abc123xyz456def789gh"
   }
   ```
+  Note: `result_id` is a Firestore document ID (auto-generated, 20-character alphanumeric string).
 
 ### Get Result Endpoint
 - **Base URL**: `http://localhost:8080`
 - **Path**: `/v1/survey-assist/result`
 - **Method**: GET
-- **Description**: Retrieves stored classification results
+- **Description**: Retrieves stored classification results by Firestore document ID
 - **Query Parameters**:
-  - `result_id` (required): The ID of the result to retrieve (e.g., "test-survey-123/test.userSA187/2024-03-19/10_30_15.json")
+  - `result_id` (required): The Firestore document ID of the result to retrieve (e.g., "abc123xyz456def789gh")
 - **Response**: Returns the stored result in the same format as the POST request body.
 
 ### Example Usage
@@ -241,8 +242,167 @@ curl -X POST "http://localhost:8080/v1/survey-assist/result" \
     ]
   }'
 
-# Retrieve a result
-curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=test-survey-123/test.userSA187/2024-03-19/10_30_15.json"
+# Retrieve a result by ID
+curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=abc123xyz456def789gh"
+
+# List results by survey/wave
+curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-survey-123&wave_id=test-wave-001"
+
+# List results by survey/wave/case
+curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-survey-123&wave_id=test-wave-001&case_id=test-case-456"
+```
+
+### List Results Endpoint
+- **Base URL**: `http://localhost:8080`
+- **Path**: `/v1/survey-assist/results`
+- **Method**: GET
+- **Description**: Lists survey results filtered by survey_id, wave_id, and optionally case_id
+- **Query Parameters**:
+  - `survey_id` (required): Survey identifier to filter by
+  - `wave_id` (required): Wave identifier to filter by
+  - `case_id` (optional): Case identifier to filter by. If not provided, returns all results for the survey/wave
+- **Response**: Returns a list of matching survey results with their document IDs:
+  ```json
+  {
+    "results": [
+      {
+        "survey_id": "test-survey-123",
+        "case_id": "test-case-456",
+        "wave_id": "test-wave-001",
+        "document_id": "abc123xyz",
+        "user": "test.user",
+        "time_start": "2024-03-19T10:00:00Z",
+        "time_end": "2024-03-19T10:05:00Z",
+        "responses": [...]
+      }
+    ],
+    "count": 1
+  }
+  ```
+
+### Feedback Endpoint
+- **Base URL**: `http://localhost:8080`
+- **Path**: `/v1/survey-assist/feedback`
+- **Method**: POST
+- **Description**: Stores feedback data from survey respondents
+- **Request Body**:
+  ```json
+  {
+    "case_id": "test-case-001",
+    "person_id": "test-person-001",
+    "survey_id": "test-survey-001",
+    "wave_id": "test-wave-001",
+    "questions": [
+      {
+        "response": "Very helpful",
+        "response_name": "satisfaction",
+        "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
+      },
+      {
+        "response": "Yes, I understood the classification",
+        "response_name": "understanding",
+        "response_options": null
+      }
+    ]
+  }
+  ```
+- **Response**: Returns stored feedback information:
+  ```json
+  {
+    "message": "Feedback received successfully",
+    "feedback_id": "xyz789abc123def456ij"
+  }
+  ```
+  Note: `feedback_id` is a Firestore document ID (auto-generated, 20-character alphanumeric string).
+
+### Get Feedback Endpoint
+- **Base URL**: `http://localhost:8080`
+- **Path**: `/v1/survey-assist/feedback`
+- **Method**: GET
+- **Description**: Retrieves a stored feedback result by Firestore document ID
+- **Query Parameters**:
+  - `feedback_id` (required): The Firestore document ID of the feedback to retrieve (e.g., "xyz789abc123def456ij")
+- **Response**: Returns the stored feedback in the same format as the POST request body:
+  ```json
+  {
+    "case_id": "test-case-001",
+    "person_id": "test-person-001",
+    "survey_id": "test-survey-001",
+    "wave_id": "test-wave-001",
+    "questions": [
+      {
+        "response": "Very helpful",
+        "response_name": "satisfaction",
+        "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
+      }
+    ]
+  }
+  ```
+
+### List Feedbacks Endpoint
+- **Base URL**: `http://localhost:8080`
+- **Path**: `/v1/survey-assist/feedbacks`
+- **Method**: GET
+- **Description**: Lists feedback results filtered by survey_id, wave_id, and optionally case_id
+- **Query Parameters**:
+  - `survey_id` (required): Survey identifier to filter by
+  - `wave_id` (required): Wave identifier to filter by
+  - `case_id` (optional): Case identifier to filter by. If not provided, returns all feedback for the survey/wave
+- **Response**: Returns a list of matching feedback results with their document IDs:
+  ```json
+  {
+    "results": [
+      {
+        "case_id": "test-case-001",
+        "person_id": "test-person-001",
+        "survey_id": "test-survey-001",
+        "wave_id": "test-wave-001",
+        "questions": [
+          {
+            "response": "Very helpful",
+            "response_name": "satisfaction",
+            "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
+          }
+        ],
+        "document_id": "xyz789abc123def456ij"
+      }
+    ],
+    "count": 1
+  }
+  ```
+
+### Feedback Example Usage
+```bash
+# Store feedback
+curl -X POST "http://localhost:8080/v1/survey-assist/feedback" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "case_id": "test-case-001",
+    "person_id": "test-person-001",
+    "survey_id": "test-survey-001",
+    "wave_id": "test-wave-001",
+    "questions": [
+      {
+        "response": "Very helpful",
+        "response_name": "satisfaction",
+        "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
+      },
+      {
+        "response": "Yes, I understood the classification",
+        "response_name": "understanding",
+        "response_options": null
+      }
+    ]
+  }'
+
+# Retrieve feedback by ID
+curl -X GET "http://localhost:8080/v1/survey-assist/feedback?feedback_id=xyz789abc123def456ij"
+
+# List all feedback for a survey/wave
+curl -X GET "http://localhost:8080/v1/survey-assist/feedbacks?survey_id=test-survey-001&wave_id=test-wave-001"
+
+# List feedback for a specific case
+curl -X GET "http://localhost:8080/v1/survey-assist/feedbacks?survey_id=test-survey-001&wave_id=test-wave-001&case_id=test-case-001"
 ```
 
 ### SIC Lookup Endpoint

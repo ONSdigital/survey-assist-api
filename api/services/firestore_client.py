@@ -5,10 +5,24 @@ from __future__ import annotations
 from typing import Any
 
 from firebase_admin import firestore, initialize_app  # type: ignore
+from google.api_core.exceptions import ServiceUnavailable
+from google.api_core.retry import Retry
+from survey_assist_utils.logging import get_logger
 
 from api.config import settings
 
 _db_client: Any = None
+logger = get_logger(__name__)
+
+# Configure retry for Firestore operations
+retry_config = Retry(
+    predicate=lambda exc: isinstance(exc, ServiceUnavailable),
+    initial=0.5,
+    maximum=10.0,
+    multiplier=1.5,
+    deadline=30.0,
+    on_error=lambda exc: logger.warning(f"Retrying due to: {exc}"),
+)
 
 
 def init_firestore_client() -> None:
