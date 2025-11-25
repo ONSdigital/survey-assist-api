@@ -15,6 +15,13 @@ from industrial_classification_utils.llm.llm import ClassificationLLM
 # from occupational_classification_utils.llm.llm import ClassificationLLM as SOCClassificationLLM
 from survey_assist_utils.logging import get_logger
 
+from api.config import (
+    DEFAULT_PROMPT_VERSION,
+    PROMPT_VERSION_V1V2,
+    PROMPT_VERSION_V3,
+    VALID_PROMPT_VERSIONS,
+    settings,
+)
 from api.models.classify import (
     AppliedOptions,
     ClassificationRequest,
@@ -33,6 +40,32 @@ router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 
 MAX_LEN = 12
+
+
+def validate_prompt_version(prompt_version: Optional[str]) -> str:
+    """Validate and return the prompt version to use.
+
+    Args:
+        prompt_version: The prompt version from the request, or None.
+
+    Returns:
+        str: The validated prompt version to use.
+
+    Raises:
+        HTTPException: If the prompt version is invalid (400 Bad Request).
+    """
+    # If not supplied, use default configured value
+    if prompt_version is None:
+        return settings.DEFAULT_PROMPT_VERSION or DEFAULT_PROMPT_VERSION
+
+    # Validate the supplied prompt version
+    if prompt_version not in VALID_PROMPT_VERSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid prompt_version: '{prompt_version}'. Valid values are: {', '.join(VALID_PROMPT_VERSIONS)}",
+        )
+
+    return prompt_version
 
 
 def get_sic_vector_store_client() -> SICVectorStoreClient:
@@ -132,9 +165,13 @@ async def classify_text(
         + truncate_identifier(classification_request.job_description)
         + truncate_identifier(classification_request.org_description)
     )
+    # Validate prompt version
+    prompt_version = validate_prompt_version(classification_request.prompt_version)
+
     logger.info(
         "Request received for classify",
         type=classification_request.type,
+        prompt_version=prompt_version,
         body_id=body_id,
         job_title=truncate_identifier(classification_request.job_title),
         job_description=truncate_identifier(classification_request.job_description),
@@ -163,6 +200,7 @@ async def classify_text(
                 sic_vector_store,
                 rephrase_client,
                 body_id,
+                prompt_version,
             )
             results.append(sic_result)
 
@@ -242,6 +280,195 @@ async def classify_text(
 
 
 async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
+    request: Request,
+    classification_request: ClassificationRequest,
+    vector_store: SICVectorStoreClient,
+    rephrase_client: SICRephraseClient,
+    body_id: str,
+    prompt_version: str,
+) -> GenericClassificationResult:
+    """Classify using SIC classification.
+
+    Supports two prompt versions:
+    - v1v2: Original single-prompt approach (sa_rag_sic_code)
+    - v3: Two-step approach (unambiguous_sic_code + formulate_open_question)
+
+    Args:
+        request (Request): The FastAPI request object.
+        classification_request (ClassificationRequest): The classification request.
+        vector_store (SICVectorStoreClient): SIC vector store client.
+        rephrase_client (SICRephraseClient): SIC rephrase client.
+        body_id (str): Pseudo correlation ID built from truncated request fields.
+        prompt_version (str): The prompt version to use ("v1v2" or "v3").
+
+    Returns:
+        GenericClassificationResult: SIC classification result.
+
+    Raises:
+        HTTPException: If the classification process fails with 422 status.
+    """
+    if prompt_version == PROMPT_VERSION_V1V2:
+        return await _classify_sic_single_prompt(
+            request, classification_request, vector_store, rephrase_client, body_id
+        )
+    elif prompt_version == PROMPT_VERSION_V3:
+        return await _classify_sic_two_step(
+            request, classification_request, vector_store, rephrase_client, body_id
+        )
+    else:
+        # This should not happen due to validation, but handle it gracefully
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unsupported prompt version: {prompt_version}",
+        )
+
+
+async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-many-locals
+    request: Request,
+    classification_request: ClassificationRequest,
+    vector_store: SICVectorStoreClient,
+    rephrase_client: SICRephraseClient,
+    body_id: str,
+) -> GenericClassificationResult:
+    """Classify using SIC classification with original single-prompt approach.
+
+    Args:
+        request (Request): The FastAPI request object.
+        classification_request (ClassificationRequest): The classification request.
+        vector_store (SICVectorStoreClient): SIC vector store client.
+        rephrase_client (SICRephraseClient): SIC rephrase client.
+        body_id (str): Pseudo correlation ID built from truncated request fields.
+
+    Returns:
+        GenericClassificationResult: SIC classification result.
+
+    Raises:
+        HTTPException: If the single-prompt process fails with 422 status.
+    """
+    try:
+        # Get vector store search results
+        search_results = await vector_store.search(
+            industry_descr=classification_request.org_description,
+            job_title=classification_request.job_title,
+            job_description=classification_request.job_description,
+            correlation_id=body_id,
+        )
+
+        # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
+        short_list = [
+            {
+                "code": result["code"],
+                "title": result["title"],
+                "distance": result["distance"],
+            }
+            for result in search_results
+        ]
+
+        # Get LLM instance
+        llm = request.app.state.gemini_llm
+
+        # Call single-prompt SIC code classification
+        logger.info(
+            f"LLM request sent for single-prompt SIC classification - "
+            f"job_title: '{truncate_identifier(classification_request.job_title)}', "
+            f"job_description: '{truncate_identifier(classification_request.job_description)}', "
+            f"org_description: '{truncate_identifier(classification_request.org_description)}'",
+            body_id=body_id,
+        )
+        try:
+            llm_start = time.perf_counter()
+            single_prompt_response, _, _ = await llm.sa_rag_sic_code(
+                industry_descr=classification_request.org_description or "",
+                short_list=short_list,
+                job_title=classification_request.job_title,
+                job_description=classification_request.job_description,
+            )
+            llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
+            logger.info(
+                "LLM response received for single-prompt SIC classification",
+                classified=str(bool(getattr(single_prompt_response, "classified", False))),
+                codable=str(bool(getattr(single_prompt_response, "codable", False))),
+                sic_code=(
+                    str(getattr(single_prompt_response, "sic_code", ""))
+                    if bool(getattr(single_prompt_response, "codable", False))
+                    else ""
+                ),
+                duration_ms=str(llm_duration_ms),
+                body_id=body_id,
+            )
+        except Exception as e:
+            logger.error(
+                "Error in single-prompt SIC classification", error=str(e), body_id=body_id
+            )
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": {
+                        "type": "classification_error",
+                        "message": "The LLM could not generate a valid classification",
+                        "details": f"Single-prompt classification failed: {e!s}",
+                    }
+                },
+            ) from e
+
+        # Map response to GenericClassificationResult
+        # Check if classified (using codable or classified attribute)
+        is_classified = bool(
+            getattr(single_prompt_response, "codable", False)
+            or getattr(single_prompt_response, "classified", False)
+        )
+        sic_code = getattr(single_prompt_response, "sic_code", None) if is_classified else None
+        sic_descriptive = (
+            getattr(single_prompt_response, "sic_descriptive", None) if is_classified else None
+        )
+
+        # Map candidates from sic_candidates
+        sic_candidates = getattr(single_prompt_response, "sic_candidates", []) or []
+        candidates = [
+            GenericCandidate(
+                code=getattr(c, "sic_code", ""),
+                descriptive=getattr(c, "sic_descriptive", ""),
+                likelihood=getattr(c, "likelihood", 0.0),
+            )
+            for c in sic_candidates
+        ]
+
+        result = GenericClassificationResult(
+            type="sic",
+            classified=is_classified,
+            followup=getattr(single_prompt_response, "followup", None),
+            code=sic_code,
+            description=sic_descriptive,
+            candidates=candidates,
+            reasoning=getattr(single_prompt_response, "reasoning", ""),
+        )
+
+        # Apply rephrasing if enabled
+        if rephrase_client and candidates:
+            result.candidates = _apply_rephrasing(
+                candidates, rephrase_client, classification_request
+            )
+
+        return result
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as they are already properly formatted
+        raise
+    except Exception as e:
+        logger.error("Unexpected error in single-prompt SIC classification", error=str(e))
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": {
+                    "type": "classification_error",
+                    "message": "The LLM could not generate a valid classification",
+                    "details": f"Response was empty or invalid JSON: {e!s}",
+                }
+            },
+        ) from e
+
+
+async def _classify_sic_two_step(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient,
