@@ -60,9 +60,13 @@ def validate_prompt_version(prompt_version: Optional[str]) -> str:
 
     # Validate the supplied prompt version
     if prompt_version not in VALID_PROMPT_VERSIONS:
+        valid_values = ", ".join(VALID_PROMPT_VERSIONS)
         raise HTTPException(
             status_code=400,
-            detail=f"Invalid prompt_version: '{prompt_version}'. Valid values are: {', '.join(VALID_PROMPT_VERSIONS)}",
+            detail=(
+                f"Invalid prompt_version: '{prompt_version}'. "
+                f"Valid values are: {valid_values}"
+            ),
         )
 
     return prompt_version
@@ -135,7 +139,7 @@ soc_llm_dependency = Depends(get_soc_llm_client)
         GenericClassificationResponse, GenericClassificationResponseWithoutMeta
     ],
 )
-async def classify_text(
+async def classify_text(  # pylint: disable=too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
     sic_vector_store: SICVectorStoreClient = sic_vector_store_dependency,
@@ -279,7 +283,7 @@ async def classify_text(
         ) from e
 
 
-async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
+async def _classify_sic(  # noqa: PLR0913 pylint: disable=unused-argument,too-many-locals,too-many-arguments,too-many-positional-arguments
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SICVectorStoreClient,
@@ -311,16 +315,15 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
         return await _classify_sic_single_prompt(
             request, classification_request, vector_store, rephrase_client, body_id
         )
-    elif prompt_version == PROMPT_VERSION_V3:
+    if prompt_version == PROMPT_VERSION_V3:
         return await _classify_sic_two_step(
             request, classification_request, vector_store, rephrase_client, body_id
         )
-    else:
-        # This should not happen due to validation, but handle it gracefully
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unsupported prompt version: {prompt_version}",
-        )
+    # This should not happen due to validation, but handle it gracefully
+    raise HTTPException(
+        status_code=500,
+        detail=f"Unsupported prompt version: {prompt_version}",
+    )
 
 
 async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-many-locals
@@ -386,7 +389,9 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
             llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
             logger.info(
                 "LLM response received for single-prompt SIC classification",
-                classified=str(bool(getattr(single_prompt_response, "classified", False))),
+                classified=str(
+                    bool(getattr(single_prompt_response, "classified", False))
+                ),
                 codable=str(bool(getattr(single_prompt_response, "codable", False))),
                 sic_code=(
                     str(getattr(single_prompt_response, "sic_code", ""))
@@ -398,7 +403,9 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
             )
         except Exception as e:
             logger.error(
-                "Error in single-prompt SIC classification", error=str(e), body_id=body_id
+                "Error in single-prompt SIC classification",
+                error=str(e),
+                body_id=body_id,
             )
             raise HTTPException(
                 status_code=422,
@@ -417,9 +424,13 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
             getattr(single_prompt_response, "codable", False)
             or getattr(single_prompt_response, "classified", False)
         )
-        sic_code = getattr(single_prompt_response, "sic_code", None) if is_classified else None
+        sic_code = (
+            getattr(single_prompt_response, "sic_code", None) if is_classified else None
+        )
         sic_descriptive = (
-            getattr(single_prompt_response, "sic_descriptive", None) if is_classified else None
+            getattr(single_prompt_response, "sic_descriptive", None)
+            if is_classified
+            else None
         )
 
         # Map candidates from sic_candidates
@@ -455,7 +466,9 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
         # Re-raise HTTP exceptions as they are already properly formatted
         raise
     except Exception as e:
-        logger.error("Unexpected error in single-prompt SIC classification", error=str(e))
+        logger.error(
+            "Unexpected error in single-prompt SIC classification", error=str(e)
+        )
         raise HTTPException(
             status_code=422,
             detail={

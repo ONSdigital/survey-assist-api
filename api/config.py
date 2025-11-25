@@ -7,6 +7,14 @@ from pydantic_settings import BaseSettings
 
 logger = logging.getLogger(__name__)
 
+# Prompt version constants
+# These identifiers match the version keys used in the config endpoint response
+# (see api/models/config.py ConfigResponse and api/routes/v1/config.py)
+PROMPT_VERSION_V1V2 = "v1v2"  # Original single-prompt approach using sa_rag_sic_code
+PROMPT_VERSION_V3 = "v3"  # Two-step using unambiguous + follow-up prompts
+DEFAULT_PROMPT_VERSION = PROMPT_VERSION_V1V2  # Original single prompt
+VALID_PROMPT_VERSIONS = [PROMPT_VERSION_V1V2, PROMPT_VERSION_V3]
+
 
 # pylint: disable=too-few-public-methods
 class Settings(BaseSettings):
@@ -18,6 +26,9 @@ class Settings(BaseSettings):
     # Data file paths - defaults to example datasets from sic-classification-library package
     SIC_LOOKUP_DATA_PATH: str | None = os.getenv("SIC_LOOKUP_DATA_PATH")
     SIC_REPHRASE_DATA_PATH: str | None = os.getenv("SIC_REPHRASE_DATA_PATH")
+
+    # Prompt version configuration
+    DEFAULT_PROMPT_VERSION: str = os.getenv("DEFAULT_PROMPT_VERSION", "v1v2")
 
     def __post_init__(self):
         """Post-initialisation hook to log warnings about missing environment variables."""

@@ -95,7 +95,10 @@ class ClassificationRequest(BaseModel):
     )
     prompt_version: Optional[str] = Field(
         None,
-        description="Unique string identifying a prompt version. If not supplied, uses default configured value.",
+        description=(
+            "Unique string identifying a prompt version. If not supplied, uses "
+            "default configured value."
+        ),
     )
 
 
