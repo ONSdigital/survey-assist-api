@@ -97,21 +97,21 @@ class TestClassifyEndpoint:
         mock_rephrase_instance.get_rephrased_count.return_value = 0
         self.mock_rephrase_client.return_value = mock_rephrase_instance
 
-        mock_llm_instance = MagicMock()
-        mock_llm_instance.sa_rag_sic_code.return_value = (
-            MagicMock(
-                classified=True,
-                codable=True,
-                followup=None,
-                class_code=EXPECTED_SIC_CODE,
-                class_descriptive=EXPECTED_SIC_DESCRIPTION,
-                reasoning="Mocked reasoning",
-                alt_candidates=[],
-            ),
-            None,
-            None,
+        self.mock_llm.sa_rag_sic_code = AsyncMock(
+            return_value=(
+                MagicMock(
+                    classified=True,
+                    codable=True,
+                    followup=None,
+                    class_code=EXPECTED_SIC_CODE,
+                    class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    reasoning="Mocked reasoning",
+                    alt_candidates=[],
+                ),
+                None,
+                None,
+            )
         )
-        self.mock_llm.return_value = mock_llm_instance
 
     @pytest.mark.parametrize(
         "request_data,expected_status_code",
@@ -255,6 +255,7 @@ def test_classify_followup_question(  # pylint: disable=too-many-locals
         "job_title": "Installation Engineer",
         "job_description": "Installing various systems in buildings",
         "org_description": "Construction company",
+        "prompt_version": "v3",
     }
 
     logger.info("Testing follow-up question with data", request_data=request_data)
@@ -348,6 +349,7 @@ def test_classify_endpoint_success(
         "job_title": "Electrician",
         "job_description": "Installing and maintaining electrical systems in buildings",
         "org_description": "Electrical contracting company",
+        "prompt_version": "v3",
     }
 
     logger.info(
@@ -612,6 +614,7 @@ def test_classify_endpoint_rephrasing_enabled(
         "job_description": "Growing cereals and crops",
         "org_description": "Agricultural farm",
         "options": {"sic": {"rephrased": True}},
+        "prompt_version": "v3",
     }
 
     response = client.post("/v1/survey-assist/classify", json=request_data)
@@ -688,6 +691,7 @@ def test_classify_endpoint_rephrasing_disabled(
         "job_description": "Growing cereals and crops",
         "org_description": "Agricultural farm",
         "options": {"sic": {"rephrased": False}},
+        "prompt_version": "v3",
     }
 
     response = client.post("/v1/survey-assist/classify", json=request_data)
@@ -765,6 +769,7 @@ def test_classify_endpoint_rephrasing_default(
         "job_title": "Farmer",
         "job_description": "Growing cereals and crops",
         "org_description": "Agricultural farm",
+        "prompt_version": "v3",
     }
 
     response = client.post("/v1/survey-assist/classify", json=request_data)
@@ -908,6 +913,7 @@ def test_classify_endpoint_meta_field_exclusion(
         "job_title": "Electrician",
         "job_description": "Installing and maintaining electrical systems",
         "org_description": "Electrical contracting company",
+        "prompt_version": "v3",
     }
 
     response = client.post(
@@ -927,6 +933,7 @@ def test_classify_endpoint_meta_field_exclusion(
         "job_description": "Installing and maintaining electrical systems",
         "org_description": "Electrical contracting company",
         "options": {"sic": {"rephrased": True}},
+        "prompt_version": "v3",
     }
 
     response = client.post("/v1/survey-assist/classify", json=request_data_with_options)
