@@ -79,6 +79,8 @@ class ClassificationRequest(BaseModel):
         job_description (str): Survey response for Job Description.
         org_description (Optional[str]): Survey response for Organisation / Industry Description.
         options (Optional[ClassificationOptions]): Optional classification options.
+        prompt_version (Optional[str]): Optional prompt version identifier. If not supplied,
+            uses default configured value (original single prompt).
     """
 
     llm: LLMModel
@@ -90,6 +92,10 @@ class ClassificationRequest(BaseModel):
     )
     options: Optional[ClassificationOptions] = Field(
         None, description="Optional classification options"
+    )
+    prompt_version: Optional[str] = Field(
+        None,
+        description="Unique string identifying a prompt version. If not supplied, uses default configured value.",
     )
 
 
