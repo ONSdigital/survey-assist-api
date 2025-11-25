@@ -7,7 +7,8 @@ vector store and LLM.
 
 import os
 import time
-from typing import Any, Optional, Union
+from dataclasses import dataclass
+from typing import Any, Optional, Union, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from industrial_classification_utils.llm.llm import ClassificationLLM
@@ -40,6 +41,15 @@ router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 
 MAX_LEN = 12
+
+
+@dataclass(slots=True)
+class SICClassificationContext:
+    """Holds shared dependencies for SIC classification flows."""
+
+    vector_store: SICVectorStoreClient
+    rephrase_client: SICRephraseClient
+    llm: ClassificationLLM
 
 
 def validate_prompt_version(prompt_version: Optional[str]) -> str:
@@ -171,6 +181,11 @@ async def classify_text(  # pylint: disable=too-many-locals
     )
     # Validate prompt version
     prompt_version = validate_prompt_version(classification_request.prompt_version)
+    sic_context = SICClassificationContext(
+        vector_store=sic_vector_store,
+        rephrase_client=rephrase_client,
+        llm=request.app.state.gemini_llm,
+    )
 
     logger.info(
         "Request received for classify",
@@ -199,10 +214,8 @@ async def classify_text(  # pylint: disable=too-many-locals
         # Handle SIC classification
         if classification_request.type in ["sic", "sic_soc"]:
             sic_result = await _classify_sic(
-                request,
                 classification_request,
-                sic_vector_store,
-                rephrase_client,
+                sic_context,
                 body_id,
                 prompt_version,
             )
@@ -283,11 +296,9 @@ async def classify_text(  # pylint: disable=too-many-locals
         ) from e
 
 
-async def _classify_sic(  # noqa: PLR0913 pylint: disable=unused-argument,too-many-locals,too-many-arguments,too-many-positional-arguments
-    request: Request,
+async def _classify_sic(
     classification_request: ClassificationRequest,
-    vector_store: SICVectorStoreClient,
-    rephrase_client: SICRephraseClient,
+    context: SICClassificationContext,
     body_id: str,
     prompt_version: str,
 ) -> GenericClassificationResult:
@@ -298,10 +309,9 @@ async def _classify_sic(  # noqa: PLR0913 pylint: disable=unused-argument,too-ma
     - v3: Two-step approach (unambiguous_sic_code + formulate_open_question)
 
     Args:
-        request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The classification request.
-        vector_store (SICVectorStoreClient): SIC vector store client.
-        rephrase_client (SICRephraseClient): SIC rephrase client.
+        context (SICClassificationContext): Shared Sic dependencies (vector store,
+            rephrase client, llm).
         body_id (str): Pseudo correlation ID built from truncated request fields.
         prompt_version (str): The prompt version to use ("v1v2" or "v3").
 
@@ -313,12 +323,10 @@ async def _classify_sic(  # noqa: PLR0913 pylint: disable=unused-argument,too-ma
     """
     if prompt_version == PROMPT_VERSION_V1V2:
         return await _classify_sic_single_prompt(
-            request, classification_request, vector_store, rephrase_client, body_id
+            classification_request, context, body_id
         )
     if prompt_version == PROMPT_VERSION_V3:
-        return await _classify_sic_two_step(
-            request, classification_request, vector_store, rephrase_client, body_id
-        )
+        return await _classify_sic_two_step(classification_request, context, body_id)
     # This should not happen due to validation, but handle it gracefully
     raise HTTPException(
         status_code=500,
@@ -326,20 +334,17 @@ async def _classify_sic(  # noqa: PLR0913 pylint: disable=unused-argument,too-ma
     )
 
 
-async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-many-locals
-    request: Request,
+async def _classify_sic_single_prompt(  # pylint: disable=too-many-locals
     classification_request: ClassificationRequest,
-    vector_store: SICVectorStoreClient,
-    rephrase_client: SICRephraseClient,
+    context: SICClassificationContext,
     body_id: str,
 ) -> GenericClassificationResult:
     """Classify using SIC classification with original single-prompt approach.
 
     Args:
-        request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The classification request.
-        vector_store (SICVectorStoreClient): SIC vector store client.
-        rephrase_client (SICRephraseClient): SIC rephrase client.
+        context (SICClassificationContext): Shared Sic dependencies (vector store,
+            rephrase client, llm).
         body_id (str): Pseudo correlation ID built from truncated request fields.
 
     Returns:
@@ -350,7 +355,7 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
     """
     try:
         # Get vector store search results
-        search_results = await vector_store.search(
+        search_results = await context.vector_store.search(
             industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
             job_description=classification_request.job_description,
@@ -368,7 +373,7 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
         ]
 
         # Get LLM instance
-        llm = request.app.state.gemini_llm
+        llm = context.llm
 
         # Call single-prompt SIC code classification
         logger.info(
@@ -455,9 +460,9 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
         )
 
         # Apply rephrasing if enabled
-        if rephrase_client and candidates:
+        if context.rephrase_client and candidates:
             result.candidates = _apply_rephrasing(
-                candidates, rephrase_client, classification_request
+                candidates, context.rephrase_client, classification_request
             )
 
         return result
@@ -481,20 +486,17 @@ async def _classify_sic_single_prompt(  # pylint: disable=unused-argument,too-ma
         ) from e
 
 
-async def _classify_sic_two_step(  # pylint: disable=unused-argument,too-many-locals
-    request: Request,
+async def _classify_sic_two_step(  # pylint: disable=too-many-locals
     classification_request: ClassificationRequest,
-    vector_store: SICVectorStoreClient,
-    rephrase_client: SICRephraseClient,
+    context: SICClassificationContext,
     body_id: str,
 ) -> GenericClassificationResult:
     """Classify using SIC classification with two-step process.
 
     Args:
-        request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The classification request.
-        vector_store (SICVectorStoreClient): SIC vector store client.
-        rephrase_client (SICRephraseClient): SIC rephrase client.
+        context (SICClassificationContext): Shared Sic dependencies (vector store,
+            rephrase client, llm).
         body_id (str): Pseudo correlation ID built from truncated request fields.
 
     Returns:
@@ -505,7 +507,7 @@ async def _classify_sic_two_step(  # pylint: disable=unused-argument,too-many-lo
     """
     try:
         # Get vector store search results
-        search_results = await vector_store.search(
+        search_results = await context.vector_store.search(
             industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
             job_description=classification_request.job_description,
@@ -523,7 +525,7 @@ async def _classify_sic_two_step(  # pylint: disable=unused-argument,too-many-lo
         ]
 
         # Get LLM instance
-        llm = request.app.state.gemini_llm
+        llm = context.llm
 
         # Step 1: Call unambiguous SIC code classification
         logger.info(
@@ -611,7 +613,7 @@ async def _classify_sic_two_step(  # pylint: disable=unused-argument,too-many-lo
                     industry_descr=classification_request.org_description or "",
                     job_title=classification_request.job_title,
                     job_description=classification_request.job_description,
-                    llm_output=unambiguous_response.alt_candidates,
+                    llm_output=cast(Optional[Any], unambiguous_response.alt_candidates),
                 )
                 llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
                 logger.info(
@@ -658,9 +660,9 @@ async def _classify_sic_two_step(  # pylint: disable=unused-argument,too-many-lo
             )
 
         # Apply rephrasing if enabled
-        if rephrase_client and candidates:
+        if context.rephrase_client and candidates:
             result.candidates = _apply_rephrasing(
-                candidates, rephrase_client, classification_request
+                candidates, context.rephrase_client, classification_request
             )
 
         return result
