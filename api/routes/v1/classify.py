@@ -334,7 +334,7 @@ async def _classify_sic(
     )
 
 
-async def _classify_sic_single_prompt(  # pylint: disable=too-many-locals
+async def _classify_sic_single_prompt(
     classification_request: ClassificationRequest,
     context: SICClassificationContext,
     body_id: str,
@@ -354,118 +354,15 @@ async def _classify_sic_single_prompt(  # pylint: disable=too-many-locals
         HTTPException: If the single-prompt process fails with 422 status.
     """
     try:
-        # Get vector store search results
-        search_results = await context.vector_store.search(
-            industry_descr=classification_request.org_description,
-            job_title=classification_request.job_title,
-            job_description=classification_request.job_description,
-            correlation_id=body_id,
+        short_list = await _build_single_prompt_short_list(
+            classification_request, context, body_id
         )
-
-        # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
-        short_list = [
-            {
-                "code": result["code"],
-                "title": result["title"],
-                "distance": result["distance"],
-            }
-            for result in search_results
-        ]
-
-        # Get LLM instance
-        llm = context.llm
-
-        # Call single-prompt SIC code classification
-        logger.info(
-            f"LLM request sent for single-prompt SIC classification - "
-            f"job_title: '{truncate_identifier(classification_request.job_title)}', "
-            f"job_description: '{truncate_identifier(classification_request.job_description)}', "
-            f"org_description: '{truncate_identifier(classification_request.org_description)}'",
-            body_id=body_id,
+        single_prompt_response = await _invoke_single_prompt_llm(
+            classification_request, context, short_list, body_id
         )
-        try:
-            llm_start = time.perf_counter()
-            single_prompt_response, _, _ = await llm.sa_rag_sic_code(
-                industry_descr=classification_request.org_description or "",
-                short_list=short_list,
-                job_title=classification_request.job_title,
-                job_description=classification_request.job_description,
-            )
-            llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
-            logger.info(
-                "LLM response received for single-prompt SIC classification",
-                classified=str(
-                    bool(getattr(single_prompt_response, "classified", False))
-                ),
-                codable=str(bool(getattr(single_prompt_response, "codable", False))),
-                sic_code=(
-                    str(getattr(single_prompt_response, "sic_code", ""))
-                    if bool(getattr(single_prompt_response, "codable", False))
-                    else ""
-                ),
-                duration_ms=str(llm_duration_ms),
-                body_id=body_id,
-            )
-        except Exception as e:
-            logger.error(
-                "Error in single-prompt SIC classification",
-                error=str(e),
-                body_id=body_id,
-            )
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "error": {
-                        "type": "classification_error",
-                        "message": "The LLM could not generate a valid classification",
-                        "details": f"Single-prompt classification failed: {e!s}",
-                    }
-                },
-            ) from e
-
-        # Map response to GenericClassificationResult
-        # Check if classified (using codable or classified attribute)
-        is_classified = bool(
-            getattr(single_prompt_response, "codable", False)
-            or getattr(single_prompt_response, "classified", False)
+        return _build_single_prompt_result(
+            classification_request, context, single_prompt_response
         )
-        sic_code = (
-            getattr(single_prompt_response, "sic_code", None) if is_classified else None
-        )
-        sic_descriptive = (
-            getattr(single_prompt_response, "sic_descriptive", None)
-            if is_classified
-            else None
-        )
-
-        # Map candidates from sic_candidates
-        sic_candidates = getattr(single_prompt_response, "sic_candidates", []) or []
-        candidates = [
-            GenericCandidate(
-                code=getattr(c, "sic_code", ""),
-                descriptive=getattr(c, "sic_descriptive", ""),
-                likelihood=getattr(c, "likelihood", 0.0),
-            )
-            for c in sic_candidates
-        ]
-
-        result = GenericClassificationResult(
-            type="sic",
-            classified=is_classified,
-            followup=getattr(single_prompt_response, "followup", None),
-            code=sic_code,
-            description=sic_descriptive,
-            candidates=candidates,
-            reasoning=getattr(single_prompt_response, "reasoning", ""),
-        )
-
-        # Apply rephrasing if enabled
-        if context.rephrase_client and candidates:
-            result.candidates = _apply_rephrasing(
-                candidates, context.rephrase_client, classification_request
-            )
-
-        return result
 
     except HTTPException:
         # Re-raise HTTP exceptions as they are already properly formatted
@@ -682,6 +579,124 @@ async def _classify_sic_two_step(  # pylint: disable=too-many-locals
                 }
             },
         ) from e
+
+
+async def _build_single_prompt_short_list(
+    classification_request: ClassificationRequest,
+    context: SICClassificationContext,
+    body_id: str,
+) -> list[dict[str, Any]]:
+    search_results = await context.vector_store.search(
+        industry_descr=classification_request.org_description,
+        job_title=classification_request.job_title,
+        job_description=classification_request.job_description,
+        correlation_id=body_id,
+    )
+    return [
+        {
+            "code": result["code"],
+            "title": result["title"],
+            "distance": result["distance"],
+        }
+        for result in search_results
+    ]
+
+
+async def _invoke_single_prompt_llm(
+    classification_request: ClassificationRequest,
+    context: SICClassificationContext,
+    short_list: list[dict[str, Any]],
+    body_id: str,
+):
+    logger.info(
+        "LLM request sent for single-prompt SIC classification",
+        job_title=truncate_identifier(classification_request.job_title),
+        job_description=truncate_identifier(classification_request.job_description),
+        org_description=truncate_identifier(classification_request.org_description),
+        body_id=body_id,
+    )
+    try:
+        llm_start = time.perf_counter()
+        response, _, _ = await context.llm.sa_rag_sic_code(
+            industry_descr=classification_request.org_description or "",
+            short_list=short_list,
+            job_title=classification_request.job_title,
+            job_description=classification_request.job_description,
+        )
+        llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
+        logger.info(
+            "LLM response received for single-prompt SIC classification",
+            classified=str(bool(getattr(response, "classified", False))),
+            codable=str(bool(getattr(response, "codable", False))),
+            sic_code=(
+                str(getattr(response, "sic_code", ""))
+                if bool(getattr(response, "codable", False))
+                else ""
+            ),
+            duration_ms=str(llm_duration_ms),
+            body_id=body_id,
+        )
+        return response
+    except Exception as e:
+        logger.error(
+            "Error in single-prompt SIC classification", error=str(e), body_id=body_id
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": {
+                    "type": "classification_error",
+                    "message": "The LLM could not generate a valid classification",
+                    "details": f"Single-prompt classification failed: {e!s}",
+                }
+            },
+        ) from e
+
+
+def _build_single_prompt_result(
+    classification_request: ClassificationRequest,
+    context: SICClassificationContext,
+    single_prompt_response: Any,
+) -> GenericClassificationResult:
+    is_classified = bool(
+        getattr(single_prompt_response, "codable", False)
+        or getattr(single_prompt_response, "classified", False)
+    )
+    sic_code = (
+        getattr(single_prompt_response, "sic_code", None) if is_classified else None
+    )
+    sic_descriptive = (
+        getattr(single_prompt_response, "sic_descriptive", None)
+        if is_classified
+        else None
+    )
+
+    sic_candidates = getattr(single_prompt_response, "sic_candidates", []) or []
+    candidates = [
+        GenericCandidate(
+            code=getattr(candidate, "sic_code", ""),
+            descriptive=getattr(candidate, "sic_descriptive", ""),
+            likelihood=getattr(candidate, "likelihood", 0.0),
+        )
+        for candidate in sic_candidates
+    ]
+
+    result = GenericClassificationResult(
+        type="sic",
+        classified=is_classified,
+        followup=getattr(single_prompt_response, "followup", None),
+        code=sic_code,
+        description=sic_descriptive,
+        candidates=candidates,
+        reasoning=getattr(single_prompt_response, "reasoning", ""),
+    )
+
+    if context.rephrase_client and candidates:
+        result.candidates = _apply_rephrasing(
+            candidates, context.rephrase_client, classification_request
+        )
+
+    return result
 
 
 def _apply_rephrasing(
