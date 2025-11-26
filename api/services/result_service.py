@@ -3,23 +3,11 @@
 from datetime import datetime
 from typing import Any
 
-from google.api_core.exceptions import ServiceUnavailable
-from google.api_core.retry import Retry
 from survey_assist_utils.logging import get_logger
 
-from api.services.firestore_client import get_firestore_client
+from api.services.firestore_client import get_firestore_client, retry_config
 
 logger = get_logger(__name__)
-
-# Configure retry for Firestore operations
-retry_config = Retry(
-    predicate=lambda exc: isinstance(exc, ServiceUnavailable),
-    initial=0.5,
-    maximum=10.0,
-    multiplier=1.5,
-    deadline=30.0,
-    on_error=lambda exc: logger.warning(f"Retrying due to: {exc}"),
-)
 
 
 def datetime_handler(obj):

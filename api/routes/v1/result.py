@@ -113,8 +113,7 @@ async def get_survey_result(result_id: str) -> SurveyAssistResult:
         ) from e
     except Exception as e:
         logger.error(
-            f"Unexpected error retrieving result: {e}",
-            result_body_id=result_body_id,
+            f"Unexpected error retrieving result: {e}", result_body_id=result_body_id
         )
         raise HTTPException(
             status_code=500, detail=f"Internal server error: {e!s}"
