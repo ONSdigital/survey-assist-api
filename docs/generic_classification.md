@@ -264,16 +264,21 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
         {
           "code": "01110",
           "descriptive": "Crop growing",
-          "likelihood": 0.95
+          "likelihood": 0.99
+        },
+        {
+          "code": "01410",
+          "descriptive": "Dairy farming",
+          "likelihood": 0.1
         }
       ],
-      "reasoning": "Based on the job title and description..."
+      "reasoning": "The respondent data clearly states 'Agricultural farm' as the company's main activity, 'Farmer' as the job title, and 'Growing cereals and crops' as the job description. SIC code 01110, 'Growing of cereals (except rice), leguminous crops and oil seeds', directly aligns with the job description of 'Growing cereals and crops' and the general context of an 'Agricultural farm'..."
     }
   ]
 }
 ```
 
-**Note:** Even though rephrasing is enabled by default, the main `description` field shows the original description. The rephrased version appears in the `candidates` array under `descriptive`.
+**Note:** Even though rephrasing is enabled by default, the main `description` field shows the original description. The rephrased version appears in the `candidates` array under `descriptive`. The response includes multiple candidates with varying likelihood scores.
 
 #### Explicitly Enable SIC Rephrasing
 
@@ -309,10 +314,15 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
         {
           "code": "01110",
           "descriptive": "Crop growing",
-          "likelihood": 0.95
+          "likelihood": 0.99
+        },
+        {
+          "code": "01410",
+          "descriptive": "Dairy farming",
+          "likelihood": 0.1
         }
       ],
-      "reasoning": "Based on the job title and description..."
+      "reasoning": "The respondent data clearly states 'Agricultural farm' as the company's main activity, 'Farmer' as the job title, and 'Growing cereals and crops' as the job description. SIC code 01110, 'Growing of cereals (except rice), leguminous crops and oil seeds', directly aligns with the job description of 'Growing cereals and crops' and the general context of an 'Agricultural farm'..."
     }
   ],
   "meta": {
@@ -320,13 +330,14 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
     "applied_options": {
       "sic": {
         "rephrased": true
-      }
+      },
+      "soc": {}
     }
   }
 }
 ```
 
-**Note:** Rephrased descriptions appear in the `candidates` array. The main `description` field always shows the original description.
+**Note:** Rephrased descriptions appear in the `candidates` array. The main `description` field always shows the original description. The `meta.applied_options` includes both `sic` and `soc` objects (even if `soc` is empty).
 
 #### Explicitly Disable SIC Rephrasing
 
@@ -362,10 +373,15 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
         {
           "code": "01110",
           "descriptive": "Growing of cereals (except rice), leguminous crops and oil seeds",
-          "likelihood": 0.95
+          "likelihood": 0.99
+        },
+        {
+          "code": "01410",
+          "descriptive": "Raising of dairy cattle",
+          "likelihood": 0.1
         }
       ],
-      "reasoning": "Based on the job title and description..."
+      "reasoning": "The respondent data clearly states 'Agricultural farm' as the company's main activity, 'Farmer' as the job title, and 'Growing cereals and crops' as the job description. SIC code 01110, 'Growing of cereals (except rice), leguminous crops and oil seeds', directly aligns with the job description of 'Growing cereals and crops' and the general context of an 'Agricultural farm'..."
     }
   ],
   "meta": {
@@ -373,13 +389,14 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
     "applied_options": {
       "sic": {
         "rephrased": false
-      }
+      },
+      "soc": {}
     }
   }
 }
 ```
 
-**Note:** When rephrasing is disabled, both the main `description` and the `candidates[].descriptive` fields show the original description.
+**Note:** When rephrasing is disabled, both the main `description` and the `candidates[].descriptive` fields show the original description. The `meta.applied_options` includes both `sic` and `soc` objects.
 
 #### Combined SIC and SOC Classification
 
@@ -403,7 +420,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   }'
 ```
 
-**Expected Response:**
+**Expected Response (when SOC vector store is available):**
 ```json
 {
   "requested_type": "sic_soc",
@@ -418,10 +435,15 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
         {
           "code": "01110",
           "descriptive": "Crop growing",
-          "likelihood": 0.95
+          "likelihood": 0.99
+        },
+        {
+          "code": "01410",
+          "descriptive": "Dairy farming",
+          "likelihood": 0.1
         }
       ],
-      "reasoning": "Based on the job title and description..."
+      "reasoning": "The respondent data clearly states 'Agricultural farm' as the company's main activity, 'Farmer' as the job title, and 'Growing cereals and crops' as the job description..."
     },
     {
       "type": "soc",
@@ -456,6 +478,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 **Note:** 
 - SIC results show rephrased descriptions in the `candidates` array when rephrasing is enabled
 - SOC classification is currently a placeholder implementation and will always return code "9111" with description "Farm workers" regardless of input
+- **SOC vector store must be running** for `type="sic_soc"` requests to succeed. If the SOC vector store is not available, the request will return a 500 error
 - SOC rephrasing is not yet implemented, so the `rephrased` option for SOC has no effect currently
 
 ### Data Coverage Note
