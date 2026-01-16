@@ -1,110 +1,124 @@
 # Survey Assist API - GCP Deployment Guide
 
-This document provides the essential steps for deploying the Survey Assist API to Google Cloud Platform (GCP) Cloud Run.
+This document provides information about deploying the Survey Assist API to Google Cloud Platform (GCP) Cloud Run.
 
-## Prerequisites
+## Overview
 
-- Google Cloud SDK installed and configured
-- Docker installed and running (colima for local development)
-- Access to the target GCP project ({PROJECT_ID})
+The Survey Assist API uses **automated CI/CD pipelines** for all deployments to GCP Cloud Run. All deployments are handled automatically by Google Cloud Build pipelines.
+
+### Deployment Summary
+
+| Environment | Deployment Method | Pipeline File |
+|------------|------------------|---------------|
+| Development/Sandbox | Automated via Cloud Build | `cicd/cloudbuild_dev_and_sandbox.yaml` |
+| Pre-Production | Automated promotion pipeline | `cicd/cloudbuild_promote_preprod.yaml` |
+| Production | Automated (via promotion pipeline) | `cicd/cloudbuild_promote_preprod.yaml` |
+
+**What the CI/CD Pipeline Does:**
+1. Runs full test suite with coverage checks (80% minimum)
+2. Downloads data files from Google Cloud Storage
+3. Builds Docker image
+4. Pushes to Artifact Registry
+5. Deploys to Cloud Run
+6. Runs smoke tests
+
+## Automated CI/CD Deployment
+
+All deployments are handled automatically by CI/CD pipelines. The pipelines handle testing, building, pushing, and deploying the application.
+
+### Development and Sandbox Environments
+
+Deployment to development and sandbox environments is automated via Google Cloud Build. The pipeline is triggered automatically and performs the following steps:
+
+1. **Run Tests**: Executes the full test suite with coverage requirements (80% minimum)
+2. **Build Docker Image**: Builds the Docker image with data files from Google Cloud Storage
+3. **Push to Artifact Registry**: Pushes the image to Google Artifact Registry (GAR) with both `latest` and `SHORT_SHA` tags
+4. **Deploy to Cloud Run**: Deploys the image to the target Cloud Run service
+5. **Run Smoke Tests**: Executes smoke tests against the deployed service
+
+**Pipeline Configuration**: `cicd/cloudbuild_dev_and_sandbox.yaml`
+
+**Key Steps**:
+- Downloads SIC lookup and rephrase CSV files from Google Cloud Storage (`$_SIC_LOOKUP_CSV`, `$_SIC_REPHRASE_CSV`)
+- Builds Docker image tagged with both `latest` and commit SHA
+- Deploys to Cloud Run using the SHA-tagged image
+- Runs smoke tests using service account impersonation
+
+### Pre-Production Promotion
+
+Promotion to pre-production is automated via a separate Cloud Build pipeline:
+
+1. **Pull Dev Image**: Pulls the development image by SHA tag
+2. **Tag as Release**: Tags the image with a release tag name
+3. **Push to Release Registry**: Pushes to the releases Artifact Registry repository
+4. **Deploy to Pre-Production**: Deploys to the pre-production Cloud Run service
+5. **Run Smoke Tests**: Executes smoke tests against the pre-production environment
+
+**Pipeline Configuration**: `cicd/cloudbuild_promote_preprod.yaml`
+
+**Trigger**: Manual promotion via Cloud Build with a release tag name
+
+### Local Smoke Test Execution
+
+You can run smoke tests locally against deployed environments:
+
+```bash
+# Run smoke tests against dev environment
+./cicd/run_smoke_tests.sh dev
+
+# Run smoke tests against sandbox environment
+./cicd/run_smoke_tests.sh sandbox
+```
+
+The script automatically:
+- Retrieves the API URL from Parameter Manager (if `SURVEY_ASSIST_API_URL` not set)
+- Generates a Google Identity Token (if `SA_ID_TOKEN` not set)
+- Runs the smoke test suite
+
+**Prerequisites**:
+- `gcloud` CLI authenticated
+- Access to the target GCP project
+- `pytest` and dependencies installed
+
+## Configuration Reference
+
+### Environment Variables
+
+The CI/CD pipeline configures the following environment variables for the Cloud Run service:
+
+**Required:**
+- `SIC_VECTOR_STORE`: URL of the SIC classification vector store service (required for classification functionality)
+- `FIRESTORE_DB_ID`: Firestore Database ID (required for result and feedback endpoints)
+
+**Optional:**
+- `GCP_PROJECT_ID`: Google Cloud Project ID (optional, uses default project if not set)
+- `SIC_LOOKUP_DATA_PATH`: Path to custom SIC lookup data file (optional, defaults to package example data)
+- `SIC_REPHRASE_DATA_PATH`: Path to custom SIC rephrase data file (optional, defaults to package example data)
+
+**Data Loading Behavior**:
+- **Package Data (default)**: The API uses example data from the `industrial_classification.data` package when no custom data paths are specified
+- **Custom Data Sources**: Can be specified via `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables
+- **Firestore**: If `FIRESTORE_DB_ID` is not set, result and feedback endpoints will return 503 errors
+
+**Note**: The `SIC_VECTOR_STORE` URL is configured in the CI/CD pipeline. To find the vector store service URL:
+```bash
+gcloud run services list --project={PROJECT_ID} --region={REGION} | grep -i vector
+```
+
+### Service Account Configuration
+
+The Cloud Run service requires a service account with the following IAM roles:
+- `roles/run.invoker` (for service-to-service communication with vector store)
+- `roles/iam.serviceAccountTokenCreator` (for generating ID tokens)
+- Firestore access (if using Firestore features)
+
+The service account is configured in the CI/CD pipeline.
 
 ## Authentication Note
 
 **All testing is done through the API Gateway using signed JWT tokens for authentication.** We never test Cloud Run services directly. Google Identity tokens (`gcloud auth print-identity-token`) cannot be used. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
 
-## Deployment Process
-
-### 1. Build Docker Image
-
-```bash
-# Build the survey-assist-api image
-cd /path/to/survey-assist-api
-docker build -t survey-assist-api:latest .
-```
-
-### 2. Push to Artifact Registry
-
-**Important**: This step is required before pushing images to the Artifact Registry.
-
-```bash
-# Configure Docker to use gcloud as credential helper
-gcloud auth configure-docker europe-west2-docker.pkg.dev
-
-# Tag image for Artifact Registry
-docker tag survey-assist-api:latest europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
-
-# Push image to Artifact Registry
-docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
-```
-
-### 3. Deploy to Cloud Run
-
-```bash
-# Update existing service with new image
-gcloud run services update survey-assist-api \
-  --image=europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest \
-  --port=8080 \
-  --concurrency=160 \
-  --timeout=60s \
-  --cpu=1 \
-  --memory=4Gi \
-  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp,SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
-  --region={REGION} \
-  --project={PROJECT_ID}
-```
-
-### Environment Variables for Data Loading
-
-The deployment now includes environment variables for service communication and data loading:
-
-- `SIC_VECTOR_STORE`: URL of the SIC classification vector store service (required for classification functionality)
-- `GCP_BUCKET_NAME`: GCP storage bucket name for data storage
-- `DATA_STORE`: Data store type (set to "gcp")
-
-**Data Loading Behavior**:
-- **Package Data (default)**: The API always uses example data from the `industrial_classification_utils` package when no custom data paths are specified
-- **Custom Data Sources**: Can be specified per-request using the `data_path` parameter in API calls
-- **No Environment Variable Dependencies**: The API no longer requires `SIC_LOOKUP_DATA_PATH` or `SIC_REPHRASE_DATA_PATH` environment variables
-
-**Note**: To find the correct `SIC_VECTOR_STORE` URL, use:
-```bash
-gcloud run services list --project={PROJECT_ID} --region={REGION} | grep -i vector
-```
-```
-
-### 4. Configure Service Account and Permissions
-
-```bash
-# Set the service account for the Cloud Run service
-gcloud run services update survey-assist-api \
-  --service-account={SURVEY_ASSIST_SERVICE_ACCOUNT} \
-  --region={REGION} \
-  --project={PROJECT_ID}
-
-# Grant necessary IAM roles
-gcloud projects add-iam-policy-binding {PROJECT_ID} \
-  --member="serviceAccount:{SURVEY_ASSIST_SERVICE_ACCOUNT}" \
-  --role="roles/storage.objectAdmin"
-
-gcloud projects add-iam-policy-binding {PROJECT_ID} \
-  --member="serviceAccount:{SURVEY_ASSIST_SERVICE_ACCOUNT}" \
-  --role="roles/iam.serviceAccountTokenCreator"
-
-# Ensure service requires authentication (remove public access if needed)
-gcloud run services remove-iam-policy-binding survey-assist-api \
-  --member="allUsers" \
-  --role="roles/run.invoker" \
-  --region={REGION} \
-  --project={PROJECT_ID}
-
-# Redeploy to apply authentication changes
-gcloud run services update survey-assist-api \
-  --image=europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest \
-  --region={REGION} \
-  --project={PROJECT_ID}
-```
-
-### 5. Test API Gateway Endpoints
+## Testing Deployed Services
 
 **Important**: All testing is done through the API Gateway using signed JWT tokens for authentication. See the [JWT Token Generation](#jwt-token-generation-process) section below for details on creating proper JWT tokens.
 
@@ -116,10 +130,10 @@ gcloud run services update survey-assist-api \
 curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/survey-assist/config"
 
 # Test SIC lookup endpoint
-curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/survey-assist/sic-lookup"
+curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/survey-assist/sic-lookup?description=electrical%20installation"
 
 # Test classify endpoint
-curl -X POST -H "Authorization: Bearer ${JWT_TOKEN}" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Test", "job_description": "Test", "org_description": "Test organisation"}' "https://{API_GATEWAY_URL}/v1/survey-assist/classify"
+curl -X POST -H "Authorization: Bearer ${JWT_TOKEN}" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Electrician", "job_description": "Installing electrical systems", "org_description": "Electrical contracting company"}' "https://{API_GATEWAY_URL}/v1/survey-assist/classify"
 ```
 
 ## Service-to-Service Authentication
@@ -145,33 +159,16 @@ google-auth = "^2.28.0"
 
 ### Environment Configuration
 
-Set the `SIC_VECTOR_STORE` environment variable to enable secure communication with the vector store service:
-
-```bash
-# Set environment variable for service-to-service communication
-gcloud run services update survey-assist-api \
-  --set-env-vars="SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
-  --region={REGION} \
-  --project={PROJECT_ID}
-```
+The `SIC_VECTOR_STORE` environment variable is configured by the CI/CD pipeline to enable secure communication with the vector store service.
 
 ### Service Account Permissions
 
 The `survey-assist-api` service account requires the following IAM roles for service-to-service communication:
 
-```bash
-# Grant Cloud Run Invoker role to the calling service
-gcloud run services add-iam-policy-binding {VECTOR_STORE_SERVICE_NAME} \
-  --member="serviceAccount:{SURVEY_ASSIST_SERVICE_ACCOUNT}" \
-  --role="roles/run.invoker" \
-  --region={REGION} \
-  --project={PROJECT_ID}
+- **Cloud Run Invoker** (`roles/run.invoker`) on the vector store service
+- **IAM Service Account Token Creator** (`roles/iam.serviceAccountTokenCreator`) for generating ID tokens
 
-# Grant IAM Service Account Token Creator role (if needed for token generation)
-gcloud projects add-iam-policy-binding {PROJECT_ID} \
-  --member="serviceAccount:{SURVEY_ASSIST_SERVICE_ACCOUNT}" \
-  --role="roles/iam.serviceAccountTokenCreator"
-```
+These permissions are configured as part of the infrastructure setup.
 
 ### Testing Service-to-Service Communication
 
@@ -194,7 +191,7 @@ curl -X POST \
 
 **Expected Response**: Successful SIC classification with proper authentication between services.
 
-**Data Loading Verification**: The deployed service will use the full datasets specified in the environment variables. You can verify this by checking the startup logs for data loading messages showing the local data paths.
+**Data Loading Verification**: The deployed service will use package example data by default, or custom datasets if `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables are set. You can verify this by checking the startup logs for data loading messages showing which data source was used.
 
 #### Complete Working Example
 
@@ -218,9 +215,11 @@ curl -H "Authorization: Bearer ${TOKEN}" \
   "https://<api-gateway-hostname>/v1/survey-assist/config"
 ```
 
-## API Gateway Setup
+## API Gateway Configuration
 
-### 6. Fix Swagger2 Compatibility Issues
+The API Gateway is configured separately from the Cloud Run deployment. The following steps are for initial API Gateway setup:
+
+### Fix Swagger2 Compatibility Issues
 
 The original spec contains OpenAPI 3.0 features that aren't supported by API Gateway. Fix these issues:
 
@@ -231,9 +230,6 @@ jq 'del(.. | select(type == "object" and has("examples")).examples)' swagger2_or
 # Remove anyOf fields (not supported in Swagger 2.0)
 jq 'del(.. | select(type == "object" and has("anyOf")).anyOf)' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
 
-# Add missing type field for data_path parameter
-jq '(.paths."/v1/survey-assist/sic-lookup".get.parameters[] | select(.name == "data_path")) += {"type": "string"}' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
-
 # Add Google Cloud API Gateway extensions for JWT authentication
 jq '. + {"x-google-backend": {"address": "{SURVEY_ASSIST_API_URL}", "protocol": "h2", "path_translation": "APPEND_PATH_TO_ADDRESS"}, "host": "{API_GATEWAY_HOSTNAME}", "securityDefinitions": {"backend_api_access": {"authorizationUrl": "", "flow": "implicit", "type": "oauth2", "x-google-issuer": "{SERVICE_ACCOUNT_EMAIL}", "x-google-jwks_uri": "https://www.googleapis.com/robot/v1/metadata/x509/{SERVICE_ACCOUNT_EMAIL}", "x-google-audiences": "{API_GATEWAY_HOSTNAME}"}}, "security": [{"backend_api_access": []}]}' swagger2_fixed.json > temp.json && mv temp.json swagger2_fixed.json
 
@@ -243,7 +239,7 @@ jq '. + {"x-google-backend": {"address": "{SURVEY_ASSIST_API_URL}", "protocol": 
 # {SERVICE_ACCOUNT_EMAIL}: Service account that will sign JWTs
 ```
 
-### 7. Deploy the Fixed Specification
+### Deploy the Fixed Specification
 
 ```bash
 # Create new API config with fixed spec
@@ -254,7 +250,7 @@ gcloud api-gateway api-configs create survey-assist-api-config-v3 \
   --backend-auth-service-account={BACKEND_AUTH_SERVICE_ACCOUNT}
 ```
 
-### 8. Update the Gateway
+### Update the Gateway
 
 ```bash
 # Update existing gateway to use new config
@@ -266,7 +262,7 @@ gcloud api-gateway gateways update survey-assist-api-gw \
   --backend-auth-service-account={BACKEND_AUTH_SERVICE_ACCOUNT}
 ```
 
-### 9. Test API Gateway Endpoints
+### Test API Gateway Endpoints
 
 **Important**: API Gateway requires signed JWT tokens, not Google Identity tokens. See the [API Gateway Authentication with JWT Tokens](#api-gateway-authentication-with-jwt-tokens) section for details on generating proper JWT tokens.
 
@@ -289,20 +285,10 @@ curl --header "Authorization: Bearer ${JWT_TOKEN}" \
 curl --header "Authorization: Bearer ${JWT_TOKEN}" \
   "https://$GATEWAY_URL/v1/survey-assist/sic-lookup?description=electrical%20installation"
 
-# Test SIC lookup with full dataset
-curl --header "Authorization: Bearer ${JWT_TOKEN}" \
-  "https://$GATEWAY_URL/v1/survey-assist/sic-lookup?description=electrical%20installation&data_path=data/sic_knowledge_base_utf8.csv"
-
 # Test classify endpoint (uses package data by default)
 curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"llm":"gemini","type":"sic","job_title":"Electrician","job_description":"I install and maintain electrical systems and wiring","org_description":"Electrical installation and maintenance services"}' \
-  "https://$GATEWAY_URL/v1/survey-assist/classify"
-
-# Test classify endpoint with full dataset
-curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{"llm":"gemini","type":"sic","job_title":"Electrician","job_description":"I install and maintain electrical systems and wiring","org_description":"Electrical installation and maintenance services","data_path":"data/sic_knowledge_base_utf8.csv"}' \
   "https://$GATEWAY_URL/v1/survey-assist/classify"
 
 # Test classify endpoint with rephrase toggle (SIC rephrasing enabled)
@@ -317,41 +303,50 @@ curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
   -d '{"llm":"gemini","type":"sic","job_title":"Farmer","job_description":"Growing cereals and crops","org_description":"Agricultural farm","options":{"sic":{"rephrased":false}}}' \
   "https://$GATEWAY_URL/v1/survey-assist/classify"
 
-# Test result endpoint
+# Test result endpoint (requires FIRESTORE_DB_ID to be set)
 curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"survey_id":"test-123","case_id":"test-456","user":"test.user","time_start":"2024-01-01T10:00:00Z","time_end":"2024-01-01T10:05:00Z","responses":[]}' \
+  -d '{"survey_id":"test-123","case_id":"test-456","wave_id":"wave-789","user":"test.userSA187","time_start":"2024-01-01T10:00:00Z","time_end":"2024-01-01T10:05:00Z","responses":[]}' \
   "https://$GATEWAY_URL/v1/survey-assist/result"
+
+# Test feedback endpoint (requires FIRESTORE_DB_ID to be set)
+curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"case_id":"0710-25AA-XXXX-YYYY","person_id":"000001_01","survey_id":"survey_123","wave_id":"wave_456","questions":[{"response":"Very satisfied","response_name":"satisfaction_question","response_options":["Very satisfied","Satisfied","Neutral","Dissatisfied","Very dissatisfied"]}]}' \
+  "https://$GATEWAY_URL/v1/survey-assist/feedback"
 
 # Test authentication enforcement (should return 401)
 curl "https://$GATEWAY_URL/v1/survey-assist/config"
 ```
 
 **Expected Responses**:
-- **Config**: Returns LLM model, embedding model, and prompt configurations
-- **Data Loading**: Service uses full datasets from container paths by default, or package data if no environment variables set
-- **Data Path Parameter**: Can override data source per request using `data_path` parameter
+- **Config**: Returns LLM model, embedding model, Firestore database ID, and prompt configurations
+- **Data Loading**: Service uses package example data by default, or custom data if `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables are set
 - **Embeddings**: Returns vector store status and metadata
 - **SIC Lookup**: Returns SIC code lookup results
-- **Classify**: Returns SIC/SOC classification with follow-up questions
+- **Classify**: Returns generic classification response with SIC/SOC results
   - **Rephrasing enabled**: `candidates[].descriptive` shows user-friendly descriptions (e.g., "Crop growing", "Dairy farming")
   - **Rephrasing disabled**: `candidates[].descriptive` shows original SIC descriptions
   - **Main description**: Always shows official SIC code description
-- **Result**: Returns confirmation of stored survey results
+  - **Response format**: Generic format with `requested_type`, `results` array, and optional `meta` field
+- **Result**: Returns confirmation with Firestore document ID (requires `FIRESTORE_DB_ID`)
+- **Feedback**: Returns confirmation with Firestore document ID (requires `FIRESTORE_DB_ID`)
 - **Unauthenticated**: Returns `{"code":401,"message":"Jwt is missing"}`
 **API Gateway Endpoints:**
 All endpoints are accessible via the API Gateway at `{API_GATEWAY_URL}/v1/survey-assist/`:
 
-- **Config**: `config` - Get API configuration and prompt settings
-- **Embeddings**: `embeddings` - Get vector store status and metadata
-- **SIC Lookup**: `sic-lookup` - Lookup SIC codes by description
-- **Classification**: `classify` - Classify job descriptions to SIC/SOC codes
-- **Results**: `result` - Store and retrieve survey interaction results
-  - `GET /result?result_id={id}` - Retrieve a result by ID
-  - `GET /results?survey_id={id}&wave_id={id}&case_id={id}` - List results by survey/wave/case
-- **Feedback**: `feedback` - Store and retrieve survey feedback
-  - `GET /feedback?feedback_id={id}` - Retrieve feedback by ID
-  - `GET /feedbacks?survey_id={id}&wave_id={id}&case_id={id}` - List feedback by survey/wave/case
+- **Config**: `GET /config` - Get API configuration and prompt settings
+- **Embeddings**: `GET /embeddings` - Get vector store status and metadata
+- **SIC Lookup**: `GET /sic-lookup` - Lookup SIC codes by description
+- **Classification**: `POST /classify` - Classify job descriptions to SIC/SOC codes (generic response format)
+- **Results**:
+  - `POST /result` - Store survey interaction results (requires `FIRESTORE_DB_ID`)
+  - `GET /result` - Retrieve a stored result by document ID (requires `FIRESTORE_DB_ID`)
+  - `GET /results` - List results filtered by survey_id, wave_id, and optionally case_id (requires `FIRESTORE_DB_ID`)
+- **Feedback**:
+  - `POST /feedback` - Store feedback data (requires `FIRESTORE_DB_ID`)
+  - `GET /feedback` - Retrieve feedback by ID (requires `FIRESTORE_DB_ID`)
+  - `GET /feedbacks` - List feedback by survey_id, wave_id, and optionally case_id (requires `FIRESTORE_DB_ID`)
 
 ## API Gateway Authentication with JWT Tokens
 
@@ -460,7 +455,7 @@ The API Gateway provides access to all survey-assist-api endpoints with JWT auth
 curl --header "Authorization: Bearer ${TOKEN}" \
   "https://<api-gateway-hostname>/v1/survey-assist/config"
 
-# SIC lookup endpoint (uses package example data)
+# SIC lookup endpoint (uses package example data by default)
 curl --header "Authorization: Bearer ${TOKEN}" \
   "https://<api-gateway-hostname>/v1/survey-assist/sic-lookup?description=electrical%20installation"
 ```
@@ -559,63 +554,6 @@ curl "https://<api-gateway-hostname>/v1/survey-assist/config"
 3. **Authentication bypassed**: Verify the Swagger spec includes all required `x-google-*` fields and proper `securityDefinitions`
 4. **Service account mismatch**: The API Gateway config's `gatewayServiceAccount` may differ from the `x-google-issuer` - this can still work if the Swagger spec is properly configured
 
-## Updating Existing Images
-
-### Quick Update (Recommended)
-To update an existing image with new code changes:
-
-```bash
-# 1. Build with same tag (overwrites existing image)
-docker build -t europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest .
-
-# 2. Push to update registry
-docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
-
-# 3. Deploy updated image to Cloud Run
-gcloud run services update survey-assist-api \
-  --image=europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest \
-  --port=8080 \
-  --concurrency=160 \
-  --timeout=60s \
-  --cpu=1 \
-  --memory=4Gi \
-  --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp,SIC_VECTOR_STORE={VECTOR_STORE_SERVICE_URL}" \
-  --region={REGION} \
-  --project={PROJECT_ID}
-```
-
-### Alternative: Versioned Updates
-For better tracking, use versioned tags:
-
-```bash
-# 1. Build with version tag
-docker build -t europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:v1.4 .
-
-# 2. Push versioned image
-docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:v1.4
-
-# 3. Deploy specific version
-gcloud run services update survey-assist-api \
-  --image=europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:v1.4 \
-  --region={REGION} \
-  --project={PROJECT_ID}
-```
-
-### Clean Update (Remove Old Images)
-If you want to clean up old images:
-
-```bash
-# 1. Remove old local images
-docker rmi survey-assist-api:latest
-docker rmi europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
-
-# 2. Build fresh with same tag
-docker build -t europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest .
-
-# 3. Push and deploy (same as Quick Update)
-docker push europe-west2-docker.pkg.dev/{PROJECT_ID}/survey-assist-api/survey-assist-api:latest
-gcloud run services update survey-assist-api --image=... # (same command as above)
-```
 
 ## Swagger2 Support (August 2025)
 
@@ -691,8 +629,15 @@ The Swagger2 specification is now compatible with Google Cloud API Gateway, enab
 - **Google Cloud extensions** support
 
 
-### Environment Variables
-Ensure correct environment variable name is used:
-```bash
-gcloud run services update survey-assist-api --set-env-vars="GCP_BUCKET_NAME={BUCKET_NAME},DATA_STORE=gcp" --region={REGION}
-```
+### Environment Variables Reference
+
+The CI/CD pipeline configures the following environment variables. These are documented here for reference:
+
+**Required environment variables:**
+- `SIC_VECTOR_STORE`: URL of the SIC classification vector store service
+- `FIRESTORE_DB_ID`: Firestore Database ID (required for result and feedback endpoints)
+
+**Optional environment variables:**
+- `GCP_PROJECT_ID`: Google Cloud Project ID (uses default project if not set)
+- `SIC_LOOKUP_DATA_PATH`: Path to custom SIC lookup data file (defaults to package example data)
+- `SIC_REPHRASE_DATA_PATH`: Path to custom SIC rephrase data file (defaults to package example data)
