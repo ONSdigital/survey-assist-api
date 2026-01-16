@@ -11,6 +11,11 @@ The API is built using:
 - **Pydantic**: Data validation and settings management
 - **SIC Classification Library**: Core classification functionality
 - **Vector Store Service**: Embeddings and semantic search capabilities
+- **Firestore**: Google Cloud Firestore for storing results and feedback (optional, requires `FIRESTORE_DB_ID`)
+
+**Important Notes**:
+- **SOC Classification**: Currently a placeholder implementation. Requests with `type="soc"` or `type="sic_soc"` will return placeholder SOC results. Full SOC classification support is planned for future releases.
+- **Firestore**: Result and feedback endpoints require `FIRESTORE_DB_ID` to be set. If not configured, these endpoints will return 503 errors.
 
 ## API Endpoints
 
@@ -20,9 +25,8 @@ The API is built using:
 - **Description**: Returns the current configuration settings including:
   - LLM model configuration (`llm_model`)
   - Vector store embedding model (`embedding_model`)
-  - LLM model configuration (`llm_model`)
-  - Vector store embedding model (`embedding_model`)
-  - Data store settings
+  - Data store settings (`data_store`)
+  - Firestore database ID (`firestore_database_id`)
   - Classification prompts (per version)
   - Version-specific settings
   - Actual prompt used by the LLM (`actual_prompt`)
@@ -31,15 +35,15 @@ The API is built using:
   {
     "llm_model": "gemini-2.5-flash",
     "embedding_model": "all-MiniLM-L6-v2",
-    "data_store": "some_data_store",
-    "bucket_name": "my_bucket",
-    "actual_prompt": "You are a classification assistant. Given the following information: Job Title: Test job title...",
+    "data_store": "Firestore",
+    "firestore_database_id": "your-database-id",
+    "actual_prompt": "Sample SIC classification prompt for testing purposes",
     "v1v2": {
       "classification": [
         {
           "type": "sic",
           "prompts": [
-            { "name": "SA_SIC_PROMPT_RAG", "text": "my SIC RAG prompt" }
+            { "name": "SA_SIC_PROMPT_RAG", "text": "[Core prompt] + [Survey Assist SIC RAG template]" }
           ]
         }
       ]
@@ -49,8 +53,8 @@ The API is built using:
         {
           "type": "sic",
           "prompts": [
-            { "name": "SIC_PROMPT_RERANKER", "text": "my reranker prompt" },
-            { "name": "SIC_PROMPT_UNAMBIGUOUS", "text": "my unambiguous prompt" }
+            { "name": "SIC_PROMPT_RERANKER", "text": "[Core prompt] + [SIC reranker template]" },
+            { "name": "SIC_PROMPT_UNAMBIGUOUS", "text": "[Core prompt] + [SIC unambiguous template]" }
           ]
         }
       ]
@@ -61,79 +65,60 @@ The API is built using:
 ### Classification Endpoint
 - **Path**: `/v1/survey-assist/classify`
 - **Method**: POST
-- **Description**: Classifies job titles and descriptions into SIC codes using vector store similarity search and LLM models
+- **Description**: Classifies job titles and descriptions into SIC or SOC codes using vector store similarity search and LLM models. Returns a generic response format that supports both SIC and SOC classification types.
 - **Request Body**:
-  - `llm` (required): The LLM model to use ("chat-gpt" or "gemini")
+  - `llm` (required): The LLM model to use ("chat-gpt" or "gemini"). Note: The API currently uses "gemini-2.5-flash" regardless of this value.
   - `type` (required): Type of classification ("sic", "soc", or "sic_soc")
   - `job_title` (required): Survey response for Job Title
   - `job_description` (required): Survey response for Job Description
   - `org_description` (optional): Survey response for Organisation/Industry Description
-  - `rephrase` (optional): Boolean flag for user-friendly language conversion
-  - `data_path` (optional): Path to specific dataset within container (e.g., `data/sic_knowledge_base_utf8.csv`)
-- **Response**: Returns classification results including:
-  - `classified` (boolean): Whether the input could be definitively classified
-  - `followup` (string, optional): Additional question to help classify
-  - `sic_code` (string, optional): The SIC code (empty if classified=False)
-  - `sic_description` (string, optional): The SIC code description (empty if classified=False)
-  - `sic_candidates` (array): List of potential SIC code candidates with:
-    - `sic_code` (string): The SIC code
-    - `sic_descriptive` (string): The SIC code description
-    - `likelihood` (number): Confidence score between 0 and 1
-  - `reasoning` (string): Reasoning behind the classification
+  - `options` (optional): Classification options object:
+    - `sic` (optional): SIC-specific options:
+      - `rephrased` (boolean, default: true): Whether to apply rephrasing to SIC classification results
+    - `soc` (optional): SOC-specific options:
+      - `rephrased` (boolean, default: true): Whether to apply rephrasing to SOC classification results (not yet implemented)
+- **Response**: Returns a generic classification response with the following structure:
+  - `requested_type` (string): The type of classification that was requested ("sic", "soc", or "sic_soc")
+  - `results` (array): List of classification results, each containing:
+    - `type` (string): The classification type ("sic" or "soc")
+    - `classified` (boolean): Whether the input could be definitively classified
+    - `followup` (string, optional): Additional question to help classify (only present if classified=false)
+    - `code` (string, optional): The classification code (only present if classified=true)
+    - `description` (string, optional): The classification description (only present if classified=true)
+    - `candidates` (array): List of potential classification candidates with:
+      - `code` (string): The classification code
+      - `descriptive` (string): The classification description
+      - `likelihood` (number): Confidence score between 0 and 1
+    - `reasoning` (string): Reasoning behind the classification
+  - `meta` (object, optional): Response metadata, only included when `options` were provided in the request:
+    - `llm` (string): The LLM model used
+    - `applied_options` (object): The options that were applied:
+      - `sic` (object, optional): Applied SIC options
+      - `soc` (object, optional): Applied SOC options
+
+**Note**: SOC classification is currently a placeholder implementation. Requests with `type="soc"` or `type="sic_soc"` will return a placeholder SOC result.
 
 The classification process works as follows:
 1. The input text is used to search the vector store for a list of candidate SIC codes.
 2. The LLM first attempts to find an **unambiguous** classification from the candidates.
-3. If a definitive SIC code is found, the API returns a response with `classified: true` and the found code. The `followup` question will be empty.
+3. If a definitive SIC code is found, the API returns a response with `classified: true` and the found code. The `followup` field will be `null`.
 4. If the result is ambiguous and a definitive code cannot be determined, the LLM then formulates a **follow-up question** to gather more information from the user.
-5. In this case, the API returns a response with `classified: false`, no SIC code, and the `followup` question populated.
+5. In this case, the API returns a response with `classified: false`, no code/description, and the `followup` question populated.
 
-### Data Source Selection
 
-The API supports two data sources for classification and lookup:
+### Result Endpoints
 
-**Package Data (Default)**: Uses example datasets from the sic-classification-library package
-- Provides basic classification functionality
-- Suitable for testing and development
-- No additional parameters required
-- **Note**: Environment variables for data paths are no longer used
-
-**Full Datasets**: Uses complete datasets copied into the container during build
-- Provides comprehensive classification with full metadata
-- Includes detailed includes/excludes lists and division information
-- The API uses packaged example data by default
-
-**Example Usage with Full Datasets**:
-```bash
-# SIC Lookup with full dataset
-curl --header "Authorization: Bearer ${JWT_TOKEN}" \
-  "https://your-api-gateway-url/v1/survey-assist/sic-lookup?description=electrical%20installation"
-
-# Classification with full dataset and rephrase
-curl --header "Authorization: Bearer ${JWT_TOKEN}" \
-  --header "Content-Type: application/json" \
-  --data '{
-    "llm": "gemini",
-    "type": "sic",
-    "job_title": "electrical engineer",
-    "job_description": "designing and installing electrical systems",
-    "org_description": "electrical contracting company",
-    "rephrase": true,
-    "data_path": "data/sic_knowledge_base_utf8.csv"
-  }' \
-  "https://your-api-gateway-url/v1/survey-assist/classify"
-```
-
-### Result Endpoint
-- **Base URL**: `http://localhost:8080`
+#### Store Result
 - **Path**: `/v1/survey-assist/result`
 - **Method**: POST
-- **Description**: Stores classification results for later retrieval and analysis
+- **Description**: Stores classification results in Firestore for later retrieval and analysis. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Request Body**:
   ```json
   {
     "survey_id": "test-survey-123",
     "case_id": "test-case-456",
+    "wave_id": "wave-789",
+    "user": "test.userSA187",
     "time_start": "2024-03-19T10:00:00Z",
     "time_end": "2024-03-19T10:05:00Z",
     "responses": [
@@ -175,105 +160,44 @@ curl --header "Authorization: Bearer ${JWT_TOKEN}" \
     ]
   }
   ```
-- **Response**: Returns stored result information:
+- **Response**: Returns stored result information with Firestore document ID:
   ```json
   {
     "message": "Result stored successfully",
-    "result_id": "abc123xyz456def789gh"
+    "result_id": "abc123def456ghi789"
   }
   ```
   Note: `result_id` is a Firestore document ID (auto-generated, 20-character alphanumeric string).
 
-### Get Result Endpoint
-- **Base URL**: `http://localhost:8080`
+#### Get Result
 - **Path**: `/v1/survey-assist/result`
 - **Method**: GET
-- **Description**: Retrieves stored classification results by Firestore document ID
+- **Description**: Retrieves a stored classification result from Firestore by document ID. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
-  - `result_id` (required): The Firestore document ID of the result to retrieve (e.g., "abc123xyz456def789gh")
+  - `result_id` (required): The Firestore document ID of the result to retrieve
 - **Response**: Returns the stored result in the same format as the POST request body.
 
-### Example Usage
-```bash
-# Store a result
-curl -X POST "http://localhost:8080/v1/survey-assist/result" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "survey_id": "test-survey-123",
-    "case_id": "test-case-456",
-    "time_start": "2024-03-19T10:00:00Z",
-    "time_end": "2024-03-19T10:05:00Z",
-    "responses": [
-      {
-        "person_id": "person-1",
-        "time_start": "2024-03-19T10:00:00Z",
-        "time_end": "2024-03-19T10:01:00Z",
-        "survey_assist_interactions": [
-          {
-            "type": "classify",
-            "flavour": "sic",
-            "time_start": "2024-03-19T10:00:00Z",
-            "time_end": "2024-03-19T10:01:00Z",
-            "input": [
-              {
-                "field": "job_title",
-                "value": "Electrician"
-              }
-            ],
-            "response": {
-              "classified": true,
-              "code": "432100",
-              "description": "Electrical installation",
-              "reasoning": "Based on job title and description",
-              "candidates": [
-                {
-                  "code": "432100",
-                  "description": "Electrical installation",
-                  "likelihood": 0.95
-                }
-              ],
-              "follow_up": {
-                "questions": []
-              }
-            }
-          }
-        ]
-      }
-    ]
-  }'
-
-# Retrieve a result by ID
-curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=abc123xyz456def789gh"
-
-# List results by survey/wave
-curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-survey-123&wave_id=test-wave-001"
-
-# List results by survey/wave/case
-curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-survey-123&wave_id=test-wave-001&case_id=test-case-456"
-```
-
-### List Results Endpoint
-- **Base URL**: `http://localhost:8080`
+#### List Results
 - **Path**: `/v1/survey-assist/results`
 - **Method**: GET
-- **Description**: Lists survey results filtered by survey_id, wave_id, and optionally case_id
+- **Description**: Lists stored classification results from Firestore filtered by survey_id, wave_id, and optionally case_id. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
   - `survey_id` (required): Survey identifier to filter by
   - `wave_id` (required): Wave identifier to filter by
-  - `case_id` (optional): Case identifier to filter by. If not provided, returns all results for the survey/wave
-- **Response**: Returns a list of matching survey results with their document IDs:
+  - `case_id` (optional): Case identifier to filter by. If omitted, returns all results for the survey/wave.
+- **Response**: Returns a list of matching results with their Firestore document IDs:
   ```json
   {
     "results": [
       {
         "survey_id": "test-survey-123",
         "case_id": "test-case-456",
-        "wave_id": "test-wave-001",
-        "document_id": "abc123xyz",
-        "user": "test.user",
+        "wave_id": "wave-789",
+        "user": "test.userSA187",
         "time_start": "2024-03-19T10:00:00Z",
         "time_end": "2024-03-19T10:05:00Z",
-        "responses": [...]
+        "responses": [...],
+        "document_id": "abc123def456ghi789"
       }
     ],
     "count": 1
@@ -281,143 +205,183 @@ curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-surve
   ```
 
 ### Feedback Endpoint
-- **Base URL**: `http://localhost:8080`
 - **Path**: `/v1/survey-assist/feedback`
 - **Method**: POST
-- **Description**: Stores feedback data from survey respondents
+- **Description**: Stores feedback data in Firestore. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Request Body**:
   ```json
   {
-    "case_id": "test-case-001",
-    "person_id": "test-person-001",
-    "survey_id": "test-survey-001",
-    "wave_id": "test-wave-001",
+    "case_id": "0710-25AA-XXXX-YYYY",
+    "person_id": "000001_01",
+    "survey_id": "survey_123",
+    "wave_id": "wave_456",
     "questions": [
       {
-        "response": "Very helpful",
-        "response_name": "satisfaction",
-        "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
+        "response": "Very satisfied",
+        "response_name": "satisfaction_question",
+        "response_options": [
+          "Very satisfied",
+          "Satisfied",
+          "Neutral",
+          "Dissatisfied",
+          "Very dissatisfied"
+        ]
       },
       {
-        "response": "Yes, I understood the classification",
-        "response_name": "understanding",
+        "response": "The survey was easy to complete and helpful.",
+        "response_name": "comments_question",
         "response_options": null
       }
     ]
   }
   ```
-- **Response**: Returns stored feedback information:
+- **Response**: Returns feedback storage confirmation:
   ```json
   {
-    "message": "Feedback stored successfully",
-    "feedback_id": "xyz789abc123def456ij"
+    "message": "Feedback received successfully",
+    "feedback_id": "fb123def456ghi789"
   }
   ```
-  Note: `feedback_id` is a Firestore document ID (auto-generated, 20-character alphanumeric string).
 
-### Get Feedback Endpoint
-- **Base URL**: `http://localhost:8080`
-- **Path**: `/v1/survey-assist/feedback`
-- **Method**: GET
-- **Description**: Retrieves a stored feedback result by Firestore document ID
-- **Query Parameters**:
-  - `feedback_id` (required): The Firestore document ID of the feedback to retrieve (e.g., "xyz789abc123def456ij")
-- **Response**: Returns the stored feedback in the same format as the POST request body:
-  ```json
-  {
-    "case_id": "test-case-001",
-    "person_id": "test-person-001",
-    "survey_id": "test-survey-001",
-    "wave_id": "test-wave-001",
-    "questions": [
+### Example Usage
+
+#### Classification
+```bash
+# Basic SIC classification
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "Electrician",
+    "job_description": "Installing and maintaining electrical systems",
+    "org_description": "Electrical contracting company"
+  }'
+
+# SIC classification with rephrasing disabled
+curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "llm": "gemini",
+    "type": "sic",
+    "job_title": "Electrician",
+    "job_description": "Installing and maintaining electrical systems",
+    "org_description": "Electrical contracting company",
+    "options": {
+      "sic": {
+        "rephrased": false
+      }
+    }
+  }'
+```
+
+#### Result Storage and Retrieval
+```bash
+# Store a result
+curl -X POST "http://localhost:8080/v1/survey-assist/result" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "survey_id": "test-survey-123",
+    "case_id": "test-case-456",
+    "wave_id": "wave-789",
+    "user": "test.userSA187",
+    "time_start": "2024-03-19T10:00:00Z",
+    "time_end": "2024-03-19T10:05:00Z",
+    "responses": [
       {
-        "response": "Very helpful",
-        "response_name": "satisfaction",
-        "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
+        "person_id": "person-1",
+        "time_start": "2024-03-19T10:00:00Z",
+        "time_end": "2024-03-19T10:01:00Z",
+        "survey_assist_interactions": [
+          {
+            "type": "classify",
+            "flavour": "sic",
+            "time_start": "2024-03-19T10:00:00Z",
+            "time_end": "2024-03-19T10:01:00Z",
+            "input": [
+              {
+                "field": "job_title",
+                "value": "Electrician"
+              }
+            ],
+            "response": {
+              "classified": true,
+              "code": "432100",
+              "description": "Electrical installation",
+              "reasoning": "Based on job title and description",
+              "candidates": [
+                {
+                  "code": "432100",
+                  "description": "Electrical installation",
+                  "likelihood": 0.95
+                }
+              ],
+              "follow_up": {
+                "questions": []
+              }
+            }
+          }
+        ]
       }
     ]
-  }
-  ```
+  }'
 
-### List Feedbacks Endpoint
-- **Base URL**: `http://localhost:8080`
-- **Path**: `/v1/survey-assist/feedbacks`
-- **Method**: GET
-- **Description**: Lists feedback results filtered by survey_id, wave_id, and optionally case_id
-- **Query Parameters**:
-  - `survey_id` (required): Survey identifier to filter by
-  - `wave_id` (required): Wave identifier to filter by
-  - `case_id` (optional): Case identifier to filter by. If not provided, returns all feedback for the survey/wave
-- **Response**: Returns a list of matching feedback results with their document IDs:
-  ```json
-  {
-    "results": [
-      {
-        "case_id": "test-case-001",
-        "person_id": "test-person-001",
-        "survey_id": "test-survey-001",
-        "wave_id": "test-wave-001",
-        "questions": [
-          {
-            "response": "Very helpful",
-            "response_name": "satisfaction",
-            "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
-          }
-        ],
-        "document_id": "xyz789abc123def456ij"
-      }
-    ],
-    "count": 1
-  }
-  ```
+# Retrieve a result by document ID
+curl -X GET "http://localhost:8080/v1/survey-assist/result?result_id=abc123def456ghi789"
 
-### Feedback Example Usage
+# List results for a survey/wave
+curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789"
+
+# List results for a specific case
+curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+```
+
+#### Feedback
 ```bash
 # Store feedback
 curl -X POST "http://localhost:8080/v1/survey-assist/feedback" \
   -H "Content-Type: application/json" \
   -d '{
-    "case_id": "test-case-001",
-    "person_id": "test-person-001",
-    "survey_id": "test-survey-001",
-    "wave_id": "test-wave-001",
+    "case_id": "0710-25AA-XXXX-YYYY",
+    "person_id": "000001_01",
+    "survey_id": "survey_123",
+    "wave_id": "wave_456",
     "questions": [
       {
-        "response": "Very helpful",
-        "response_name": "satisfaction",
-        "response_options": ["Not helpful", "Somewhat helpful", "Very helpful", "Extremely helpful"]
-      },
-      {
-        "response": "Yes, I understood the classification",
-        "response_name": "understanding",
-        "response_options": null
+        "response": "Very satisfied",
+        "response_name": "satisfaction_question",
+        "response_options": ["Very satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very dissatisfied"]
       }
     ]
   }'
-
-# Retrieve feedback by ID
-curl -X GET "http://localhost:8080/v1/survey-assist/feedback?feedback_id=xyz789abc123def456ij"
-
-# List all feedback for a survey/wave
-curl -X GET "http://localhost:8080/v1/survey-assist/feedbacks?survey_id=test-survey-001&wave_id=test-wave-001"
-
-# List feedback for a specific case
-curl -X GET "http://localhost:8080/v1/survey-assist/feedbacks?survey_id=test-survey-001&wave_id=test-wave-001&case_id=test-case-001"
 ```
 
 ### SIC Lookup Endpoint
 - **Path**: `/v1/survey-assist/sic-lookup`
 - **Method**: GET
 - **Parameters**:
-  - `description` (required): The business description to classify
-  - `similarity` (optional): Boolean flag for similarity search
-  - `data_path` (optional): Path to specific dataset within container (e.g., `data/sic_knowledge_base_utf8.csv`)
+  - `description` (required): The business description to look up
+  - `similarity` (optional, default: false): Boolean flag for similarity search
 - **Description**: Performs SIC code lookup with two modes:
-  - Exact match (similarity=false)
-  - Similarity search (similarity=true)
+  - Exact match (`similarity=false`): Returns exact matches only
+  - Similarity search (`similarity=true`): Returns similar matches using fuzzy matching
 - **Data Sources**: 
-  - **Default**: Uses package example data from sic-classification-library
-  - **Custom**: The API uses packaged example data by default
+  - **Default**: Uses package example data from `sic-classification-library` package
+  - **Custom**: Can be overridden by setting `SIC_LOOKUP_DATA_PATH` environment variable
+- **Response Example**:
+  ```json
+  {
+    "code": "43210",
+    "description": "Electrical installation",
+    "potential_matches": {
+      "descriptions": [
+        "Electrical installation",
+        "Electrical contractor",
+        "Electrician"
+      ]
+    }
+  }
+  ```
 
 ### Embeddings Endpoint
 - **Path**: `/v1/survey-assist/embeddings`
@@ -683,6 +647,22 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
     "job_description": "Grows crops and raises livestock",
     "org_description": "Agricultural farm"
   }'
+
+# Expected response format:
+# {
+#   "requested_type": "sic",
+#   "results": [
+#     {
+#       "type": "sic",
+#       "classified": true,
+#       "followup": null,
+#       "code": "01110",
+#       "description": "Growing of cereals (except rice), leguminous crops and oil seeds",
+#       "candidates": [...],
+#       "reasoning": "..."
+#     }
+#   ]
+# }
 ```
 
 **Note**: The API uses exact matching for SIC lookups. Partial matches (e.g., "farmer" vs "Arable farmers") will not return results.
@@ -760,13 +740,20 @@ docker port <container_id>
 
 ### Environment Variables Reference
 
-| Variable | Description | Example | Default Behaviour |
-|----------|-------------|---------|------------------|
-| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` | Required for container startup |
-| `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` | `http://localhost:8088` |
-| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup data file | `data/sic_knowledge_base_utf8.csv` | Uses package example data |
-| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase data file | `data/sic_rephrased_descriptions_2025_02_03.csv` | Uses package example data |
-| `PORT` | API port | `8080` | `8080` |
+| Variable | Description | Example | Default Behaviour | Required For |
+|----------|-------------|---------|------------------|--------------|
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to GCP service account key | `/app/service-account-key.json` | None | LLM functionality (Gemini) |
+| `GCP_PROJECT_ID` | Google Cloud Project ID | `my-project-id` | None | Firestore (optional, uses default project if not set) |
+| `FIRESTORE_DB_ID` | Firestore Database ID | `my-database-id` | None | Result and feedback endpoints |
+| `SIC_VECTOR_STORE` | Vector store service URL | `http://<host-ip-address>:8088` | `http://localhost:8088` | Classification and embeddings endpoints |
+| `SIC_LOOKUP_DATA_PATH` | Path to SIC lookup data file (optional override) | `data/sic_knowledge_base_utf8.csv` | Uses `example_sic_lookup_data.csv` from `industrial_classification.data` package | None (optional override) |
+| `SIC_REPHRASE_DATA_PATH` | Path to SIC rephrase data file (optional override) | `data/sic_rephrased_descriptions_2025_02_03.csv` | Uses `example_rephrased_sic_data.csv` from `industrial_classification.data` package | None (optional override) |
+| `PORT` | API port | `8080` | `8080` | None (uvicorn default) |
+
+**Important Notes**:
+- If `FIRESTORE_DB_ID` is not set, the Firestore client will not be initialised and result/feedback endpoints will return 503 errors.
+- If `GCP_PROJECT_ID` is not set, Firestore will attempt to use the default project from your GCP credentials.
+- The API uses package example data by default for SIC lookup and rephrase. Set environment variables only if you need to override with custom datasets.
 
 ### Security Notes
 
@@ -817,12 +804,16 @@ The API provides a configuration system that manages various settings including 
 
 ### Data File Configuration
 
-The API now loads data files from configurable paths. In the Docker container, these files are built into the image:
+The API loads data files from configurable paths. By default, it uses example data from the `industrial_classification.data` package:
 
-- **SIC Lookup Data**: `SIC_LOOKUP_PATH` (default: `data/sic_knowledge_base_utf8.csv`)
-- **SIC Rephrase Data**: `SIC_REPHRASE_PATH` (default: `data/sic_rephrased_descriptions_2025_02_03.csv`)
+- **SIC Lookup Data**: Defaults to `example_sic_lookup_data.csv` from the package
+- **SIC Rephrase Data**: Defaults to `example_rephrased_sic_data.csv` from the package
 
-**Note**: The data files are now included in the Docker image during the build process, so no external data mounting is required.
+You can override these defaults by setting environment variables:
+- **SIC Lookup Data**: `SIC_LOOKUP_DATA_PATH` (e.g., `data/sic_knowledge_base_utf8.csv` if you have custom data)
+- **SIC Rephrase Data**: `SIC_REPHRASE_DATA_PATH` (e.g., `data/sic_rephrased_descriptions_2025_02_03.csv` if you have custom data)
+
+**Note**: If you're using Docker and want to use custom data files, they must be included in the Docker image during the build process (copied into the `data/` folder before building).
 
 ### Data Loading Configuration
 
@@ -843,9 +834,7 @@ You can mix data sources:
 - Local SIC lookup data + Package rephrase data
 - Package lookup data + Local rephrase data
 
-### Environment Variables for Data Loading
-
-**Note**: Environment variables for data paths are no longer used. The API always uses packaged example data by default.
+**Note**: The API uses package example data by default. Environment variables are optional and only needed if you want to override with custom datasets.
 
 
 ### Testing Data Loading Configuration
@@ -867,8 +856,9 @@ curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=dairy
 
 #### **Test 2: Local Data (Environment Variables Set)**
 ```bash
-# Note: Environment variables are no longer used for data loading
-# The API always uses packaged example data by default
+# Set environment variables to use local data
+export SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv
+export SIC_REPHRASE_DATA_PATH=data/sic_rephrased_descriptions_2025_02_03.csv
 
 # Test SIC lookup with local data
 curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrician"
@@ -878,10 +868,11 @@ curl -X GET "http://localhost:8080/v1/survey-assist/sic-lookup?description=elect
 
 #### **Test 3: Mixed Configuration**
 ```bash
-# Note: Environment variables are no longer used for data loading
-# The API always uses packaged example data by default
+# Use local lookup data but package rephrase data
+export SIC_LOOKUP_DATA_PATH=data/sic_knowledge_base_utf8.csv
+# SIC_REPHRASE_DATA_PATH not set, so package data will be used
 
-# Test classification with local data
+# Test classification with mixed data sources
 curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   -H "Content-Type: application/json" \
   -d '{
@@ -933,9 +924,10 @@ INFO - Loaded [Y] rephrased SIC descriptions from [package_path]/example_rephras
    - Ensure package data files are accessible
 
 3. **Mixed configuration not working**
-   - Note: Environment variables are no longer used for data loading
-   - The API always uses packaged example data by default
+   - Verify environment variables are set correctly
+   - Check that file paths are accessible from the container/process
    - Review API logs for data loading confirmations
+   - Ensure paths are relative to the working directory or absolute paths
 
 4. **Classification endpoint failing**
    - Ensure vector store service is running
