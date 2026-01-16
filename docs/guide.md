@@ -631,7 +631,7 @@ gcloud iam service-accounts keys create service-account-key.json \
   --iam-account=YOUR_SERVICE_ACCOUNT@YOUR_PROJECT.iam.gserviceaccount.com
 ```
 
-**Note**: The API requires GCP credentials to start up due to LLM initialization at startup.
+**Note**: The API requires GCP credentials to start up due to LLM initialisation at startup.
 
 #### 4. Start the Vector Store Service
 In a separate terminal, start the vector store service locally:
@@ -787,7 +787,7 @@ docker exec <container_id> ls -la /app/data/
 docker exec <container_id> find /app -name "*.csv"
 ```
 
-**Data Loading Behavior**:
+**Data Loading Behaviour**:
 - **Package Data (default)**: When no environment variables are set, the API uses example data from the `industrial_classification_utils` package
 - **Local Data**: When `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` are set, the API uses the full datasets copied into the container during build
 - **Exact Matching**: SIC lookups require exact matches (e.g., "Arable farmers" not "farmer")

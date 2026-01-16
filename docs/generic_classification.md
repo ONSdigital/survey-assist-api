@@ -20,8 +20,8 @@ The classification process works as follows:
 
 ### Current Implementation Status
 
-- **SIC Classification**: ✅ Fully implemented with vector store search, LLM classification, and rephrasing support
-- **SOC Classification**: ⚠️ Placeholder implementation - returns hardcoded result (code "9111", description "Farm workers") regardless of input. Full implementation planned for future releases.
+- **SIC Classification**: Fully implemented with vector store search, LLM classification, and rephrasing support
+- **SOC Classification**: Placeholder implementation - returns hardcoded result (code "9111", description "Farm workers") regardless of input. Full implementation planned for future releases.
 
 ## Endpoints
 
@@ -206,8 +206,8 @@ The `options` field allows granular control over rephrasing for different classi
 
 ### Rephrasing Controls
 
-- **SIC Rephrasing**: ✅ **Fully implemented and functional**
-- **SOC Rephrasing**: 🔄 **Not yet implemented** (placeholder for future development)
+- **SIC Rephrasing**: **Fully implemented and functional**
+- **SOC Rephrasing**: **Not yet implemented** (placeholder for future development)
 
 ### Default Behaviour
 

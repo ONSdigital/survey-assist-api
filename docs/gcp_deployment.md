@@ -95,7 +95,7 @@ The CI/CD pipeline configures the following environment variables for the Cloud 
 - `SIC_LOOKUP_DATA_PATH`: Path to custom SIC lookup data file (optional, defaults to package example data)
 - `SIC_REPHRASE_DATA_PATH`: Path to custom SIC rephrase data file (optional, defaults to package example data)
 
-**Data Loading Behavior**:
+**Data Loading Behaviour**:
 - **Package Data (default)**: The API uses example data from the `industrial_classification.data` package when no custom data paths are specified
 - **Custom Data Sources**: Can be specified via `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables
 - **Firestore**: If `FIRESTORE_DB_ID` is not set, result endpoints will return 503 errors and feedback endpoint will return 500 errors
