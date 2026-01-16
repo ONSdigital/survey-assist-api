@@ -98,7 +98,7 @@ The CI/CD pipeline configures the following environment variables for the Cloud 
 **Data Loading Behavior**:
 - **Package Data (default)**: The API uses example data from the `industrial_classification.data` package when no custom data paths are specified
 - **Custom Data Sources**: Can be specified via `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables
-- **Firestore**: If `FIRESTORE_DB_ID` is not set, result and feedback endpoints will return 503 errors
+- **Firestore**: If `FIRESTORE_DB_ID` is not set, result endpoints will return 503 errors and feedback endpoint will return 500 errors
 
 **Note**: The `SIC_VECTOR_STORE` URL is configured in the CI/CD pipeline. To find the vector store service URL:
 ```bash
