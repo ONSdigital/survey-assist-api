@@ -43,7 +43,10 @@ The API is built using:
         {
           "type": "sic",
           "prompts": [
-            { "name": "SA_SIC_PROMPT_RAG", "text": "[Core prompt] + [Survey Assist SIC RAG template]" }
+            { 
+              "name": "SA_SIC_PROMPT_RAG", 
+              "text": "You are a conscientious classification assistant... [full prompt text]" 
+            }
           ]
         }
       ]
@@ -53,14 +56,22 @@ The API is built using:
         {
           "type": "sic",
           "prompts": [
-            { "name": "SIC_PROMPT_RERANKER", "text": "[Core prompt] + [SIC reranker template]" },
-            { "name": "SIC_PROMPT_UNAMBIGUOUS", "text": "[Core prompt] + [SIC unambiguous template]" }
+            { 
+              "name": "SIC_PROMPT_RERANKER", 
+              "text": "You are a conscientious classification assistant... [full prompt text]" 
+            },
+            { 
+              "name": "SIC_PROMPT_UNAMBIGUOUS", 
+              "text": "You are a conscientious classification assistant... [full prompt text]" 
+            }
           ]
         }
       ]
     }
   }
   ```
+  
+  **Note**: The `text` field in prompts contains the full prompt template text, not placeholder text. The `embedding_model` is retrieved from the vector store service. The `actual_prompt` field contains a sample/fallback text.
 
 ### Classification Endpoint
 - **Path**: `/v1/survey-assist/classify`
@@ -275,6 +286,63 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
   }'
 ```
 
+**Expected response format (without options, no meta field):**
+```json
+{
+  "requested_type": "sic",
+  "results": [
+    {
+      "type": "sic",
+      "classified": true,
+      "followup": null,
+      "code": "43210",
+      "description": "Electrical installation",
+      "candidates": [
+        {
+          "code": "43210",
+          "descriptive": "Electrical installation",
+          "likelihood": 0.99
+        }
+      ],
+      "reasoning": "The respondent data clearly states 'Electrical contracting'..."
+    }
+  ]
+}
+```
+
+**Expected response format (with options, includes meta field):**
+```json
+{
+  "requested_type": "sic",
+  "results": [
+    {
+      "type": "sic",
+      "classified": true,
+      "followup": null,
+      "code": "43210",
+      "description": "Electrical installation",
+      "candidates": [
+        {
+          "code": "43210",
+          "descriptive": "Electrical installation",
+          "likelihood": 0.99
+        }
+      ],
+      "reasoning": "The respondent data clearly states 'Electrical contracting'..."
+    }
+  ],
+  "meta": {
+    "llm": "gemini",
+    "applied_options": {
+      "sic": {
+        "rephrased": false
+      },
+      "soc": {}
+    }
+  }
+}
+```
+
 #### Result Storage and Retrieval
 ```bash
 # Store a result
@@ -368,20 +436,50 @@ curl -X POST "http://localhost:8080/v1/survey-assist/feedback" \
 - **Data Sources**: 
   - **Default**: Uses package example data from `sic-classification-library` package
   - **Custom**: Can be overridden by setting `SIC_LOOKUP_DATA_PATH` environment variable
-- **Response Example**:
+- **Response Structure**: The response structure varies based on whether a match is found and whether similarity search is used:
+  
+  **When a match is found (exact match):**
   ```json
   {
     "code": "43210",
-    "description": "Electrical installation",
+    "description": "electrical installation",
+    "code_meta": null,
+    "code_division": null,
+    "code_division_meta": null
+  }
+  ```
+  
+  **When no match is found (exact match):**
+  ```json
+  {
+    "description": "electrical installation",
+    "code": null,
+    "code_meta": null,
+    "code_division": null,
+    "code_division_meta": null
+  }
+  ```
+  
+  **When similarity search is enabled (`similarity=true`):**
+  ```json
+  {
+    "description": "electrical installation",
+    "code": null,
+    "code_meta": null,
+    "code_division": null,
+    "code_division_meta": null,
     "potential_matches": {
-      "descriptions": [
-        "Electrical installation",
-        "Electrical contractor",
-        "Electrician"
-      ]
+      "descriptions_count": 0,
+      "descriptions": [],
+      "codes_count": 0,
+      "codes": [],
+      "divisions_count": 0,
+      "divisions": []
     }
   }
   ```
+  
+  **Note**: The `description` field in the response contains the input description (lowercased). When a match is found, `code` contains the SIC code. The `potential_matches` object is only present when `similarity=true` and contains arrays of potential matches.
 
 ### Embeddings Endpoint
 - **Path**: `/v1/survey-assist/embeddings`
@@ -647,22 +745,30 @@ curl -X POST http://localhost:8080/v1/survey-assist/classify \
     "job_description": "Grows crops and raises livestock",
     "org_description": "Agricultural farm"
   }'
+```
 
-# Expected response format:
-# {
-#   "requested_type": "sic",
-#   "results": [
-#     {
-#       "type": "sic",
-#       "classified": true,
-#       "followup": null,
-#       "code": "01110",
-#       "description": "Growing of cereals (except rice), leguminous crops and oil seeds",
-#       "candidates": [...],
-#       "reasoning": "..."
-#     }
-#   ]
-# }
+**Expected response format (no meta field since no options provided):**
+```json
+{
+  "requested_type": "sic",
+  "results": [
+    {
+      "type": "sic",
+      "classified": true,
+      "followup": null,
+      "code": "01500",
+      "description": "Mixed farming",
+      "candidates": [
+        {
+          "code": "01500",
+          "descriptive": "Crop and livestock farm",
+          "likelihood": 0.99
+        }
+      ],
+      "reasoning": "The respondent data states 'Agricultural farm' and 'Grows crops and raises livestock'..."
+    }
+  ]
+}
 ```
 
 **Note**: The API uses exact matching for SIC lookups. Partial matches (e.g., "farmer" vs "Arable farmers") will not return results.
