@@ -58,7 +58,7 @@ def store_feedback_endpoint(feedback_request: FeedbackResult) -> FeedbackResultR
             duration_ms=str(duration_ms),
         )
         return FeedbackResultResponse(
-            message="Feedback received successfully", feedback_id=document_id
+            message="Feedback stored successfully", feedback_id=document_id
         )
     except Exception as e:
         logger.error(f"Error processing feedback: {e}")

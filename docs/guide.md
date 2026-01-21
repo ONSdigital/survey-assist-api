@@ -309,7 +309,7 @@ curl -X GET "http://localhost:8080/v1/survey-assist/results?survey_id=test-surve
 - **Response**: Returns stored feedback information:
   ```json
   {
-    "message": "Feedback received successfully",
+    "message": "Feedback stored successfully",
     "feedback_id": "xyz789abc123def456ij"
   }
   ```

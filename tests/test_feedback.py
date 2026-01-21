@@ -98,7 +98,7 @@ def test_store_feedback_success():
         mock_db.return_value.collection.return_value.document.return_value.id = "fb123"
         response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["message"] == "Feedback received successfully"
+    assert response.json()["message"] == "Feedback stored successfully"
     assert response.json()["feedback_id"] == "fb123"
 
 
@@ -193,7 +193,7 @@ def test_store_feedback_multiple_questions():
         mock_db.return_value.collection.return_value.document.return_value.id = "fb456"
         response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["message"] == "Feedback received successfully"
+    assert response.json()["message"] == "Feedback stored successfully"
 
 
 def test_store_feedback_different_question_types():
@@ -238,7 +238,7 @@ def test_store_feedback_different_question_types():
         mock_db.return_value.collection.return_value.document.return_value.id = "fb789"
         response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["message"] == "Feedback received successfully"
+    assert response.json()["message"] == "Feedback stored successfully"
 
 
 def test_store_feedback_missing_case_id():
