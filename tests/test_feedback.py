@@ -358,7 +358,7 @@ def test_store_feedback_empty_questions_array():
         )
         response = client.post("/v1/survey-assist/feedback", json=test_data)
     assert response.status_code == status.HTTP_200_OK
-    assert response.json()["message"] == "Feedback received successfully"
+    assert response.json()["message"] == "Feedback stored successfully"
 
 
 def test_get_feedback_success():
