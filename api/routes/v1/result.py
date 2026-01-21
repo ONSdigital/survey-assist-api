@@ -141,6 +141,14 @@ async def list_survey_results(
     try:
         start_time = time.perf_counter()
         result_body_id = f"{survey_id}:{wave_id}:{case_id or ''}"
+        if not survey_id or not wave_id:
+            logger.warning(
+                "Request received for results list with missing survey_id or wave_id",
+                survey_id=str(survey_id),
+                wave_id=str(wave_id),
+                case_id=str(case_id),
+                result_body_id=result_body_id,
+            )
         logger.info(
             "Request received for results list",
             survey_id=str(survey_id),
