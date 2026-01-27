@@ -12,7 +12,7 @@ The Survey Assist API implemented in Fast API
 - **Rephrasing Toggle**: Control SIC description rephrasing via API options for testing and development
 - **Firestore Integration**: Store survey results and feedback data in Google Cloud Firestore
 - **List Results Endpoint**: Query survey results
-- Deployed in GCP using Terraform
+- Infrastructure defined in Terraform, deployed to GCP Cloud Run via CI/CD (Cloud Build)
 - Uses the following cloud services:
   - Cloud Run
   - API Gateway
@@ -87,13 +87,13 @@ make run-docs
 
 Pytest is used for testing alongside pytest-cov for coverage testing.  [/tests/conftest.py](/tests/conftest.py) defines config used by the tests.
 
-API testing is added to the [/tests/tests_api.py](./tests/tests_api.py)
+API testing is organised under the `tests/` directory (for example `test_main.py`, `test_classify.py`, `test_result.py`) and marked with the `api` pytest marker.
 
 ```bash
 make api-tests
 ```
 
-Unit testing for utility functions is added to the [/tests/tests_utils.py](./tests/tests_utils.py)
+Unit testing for utility functions is in `tests/test_utils.py` and other `tests/test_*.py` modules marked with the `utils` pytest marker.
 
 ```bash
 make unit-tests
