@@ -218,7 +218,11 @@ The classification process works as follows:
 ### Feedback Endpoint
 - **Path**: `/v1/survey-assist/feedback`
 - **Method**: POST
-- **Description**: Stores feedback data in Firestore. Requires `FIRESTORE_DB_ID` environment variable to be set.
+- **Description**: Stores respondent feedback data in Firestore. Requires `FIRESTORE_DB_ID` environment variable to be set so that the Firestore client can be initialised.
+- **Storage details**:
+  - Feedback is stored in the `survey_feedback` collection
+  - Each request becomes a single document; the returned `feedback_id` is the Firestore document ID
+  - The combination of `case_id`, `person_id`, and `wave_id` is logged as a `feedback_body_id` for traceability in logs
 - **Request Body**:
   ```json
   {
@@ -246,6 +250,11 @@ The classification process works as follows:
     ]
   }
   ```
+- **Validation rules** (enforced by the API):
+  - `case_id`, `person_id`, `survey_id`, `wave_id`, and `questions` are required
+  - Each question must include `response` and `response_name`
+  - `response_options` (when present) must be an array of strings; passing any other type will result in a 422 validation error
+  - An empty `questions` array is allowed and will still be stored successfully
 - **Response**: Returns feedback storage confirmation:
   ```json
   {
@@ -253,6 +262,7 @@ The classification process works as follows:
     "feedback_id": "fb123def456ghi789"
   }
   ```
+  If Firestore is not configured correctly (for example, `FIRESTORE_DB_ID` is missing), the endpoint will fail with a server error when it attempts to initialise the Firestore client. See `docs/gcp_deployment.md` for full details of the required environment variables in deployed environments.
 
 ### Example Usage
 
