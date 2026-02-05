@@ -5,15 +5,21 @@ It defines the classification endpoint and returns classification results using
 vector store and LLM.
 """
 
+import asyncio
 import os
 import time
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from industrial_classification_utils.llm.llm import ClassificationLLM
-
-# from occupational_classification_utils.llm.llm import ClassificationLLM as SOCClassificationLLM
 from survey_assist_utils.logging import get_logger
+
+try:
+    from occupational_classification_utils.llm.llm import (
+        ClassificationLLM as SOCClassificationLLM,
+    )
+except ImportError:
+    SOCClassificationLLM = None  # type: ignore[misc, assignment]
 
 from api.models.classify import (
     AppliedOptions,
@@ -58,6 +64,14 @@ def get_soc_vector_store_client() -> SOCVectorStoreClient:
     Returns:
         SOCVectorStoreClient: A SOC vector store client instance.
     """
+    env_url = os.getenv("SOC_VECTOR_STORE")
+    if env_url and env_url.strip():
+        logger.info(f"Using SOC vector store URL from environment: {env_url}")
+        return SOCVectorStoreClient(base_url=env_url.strip())
+
+    logger.warning(
+        "SOC_VECTOR_STORE environment variable not set, using default localhost URL"
+    )
     return SOCVectorStoreClient()
 
 
@@ -82,10 +96,9 @@ def get_sic_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
     return ClassificationLLM()
 
 
-def get_soc_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
-    """Get a SOC ClassificationLLM instance."""
-    # TODO: Implement proper SOC LLM client when dependencies are available  # pylint: disable=fixme
-    raise NotImplementedError("SOC LLM client not yet implemented")
+def get_soc_llm_client(request: Request) -> Any:  # type: ignore
+    """Get the SOC ClassificationLLM instance from app state (or None if not available)."""
+    return getattr(request.app.state, "soc_llm", None)
 
 
 # Define dependencies at module level
@@ -493,62 +506,136 @@ def _apply_rephrasing(
 
 
 async def _classify_soc(  # pylint: disable=unused-argument
-    request: Request,  # pylint: disable=unused-argument
+    request: Request,
     classification_request: ClassificationRequest,
     vector_store: SOCVectorStoreClient,
     body_id: str,
 ) -> GenericClassificationResult:
-    """Classify using SOC classification.
+    """Classify using SOC classification (single-step RAG with vector store).
 
-    Args:
-        request (Request): The FastAPI request object.
-        classification_request (ClassificationRequest): The classification request.
-        vector_store (SOCVectorStoreClient): SOC vector store client.
-        body_id (str): Pseudo correlation ID built from truncated request fields.
-
-    Returns:
-        GenericClassificationResult: SOC classification result.
+    Mirrors the pre-two-step SIC flow: vector store search then one LLM call
+    with the short list. No second prompt for open question formulation.
     """
-    # Get vector store search results (currently unused but kept for future use)
-    await vector_store.search(
-        industry_descr=classification_request.org_description,
-        job_title=classification_request.job_title,
-        job_description=classification_request.job_description,
-        correlation_id=body_id,
-    )
-
-    # For SOC, we'll use a simple approach for now
-    # In a full implementation, you would use the SOC LLM client
-    # This is a placeholder implementation
-
-    # Create a mock SOC result for now
-    # TODO: Implement proper SOC classification using SOC LLM client  # pylint: disable=fixme
-    result = GenericClassificationResult(
-        type="soc",
-        classified=True,
-        followup=None,
-        code="9111",  # Placeholder SOC code
-        description="Farm workers",  # Placeholder description
-        candidates=[
-            GenericCandidate(
-                code="9111",
-                descriptive="Farm workers",
-                likelihood=1.0,
+    try:
+        llm = getattr(request.app.state, "soc_llm", None)
+        if llm is None:
+            logger.error("SOC LLM not available (soc-classification-utils not installed)")
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "error": {
+                        "type": "service_unavailable",
+                        "message": "SOC classification is not available",
+                        "details": "SOC LLM is not configured (soc-classification-utils may not be installed).",
+                    }
+                },
             )
-        ],
-        reasoning="Placeholder SOC classification reasoning",
-    )
 
-    # Check if SOC rephrasing is enabled (default to True for backward compatibility)
-    # Note: SOC rephrasing is not yet implemented, so this is a placeholder
-    rephrasing_enabled = (
-        classification_request.options.soc.rephrased
-        if classification_request.options and classification_request.options.soc
-        else True
-    )
+        # 1. Get vector store search results
+        search_results = await vector_store.search(
+            industry_descr=classification_request.org_description,
+            job_title=classification_request.job_title,
+            job_description=classification_request.job_description,
+            correlation_id=body_id,
+        )
 
-    # TODO: Implement SOC rephrasing when SOC rephrase client is available
-    if rephrasing_enabled:
-        logger.info("SOC rephrasing requested but not yet implemented")
+        # 2. Build short_list for LLM (same shape as SIC: code, title, distance)
+        short_list = [
+            {
+                "code": result["code"],
+                "title": result["title"],
+                "distance": result.get("distance", 0.0),
+            }
+            for result in search_results
+        ]
 
-    return result
+        if not short_list:
+            logger.warning("SOC vector store returned no results", body_id=body_id)
+            return GenericClassificationResult(
+                type="soc",
+                classified=False,
+                followup=None,
+                code=None,
+                description=None,
+                candidates=[],
+                reasoning="No SOC candidates returned from vector store search.",
+            )
+
+        # 3. Single-step LLM call (sync SOC LLM run in thread)
+        logger.info(
+            "LLM request sent for SOC classification (single-step RAG)",
+            job_title=truncate_identifier(classification_request.job_title),
+            body_id=body_id,
+        )
+        llm_start = time.perf_counter()
+        llm_response, _, _ = await asyncio.to_thread(
+            llm.sa_rag_soc_code,
+            classification_request.org_description or "",
+            classification_request.job_title,
+            classification_request.job_description,
+            expand_search_terms=True,
+            code_digits=4,
+            candidates_limit=5,
+            short_list=short_list,
+        )
+        llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
+        logger.info(
+            "LLM response received for SOC single-step prompt",
+            has_code=str(bool(getattr(llm_response, "soc_code", None))),
+            duration_ms=str(llm_duration_ms),
+            body_id=body_id,
+        )
+
+        # 4. Map to generic result (SurveyAssistSocResponse)
+        soc_candidates = getattr(llm_response, "soc_candidates", []) or []
+        candidates = [
+            GenericCandidate(
+                code=c.soc_code,
+                descriptive=c.soc_descriptive,
+                likelihood=c.likelihood,
+            )
+            for c in soc_candidates
+        ]
+
+        code = getattr(llm_response, "soc_code", None)
+        description = getattr(llm_response, "soc_descriptive", None)
+        classified = bool(code and str(code).strip())
+
+        result = GenericClassificationResult(
+            type="soc",
+            classified=classified,
+            followup=getattr(llm_response, "followup", None),
+            code=code if classified else None,
+            description=description if classified else None,
+            candidates=candidates,
+            reasoning=getattr(llm_response, "reasoning", "") or "",
+        )
+
+        # SOC rephrasing not yet implemented
+        if (
+            classification_request.options
+            and classification_request.options.soc
+            and classification_request.options.soc.rephrased
+        ):
+            logger.debug("SOC rephrasing requested but not yet implemented")
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Error in SOC classification (single-step)",
+            error=str(e),
+            body_id=body_id,
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": {
+                    "type": "classification_error",
+                    "message": "The LLM could not generate a valid SOC classification",
+                    "details": f"{e!s}",
+                }
+            },
+        ) from e
