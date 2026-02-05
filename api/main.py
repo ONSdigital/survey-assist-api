@@ -12,6 +12,16 @@ from fastapi_swagger2 import FastAPISwagger2
 from industrial_classification_utils.llm.llm import ClassificationLLM
 
 from api.routes.v1.classify import router as classify_router
+
+try:
+    from occupational_classification_utils.llm.llm import (
+        ClassificationLLM as SOCClassificationLLM,
+    )
+
+    SOC_LLM_AVAILABLE = True
+except ImportError:
+    SOCClassificationLLM = None  # type: ignore[misc, assignment]
+    SOC_LLM_AVAILABLE = False
 from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.feedback import router as feedback_router
@@ -31,6 +41,15 @@ async def lifespan(fastapi_app: FastAPI):
     """
     # Startup
     fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-2.5-flash")
+
+    # SOC classification LLM (single-step RAG; short_list from vector store)
+    if SOC_LLM_AVAILABLE and SOCClassificationLLM is not None:
+        soc_model = os.getenv("SOC_LLM_MODEL", "gemini-2.5-flash")
+        fastapi_app.state.soc_llm = SOCClassificationLLM(
+            model_name=soc_model, embedding_handler=None
+        )
+    else:
+        fastapi_app.state.soc_llm = None
 
     # Initialise Firestore client (if configured)
     init_firestore_client()
