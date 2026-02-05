@@ -5,7 +5,6 @@ It defines the classification endpoint and returns classification results using
 vector store and LLM.
 """
 
-import asyncio
 import os
 import time
 from typing import Any, Optional, Union
@@ -531,7 +530,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
                 },
             )
 
-        # 1. Get vector store search results
+        # Get vector store search results
         search_results = await vector_store.search(
             industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
@@ -539,7 +538,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
             correlation_id=body_id,
         )
 
-        # 2. Build short_list for LLM (same shape as SIC: code, title, distance)
+        # Build short_list for LLM (same shape as SIC: code, title, distance)
         short_list = [
             {
                 "code": result["code"],
@@ -561,18 +560,17 @@ async def _classify_soc(  # pylint: disable=unused-argument
                 reasoning="No SOC candidates returned from vector store search.",
             )
 
-        # 3. Single-step LLM call (sync SOC LLM run in thread)
+        # Single-step LLM call (async SOC LLM, mirrors SIC)
         logger.info(
             "LLM request sent for SOC classification (single-step RAG)",
             job_title=truncate_identifier(classification_request.job_title),
             body_id=body_id,
         )
         llm_start = time.perf_counter()
-        llm_response, _, _ = await asyncio.to_thread(
-            llm.sa_rag_soc_code,
-            classification_request.org_description or "",
-            classification_request.job_title,
-            classification_request.job_description,
+        llm_response, _, _ = await llm.sa_rag_soc_code(
+            industry_descr=classification_request.org_description or "",
+            job_title=classification_request.job_title,
+            job_description=classification_request.job_description,
             expand_search_terms=True,
             code_digits=4,
             candidates_limit=5,
@@ -586,7 +584,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
             body_id=body_id,
         )
 
-        # 4. Map to generic result (SurveyAssistSocResponse)
+        # Map to generic result (SurveyAssistSocResponse)
         soc_candidates = getattr(llm_response, "soc_candidates", []) or []
         candidates = [
             GenericCandidate(
