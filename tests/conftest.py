@@ -9,7 +9,7 @@ Functions:
     pytest_sessionfinish(session, exitstatus): Logs the end of a test session.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -19,6 +19,13 @@ from survey_assist_utils.logging import get_logger
 from api.main import app
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
+
+try:
+    from occupational_classification_utils.llm.llm import (
+        ClassificationLLM as SOCClassificationLLM,
+    )
+except ImportError:
+    SOCClassificationLLM = None  # type: ignore[misc, assignment]
 
 # Configure a global logger
 logger = get_logger(__name__)
@@ -68,8 +75,36 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     mock_sic_rephrase_client = MagicMock(spec=SICRephraseClient)
     mock_sic_rephrase_client.get_rephrased_count.return_value = 500
 
+    # Mock the SOC LLM (mirrors SIC above: single-step RAG method on app state; async).
+    # Optional import like main.py/classify.py: use SOC class as spec when available.
+    mock_soc_llm = (
+        MagicMock(spec=SOCClassificationLLM)
+        if SOCClassificationLLM is not None
+        else MagicMock()
+    )
+    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                soc_code="9111",
+                soc_descriptive="Farm workers",
+                soc_candidates=[
+                    MagicMock(
+                        soc_code="9111",
+                        soc_descriptive="Farm workers",
+                        likelihood=0.9,
+                    )
+                ],
+                followup=None,
+                reasoning="Mocked SOC reasoning",
+            ),
+            None,
+            None,
+        )
+    )
+
     # Set up app state with all required clients
     app.state.gemini_llm = mock_llm
+    app.state.soc_llm = mock_soc_llm
     app.state.sic_lookup_client = mock_sic_lookup_client
     app.state.sic_rephrase_client = mock_sic_rephrase_client
 
