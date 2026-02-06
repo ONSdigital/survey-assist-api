@@ -58,19 +58,27 @@ class TestClassifyEndpoint:
         self.mock_vector_store = None
         self.mock_vertexai = None
         self.mock_rephrase_client = None
+        self.mock_soc_vector_store = None
 
+    @patch("api.routes.v1.classify.SOCVectorStoreClient")
     @patch("api.routes.v1.classify.SICRephraseClient")
     @patch("api.routes.v1.classify.SICVectorStoreClient")
     @patch("api.main.app.state.gemini_llm")
     @patch("google.auth.default")
-    def setup_method(
-        self, mock_auth, mock_llm, mock_vector_store, mock_rephrase_client
+    def setup_method(  # pylint: disable=R0913,R0917
+        self,
+        mock_auth,
+        mock_llm,
+        mock_vector_store,
+        mock_rephrase_client,
+        mock_soc_vector_store,
     ):
         """Set up test fixtures."""
         self.mock_auth = mock_auth
         self.mock_llm = mock_llm
         self.mock_vector_store = mock_vector_store
         self.mock_rephrase_client = mock_rephrase_client
+        self.mock_soc_vector_store = mock_soc_vector_store
 
         self.mock_auth.return_value = (MagicMock(), "test-project")
         self.mock_vector_store.return_value.search = AsyncMock(
@@ -78,6 +86,15 @@ class TestClassifyEndpoint:
                 {
                     "code": EXPECTED_SIC_CODE,
                     "title": EXPECTED_SIC_DESCRIPTION,
+                    "distance": 0.05,
+                }
+            ]
+        )
+        mock_soc_vector_store.return_value.search = AsyncMock(
+            return_value=[
+                {
+                    "code": EXPECTED_SOC_CODE,
+                    "title": EXPECTED_SOC_DESCRIPTION,
                     "distance": 0.05,
                 }
             ]
