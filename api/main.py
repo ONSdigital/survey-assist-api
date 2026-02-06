@@ -11,8 +11,6 @@ from fastapi import FastAPI
 from fastapi_swagger2 import FastAPISwagger2
 from industrial_classification_utils.llm.llm import ClassificationLLM
 
-from api.routes.v1.classify import router as classify_router
-
 try:
     from occupational_classification_utils.llm.llm import (
         ClassificationLLM as SOCClassificationLLM,
@@ -22,6 +20,8 @@ try:
 except ImportError:
     SOCClassificationLLM = None  # type: ignore[misc, assignment]
     SOC_LLM_AVAILABLE = False
+
+from api.routes.v1.classify import router as classify_router
 from api.routes.v1.config import router as config_router
 from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.feedback import router as feedback_router
