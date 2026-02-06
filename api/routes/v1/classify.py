@@ -13,13 +13,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from industrial_classification_utils.llm.llm import ClassificationLLM
 from survey_assist_utils.logging import get_logger
 
-try:
-    from occupational_classification_utils.llm.llm import (
-        ClassificationLLM as SOCClassificationLLM,
-    )
-except ImportError:
-    SOCClassificationLLM = None  # type: ignore[misc, assignment]
-
 from api.models.classify import (
     AppliedOptions,
     ClassificationRequest,
@@ -96,7 +89,11 @@ def get_sic_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
 
 
 def get_soc_llm_client(request: Request) -> Any:  # type: ignore
-    """Get the SOC ClassificationLLM instance from app state (or None if not available)."""
+    """Get the SOC ClassificationLLM from app state (or None if not available).
+
+    Mirrors SIC pattern: LLM is provided via app state (main.py). SOC is optional,
+    so returns None when soc-classification-utils is not installed.
+    """
     return getattr(request.app.state, "soc_llm", None)
 
 
@@ -504,7 +501,7 @@ def _apply_rephrasing(
         return candidates
 
 
-async def _classify_soc(  # pylint: disable=unused-argument
+async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SOCVectorStoreClient,
@@ -516,21 +513,29 @@ async def _classify_soc(  # pylint: disable=unused-argument
     with the short list. No second prompt for open question formulation.
     """
     try:
+        # Mirror SIC: LLM from app state. SIC uses request.app.state.gemini_llm (required);
+        # SOC is optional, so 503 if not configured.
         llm = getattr(request.app.state, "soc_llm", None)
         if llm is None:
-            logger.error("SOC LLM not available (soc-classification-utils not installed)")
+            logger.error(
+                "SOC LLM not available (soc-classification-utils not installed)",
+                body_id=body_id,
+            )
             raise HTTPException(
                 status_code=503,
                 detail={
                     "error": {
                         "type": "service_unavailable",
                         "message": "SOC classification is not available",
-                        "details": "SOC LLM is not configured (soc-classification-utils may not be installed).",
+                        "details": (
+                            "SOC LLM is not configured "
+                            "(soc-classification-utils may not be installed)."
+                        ),
                     }
                 },
             )
 
-        # Get vector store search results
+        # Get vector store search results (same order as SIC: search then LLM)
         search_results = await vector_store.search(
             industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
@@ -560,10 +565,12 @@ async def _classify_soc(  # pylint: disable=unused-argument
                 reasoning="No SOC candidates returned from vector store search.",
             )
 
-        # Single-step LLM call (async SOC LLM, mirrors SIC)
+        # Single-step LLM call (async SOC LLM, mirrors SIC sa_rag_sic_code flow)
         logger.info(
-            "LLM request sent for SOC classification (single-step RAG)",
-            job_title=truncate_identifier(classification_request.job_title),
+            f"LLM request sent for SOC classification (single-step RAG) - "
+            f"job_title: '{truncate_identifier(classification_request.job_title)}', "
+            f"job_description: '{truncate_identifier(classification_request.job_description)}', "
+            f"org_description: '{truncate_identifier(classification_request.org_description)}'",
             body_id=body_id,
         )
         llm_start = time.perf_counter()
@@ -622,6 +629,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
     except HTTPException:
         raise
     except Exception as e:
+        # Mirror SIC: same 422 detail shape and logging (error, body_id)
         logger.error(
             "Error in SOC classification (single-step)",
             error=str(e),
@@ -633,7 +641,7 @@ async def _classify_soc(  # pylint: disable=unused-argument
                 "error": {
                     "type": "classification_error",
                     "message": "The LLM could not generate a valid SOC classification",
-                    "details": f"{e!s}",
+                    "details": f"SOC classification failed: {e!s}",
                 }
             },
         ) from e
