@@ -30,7 +30,9 @@ async def lifespan(fastapi_app: FastAPI):
     It initialises the LLM model and client instances at startup.
     """
     # Startup
-    fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-2.5-flash",temperature=0.0)
+    fastapi_app.state.gemini_llm = ClassificationLLM(
+        model_name="gemini-2.5-flash", temperature=0.0
+    )
 
     # Initialise Firestore client (if configured)
     init_firestore_client()
