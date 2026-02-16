@@ -7009,7 +7009,7 @@ optional = false
 python-versions = "^3.12"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 autocorrect = "^2.6.1"
@@ -7032,8 +7032,10 @@ survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.
 torch = "2.7.1"
 
 [package.source]
-type = "directory"
-url = "../sic-classification-utils"
+type = "git"
+url = "https://github.com/ONSdigital/sic-classification-utils.git"
+reference = "v0.1.9"
+resolved_reference = "deca27bbf47ec0f4a06e830e6d8e2cd832d0e8b2"
 
 [[package]]
 name = "six"
@@ -8379,4 +8381,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "81a0181bc581847b88f3663116655f3bb02176e6c158c3aeaf52a57b3b75aaab"
+content-hash = "fb12a84e658a86bb750b442e570c494ac312f87c5ed1cda64653f73b6e380d3d"
