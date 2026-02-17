@@ -23,13 +23,15 @@ The API is built using:
 - **Path**: `/v1/survey-assist/config`
 - **Method**: GET
 - **Description**: Returns the current configuration settings including:
-  - LLM model configuration (`llm_model`)
-  - Vector store embedding model (`embedding_model`)
-  - Data store settings (`data_store`)
-  - Firestore database ID (`firestore_database_id`)
-  - Classification prompts (per version)
-  - Version-specific settings
-  - Actual prompt used by the LLM (`actual_prompt`)
+
+    - LLM model configuration (`llm_model`)
+    - Vector store embedding model (`embedding_model`)
+    - Data store settings (`data_store`)
+    - Firestore database ID (`firestore_database_id`)
+    - Classification prompts (per version)
+    - Version-specific settings
+    - Actual prompt used by the LLM (`actual_prompt`)
+
 - **Response Example**:
   ```json
   {
@@ -78,19 +80,22 @@ The API is built using:
 - **Method**: POST
 - **Description**: Classifies job titles and descriptions into SIC or SOC codes using vector store similarity search and LLM models. Returns a generic response format that supports both SIC and SOC classification types.
 - **Request Body**:
-  - `llm` (required): The LLM model to use ("chat-gpt" or "gemini"). Note: The API currently uses "gemini-2.5-flash" regardless of this value.
-  - `type` (required): Type of classification ("sic", "soc", or "sic_soc")
-  - `job_title` (required): Survey response for Job Title
-  - `job_description` (required): Survey response for Job Description
-  - `org_description` (optional): Survey response for Organisation/Industry Description
-  - `options` (optional): Classification options object:
+
+    - `llm` (required): The LLM model to use ("chat-gpt" or "gemini"). Note: The API currently uses "gemini-2.5-flash" regardless of this value.
+    - `type` (required): Type of classification ("sic", "soc", or "sic_soc")
+    - `job_title` (required): Survey response for Job Title
+    - `job_description` (required): Survey response for Job Description
+    - `org_description` (optional): Survey response for Organisation/Industry Description
+    - `options` (optional): Classification options object:
     - `sic` (optional): SIC-specific options:
       - `rephrased` (boolean, default: true): Whether to apply rephrasing to SIC classification results
     - `soc` (optional): SOC-specific options:
       - `rephrased` (boolean, default: true): Whether to apply rephrasing to SOC classification results (not yet implemented)
+
 - **Response**: Returns a generic classification response with the following structure:
-  - `requested_type` (string): The type of classification that was requested ("sic", "soc", or "sic_soc")
-  - `results` (array): List of classification results, each containing:
+
+    - `requested_type` (string): The type of classification that was requested ("sic", "soc", or "sic_soc")
+    - `results` (array): List of classification results, each containing:
     - `type` (string): The classification type ("sic" or "soc")
     - `classified` (boolean): Whether the input could be definitively classified
     - `followup` (string, optional): Additional question to help classify (only present if classified=false)
@@ -101,7 +106,7 @@ The API is built using:
       - `descriptive` (string): The classification description
       - `likelihood` (number): Confidence score between 0 and 1
     - `reasoning` (string): Reasoning behind the classification
-  - `meta` (object, optional): Response metadata, only included when `options` were provided in the request:
+    - `meta` (object, optional): Response metadata, only included when `options` were provided in the request:
     - `llm` (string): The LLM model used
     - `applied_options` (object): The options that were applied:
       - `sic` (object, optional): Applied SIC options
@@ -185,7 +190,9 @@ The classification process works as follows:
 - **Method**: GET
 - **Description**: Retrieves a stored classification result from Firestore by document ID. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
-  - `result_id` (required): The Firestore document ID of the result to retrieve (e.g., "abc123xyz456def789gh")
+
+    - `result_id` (required): The Firestore document ID of the result to retrieve (e.g., "abc123xyz456def789gh")
+
 - **Response**: Returns the stored result in the same format as the POST request body.
 
 #### List Results
@@ -193,9 +200,11 @@ The classification process works as follows:
 - **Method**: GET
 - **Description**: Lists stored classification results from Firestore filtered by survey_id, wave_id, and optionally case_id. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
-  - `survey_id` (required): Survey identifier to filter by
-  - `wave_id` (required): Wave identifier to filter by
-  - `case_id` (optional): Case identifier to filter by. If omitted, returns all results for the survey/wave.
+
+    - `survey_id` (required): Survey identifier to filter by
+    - `wave_id` (required): Wave identifier to filter by
+    - `case_id` (optional): Case identifier to filter by. If omitted, returns all results for the survey/wave.
+
 - **Response**: Returns a list of matching results with their Firestore document IDs:
   ```json
   {
@@ -222,9 +231,11 @@ The classification process works as follows:
 - **Method**: POST
 - **Description**: Stores respondent feedback data in Firestore. Requires `FIRESTORE_DB_ID` environment variable to be set so that the Firestore client can be initialised.
 - **Storage details**:
-  - Feedback is stored in the `survey_feedback` collection
-  - Each request becomes a single document; the returned `feedback_id` is the Firestore document ID
-  - The combination of `case_id`, `person_id`, and `wave_id` is logged as a `feedback_body_id` for traceability in logs
+
+    - Feedback is stored in the `survey_feedback` collection
+    - Each request becomes a single document; the returned `feedback_id` is the Firestore document ID
+    - The combination of `case_id`, `person_id`, and `wave_id` is logged as a `feedback_body_id` for traceability in logs
+
 - **Request Body**:
   ```json
   {
@@ -253,10 +264,12 @@ The classification process works as follows:
   }
   ```
 - **Validation rules** (enforced by the API):
-  - `case_id`, `person_id`, `survey_id`, `wave_id`, and `questions` are required
-  - Each question must include `response` and `response_name`
-  - `response_options` (when present) must be an array of strings; passing any other type will result in a 422 validation error
-  - An empty `questions` array is allowed and will still be stored successfully
+
+    - `case_id`, `person_id`, `survey_id`, `wave_id`, and `questions` are required
+    - Each question must include `response` and `response_name`
+    - `response_options` (when present) must be an array of strings; passing any other type will result in a 422 validation error
+    - An empty `questions` array is allowed and will still be stored successfully
+
 - **Response**: Returns feedback storage confirmation:
   ```json
   {
@@ -271,7 +284,9 @@ The classification process works as follows:
 - **Method**: GET
 - **Description**: Retrieves a stored feedback result from Firestore by document ID. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
-  - `feedback_id` (required): The Firestore document ID of the feedback to retrieve (for example, `"fb123def456ghi789"`)
+
+    - `feedback_id` (required): The Firestore document ID of the feedback to retrieve (for example, `"fb123def456ghi789"`)
+
 - **Response**: Returns the stored feedback in the same format as the POST request body (without `feedback_id`), including `case_id`, `person_id`, `survey_id`, `wave_id`, and `questions`.
 
 #### List Feedbacks
@@ -279,9 +294,11 @@ The classification process works as follows:
 - **Method**: GET
 - **Description**: Lists stored feedback results from Firestore filtered by `survey_id`, `wave_id`, and optionally `case_id`. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
-  - `survey_id` (required): Survey identifier to filter by
-  - `wave_id` (required): Wave identifier to filter by
-  - `case_id` (optional): Case identifier to filter by. If omitted, returns all feedback for the survey/wave.
+
+    - `survey_id` (required): Survey identifier to filter by
+    - `wave_id` (required): Wave identifier to filter by
+    - `case_id` (optional): Case identifier to filter by. If omitted, returns all feedback for the survey/wave.
+
 - **Response**: Returns a list of matching feedback results with their Firestore document IDs:
   ```json
   {
@@ -485,14 +502,20 @@ curl -X POST "http://localhost:8080/v1/survey-assist/feedback" \
 - **Path**: `/v1/survey-assist/sic-lookup`
 - **Method**: GET
 - **Parameters**:
-  - `description` (required): The business description to look up
-  - `similarity` (optional, default: false): Boolean flag for similarity search
+
+    - `description` (required): The business description to look up
+    - `similarity` (optional, default: false): Boolean flag for similarity search
+
 - **Description**: Performs SIC code lookup with two modes:
-  - Exact match (`similarity=false`): Returns exact matches only
-  - Similarity search (`similarity=true`): Returns similar matches using fuzzy matching
-- **Data Sources**: 
-  - **Default**: Uses package example data from `sic-classification-library` package
-  - **Custom**: Can be overridden by setting `SIC_LOOKUP_DATA_PATH` environment variable
+
+    - Exact match (`similarity=false`): Returns exact matches only
+    - Similarity search (`similarity=true`): Returns similar matches using fuzzy matching
+
+- **Data Sources**:
+
+    - **Default**: Uses package example data from `sic-classification-library` package
+    - **Custom**: Can be overridden by setting `SIC_LOOKUP_DATA_PATH` environment variable
+
 - **Response Structure**: The response structure varies based on whether a match is found and whether similarity search is used:
   
   **When a match is found (exact match):**
@@ -583,6 +606,7 @@ The Swagger2 specification is available at `/swagger2.json`
 ## Development
 
 ### Prerequisites
+
 - Python 3.12
 - Poetry for dependency management
 - Access to the SIC Classification Library
@@ -1077,25 +1101,29 @@ INFO - Loaded [Y] rephrased SIC descriptions from [package_path]/example_rephras
 #### **Common Issues and Solutions**
 
 1. **"File not found" errors**
-   - Verify the file paths in environment variables
-   - Check file permissions
-   - Ensure files exist in the specified locations
+
+    - Verify the file paths in environment variables
+    - Check file permissions
+    - Ensure files exist in the specified locations
 
 2. **Package data not loading**
-   - Verify `sic-classification-library` package is installed
-   - Check package installation path
-   - Ensure package data files are accessible
+
+    - Verify `sic-classification-library` package is installed
+    - Check package installation path
+    - Ensure package data files are accessible
 
 3. **Mixed configuration not working**
-   - Verify environment variables are set correctly
-   - Check that file paths are accessible from the container/process
-   - Review API logs for data loading confirmations
-   - Ensure paths are relative to the working directory or absolute paths
+
+    - Verify environment variables are set correctly
+    - Check that file paths are accessible from the container/process
+    - Review API logs for data loading confirmations
+    - Ensure paths are relative to the working directory or absolute paths
 
 4. **Classification endpoint failing**
-   - Ensure vector store service is running
-   - Check vector store connectivity
-   - Verify data loading completed successfully
+
+    - Ensure vector store service is running
+    - Check vector store connectivity
+    - Verify data loading completed successfully
 
 #### **Verification Commands**
 
