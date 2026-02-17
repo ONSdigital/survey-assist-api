@@ -185,7 +185,7 @@ The classification process works as follows:
 - **Method**: GET
 - **Description**: Retrieves a stored classification result from Firestore by document ID. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
-  - `result_id` (required): The Firestore document ID of the result to retrieve
+  - `result_id` (required): The Firestore document ID of the result to retrieve (e.g., "abc123xyz456def789gh")
 - **Response**: Returns the stored result in the same format as the POST request body.
 
 #### List Results
