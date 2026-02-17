@@ -39,6 +39,7 @@ Deployment to development and sandbox environments is automated via Google Cloud
 **Pipeline Configuration**: `cicd/cloudbuild_dev_and_sandbox.yaml`
 
 **Key Steps**:
+
 - Downloads SIC lookup and rephrase CSV files from Google Cloud Storage (`$_SIC_LOOKUP_CSV`, `$_SIC_REPHRASE_CSV`)
 - Builds Docker image tagged with both `latest` and commit SHA
 - Deploys to Cloud Run using the SHA-tagged image
@@ -87,20 +88,24 @@ The script automatically:
 The CI/CD pipeline configures the following environment variables for the Cloud Run service:
 
 **Required:**
+
 - `SIC_VECTOR_STORE`: URL of the SIC classification vector store service (required for classification functionality)
 - `FIRESTORE_DB_ID`: Firestore Database ID (required for result and feedback endpoints)
 
 **Optional:**
+
 - `GCP_PROJECT_ID`: Google Cloud Project ID (optional, uses default project if not set)
 - `SIC_LOOKUP_DATA_PATH`: Path to custom SIC lookup data file (optional, defaults to package example data)
 - `SIC_REPHRASE_DATA_PATH`: Path to custom SIC rephrase data file (optional, defaults to package example data)
 
 **Data Loading Behaviour**:
+
 - **Package Data (default)**: The API uses example data from the `industrial_classification.data` package when no custom data paths are specified
 - **Custom Data Sources**: Can be specified via `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables
 - **Firestore**: If `FIRESTORE_DB_ID` is not set, result endpoints will return 503 errors and feedback endpoint will return 500 errors
 
 **Note**: The `SIC_VECTOR_STORE` URL is configured in the CI/CD pipeline. To find the vector store service URL:
+
 ```bash
 gcloud run services list --project={PROJECT_ID} --region={REGION} | grep -i vector
 ```
@@ -108,6 +113,7 @@ gcloud run services list --project={PROJECT_ID} --region={REGION} | grep -i vect
 ### Service Account Configuration
 
 The Cloud Run service requires a service account with the following IAM roles:
+
 - `roles/run.invoker` (for service-to-service communication with vector store)
 - `roles/iam.serviceAccountTokenCreator` (for generating ID tokens)
 - Firestore access (if using Firestore features)
@@ -320,6 +326,7 @@ curl "https://$GATEWAY_URL/v1/survey-assist/config"
 ```
 
 **Expected Responses**:
+
 - **Config**: Returns LLM model, embedding model, Firestore database ID, and prompt configurations
 - **Data Loading**: Service uses package example data by default, or custom data if `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables are set
 - **Embeddings**: Returns vector store status and metadata
@@ -402,6 +409,7 @@ Create a `payload.json` file with the required claims:
 ```
 
 **Required fields:**
+
 - `iat`: Issued at timestamp (current Unix timestamp in seconds)
 - `exp`: Expiration timestamp (current Unix timestamp + 3600 seconds = 1 hour from now)
 - `iss`: Issuer (service account that will sign the JWT)
@@ -410,6 +418,7 @@ Create a `payload.json` file with the required claims:
 - `email`: Service account email (same as issuer)
 
 **Quick timestamp generation:**
+
 ```bash
 # Get current timestamp
 echo "Current timestamp: $(date +%s)"
@@ -450,6 +459,7 @@ curl --header "Authorization: Bearer ${TOKEN}" \
 The API Gateway provides access to all survey-assist-api endpoints with JWT authentication:
 
 **Basic Endpoints**:
+
 ```bash
 # Configuration endpoint
 curl --header "Authorization: Bearer ${TOKEN}" \
@@ -461,6 +471,7 @@ curl --header "Authorization: Bearer ${TOKEN}" \
 ```
 
 **Classification Endpoints**:
+
 ```bash
 # Classification with rephrase enabled (user-friendly descriptions)
 curl --header "Authorization: Bearer ${TOKEN}" \
@@ -527,6 +538,7 @@ For JWT authentication to work, the Swagger spec must include:
 ```
 
 **Critical fields:**
+
 - `x-google-issuer`: Service account that will sign JWTs
 - `x-google-audiences`: API Gateway hostname for JWT validation
 - `host`: API Gateway hostname
@@ -536,12 +548,14 @@ For JWT authentication to work, the Swagger spec must include:
 ### Testing Authentication
 
 #### Test with Valid JWT Token (should return 200 OK)
+
 ```bash
 curl --header "Authorization: Bearer ${TOKEN}" \
   "https://<api-gateway-hostname>/v1/survey-assist/config"
 ```
 
 #### Test without Token (should return 401 Unauthorized)
+
 ```bash
 curl "https://<api-gateway-hostname>/v1/survey-assist/config"
 # Expected: {"message":"Jwt is missing","code":401}
@@ -560,20 +574,24 @@ curl "https://<api-gateway-hostname>/v1/survey-assist/config"
 The API has been updated to support Swagger2 (OpenAPI v2) for Google Cloud API Gateway compatibility:
 
 ### Changes Made
+
 - **Added `fastapi_swagger2` dependency** (v0.2.4)
 - **Replaced OpenAPI v3 endpoints** with Swagger2 endpoints
 - **Updated documentation URLs** from `/docs` to `/swagger2/docs`
 
 ### New Endpoints
+
 - `/swagger2.json` - Swagger2 specification (API Gateway compatible)
 - `/swagger2/docs` - Swagger2 UI
 - `/swagger2/redoc` - ReDoc for Swagger2
 
 ### Breaking Changes
+
 - `/docs`, `/redoc`, `/openapi.json` endpoints removed
 - **Documentation URLs updated** - all references changed to `/swagger2/*`
 
 ### Testing Swagger2
+
 ```bash
 # Test new Swagger2 endpoints
 curl -H "Authorization: Bearer ${JWT_TOKEN}" \
@@ -624,6 +642,7 @@ Based on our deployment experience, the following factors are critical for API G
 
 ### API Gateway Compatibility
 The Swagger2 specification is now compatible with Google Cloud API Gateway, enabling:
+
 - **API Gateway deployment** with proper authentication
 - **Swagger2 format** (OpenAPI v2) instead of v3
 - **Google Cloud extensions** support
@@ -634,10 +653,12 @@ The Swagger2 specification is now compatible with Google Cloud API Gateway, enab
 The CI/CD pipeline configures the following environment variables. These are documented here for reference:
 
 **Required environment variables:**
+
 - `SIC_VECTOR_STORE`: URL of the SIC classification vector store service
 - `FIRESTORE_DB_ID`: Firestore Database ID (required for result and feedback endpoints)
 
 **Optional environment variables:**
+
 - `GCP_PROJECT_ID`: Google Cloud Project ID (uses default project if not set)
 - `SIC_LOOKUP_DATA_PATH`: Path to custom SIC lookup data file (defaults to package example data)
 - `SIC_REPHRASE_DATA_PATH`: Path to custom SIC rephrase data file (defaults to package example data)
