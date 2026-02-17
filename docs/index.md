@@ -10,7 +10,7 @@ The Survey Assist API is a FastAPI service that provides SIC (Standard Industria
 - **Configuration introspection**: `GET /v1/survey-assist/config` returns the LLM model name, embedding model (from the vector store), and prompt templates.
 - **Firestore-backed persistence (optional)**:
   - `POST /v1/survey-assist/result`, `GET /v1/survey-assist/result`, `GET /v1/survey-assist/results`
-  - `POST /v1/survey-assist/feedback`
+  - `POST /v1/survey-assist/feedback`, `GET /v1/survey-assist/feedback`, `GET /v1/survey-assist/feedbacks`
 
 ## API Documentation
 
