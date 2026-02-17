@@ -1,6 +1,6 @@
 # Survey Assist API
 
-The Survey Assist API is a FastAPI service that provides SIC (Standard Industrial Classification) support (lookup and LLM-assisted classification), plus optional storage of results and feedback in Firestore.
+The Survey Assist API is a FastAPI service that provides access to classification services to determine which industry or occupation a respondent works in. Standard Industrial Code (SIC) classification is implemented using a direct lookup against an internal knowledge-base and if the classification cannot be made directly an LLM will attempt to unambiguously classify or provide a follow up question to gain further information. Standard Occupation Classification (SOC) is a future enhancement and the current endpoint will only return a template SOC response. The API provides endpoints to allow the client to store classification results and feedback in a Firestore database.
 
 ## Key Features
 
