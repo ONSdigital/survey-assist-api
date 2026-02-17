@@ -215,7 +215,9 @@ The classification process works as follows:
   }
   ```
 
-### Feedback Endpoint
+### Feedback Endpoints
+
+#### Store Feedback
 - **Path**: `/v1/survey-assist/feedback`
 - **Method**: POST
 - **Description**: Stores respondent feedback data in Firestore. Requires `FIRESTORE_DB_ID` environment variable to be set so that the Firestore client can be initialised.
@@ -258,11 +260,56 @@ The classification process works as follows:
 - **Response**: Returns feedback storage confirmation:
   ```json
   {
-    "message": "Feedback received successfully",
+    "message": "Feedback stored successfully",
     "feedback_id": "fb123def456ghi789"
   }
   ```
   If Firestore is not configured correctly (for example, `FIRESTORE_DB_ID` is missing), the endpoint will fail with a server error when it attempts to initialise the Firestore client. See `docs/gcp_deployment.md` for full details of the required environment variables in deployed environments.
+
+#### Get Feedback
+- **Path**: `/v1/survey-assist/feedback`
+- **Method**: GET
+- **Description**: Retrieves a stored feedback result from Firestore by document ID. Requires `FIRESTORE_DB_ID` environment variable to be set.
+- **Query Parameters**:
+  - `feedback_id` (required): The Firestore document ID of the feedback to retrieve (for example, `"fb123def456ghi789"`)
+- **Response**: Returns the stored feedback in the same format as the POST request body (without `feedback_id`), including `case_id`, `person_id`, `survey_id`, `wave_id`, and `questions`.
+
+#### List Feedbacks
+- **Path**: `/v1/survey-assist/feedbacks`
+- **Method**: GET
+- **Description**: Lists stored feedback results from Firestore filtered by `survey_id`, `wave_id`, and optionally `case_id`. Requires `FIRESTORE_DB_ID` environment variable to be set.
+- **Query Parameters**:
+  - `survey_id` (required): Survey identifier to filter by
+  - `wave_id` (required): Wave identifier to filter by
+  - `case_id` (optional): Case identifier to filter by. If omitted, returns all feedback for the survey/wave.
+- **Response**: Returns a list of matching feedback results with their Firestore document IDs:
+  ```json
+  {
+    "results": [
+      {
+        "case_id": "0710-25AA-XXXX-YYYY",
+        "person_id": "000001_01",
+        "survey_id": "survey_123",
+        "wave_id": "wave_456",
+        "questions": [
+          {
+            "response": "Very satisfied",
+            "response_name": "satisfaction_question",
+            "response_options": [
+              "Very satisfied",
+              "Satisfied",
+              "Neutral",
+              "Dissatisfied",
+              "Very dissatisfied"
+            ]
+          }
+        ],
+        "document_id": "fb123def456ghi789"
+      }
+    ],
+    "count": 1
+  }
+  ```
 
 ### Example Usage
 
