@@ -45,9 +45,7 @@ async def lifespan(fastapi_app: FastAPI):
     # SOC classification LLM (single-step RAG; short_list from vector store)
     if SOC_LLM_AVAILABLE and SOCClassificationLLM is not None:
         soc_model = os.getenv("SOC_LLM_MODEL", "gemini-2.5-flash")
-        fastapi_app.state.soc_llm = SOCClassificationLLM(
-            model_name=soc_model, embedding_handler=None
-        )
+        fastapi_app.state.soc_llm = SOCClassificationLLM(model_name=soc_model)
     else:
         fastapi_app.state.soc_llm = None
 
