@@ -7573,7 +7573,7 @@ optional = false
 python-versions = "^3.12"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 autocorrect = "^2.6.1"
@@ -7598,8 +7598,10 @@ torch = "2.7.1"
 transformers = "4.48.0"
 
 [package.source]
-type = "directory"
-url = "../soc-classification-utils"
+type = "git"
+url = "https://github.com/ONSdigital/soc-classification-utils.git"
+reference = "v0.1.1"
+resolved_reference = "fe570410f78e14ae93345b2c8721203ab599309c"
 
 [[package]]
 name = "sqlalchemy"
@@ -8970,4 +8972,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "97aef6160b8ace88bb5e7b1596714974067dc1ff002b40bed262bf26749098ed"
+content-hash = "022ee3faea63d859ec4eb87497a2e5d262ccdd116445660b26aeba62623cce27"
