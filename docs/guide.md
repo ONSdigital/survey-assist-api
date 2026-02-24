@@ -115,6 +115,7 @@ The API is built using:
 **Note**: SOC classification is currently a placeholder implementation. Requests with `type="soc"` or `type="sic_soc"` will return a placeholder SOC result.
 
 The classification process works as follows:
+
 1. The input text is used to search the vector store for a list of candidate SIC codes.
 2. The LLM first attempts to find an **unambiguous** classification from the candidates.
 3. If a definitive SIC code is found, the API returns a response with `classified: true` and the found code. The `followup` field will be `null`.
@@ -587,16 +588,19 @@ The API integrates with the Vector Store Service to provide:
 
 ### Interactive Documentation
 The API provides two types of interactive documentation:
+
 1. **Swagger UI** (`/swagger2/docs`)
-   - Interactive API testing
-   - Request/response schemas
-   - Example values
-   - Try-it-out functionality
+
+    - Interactive API testing
+    - Request/response schemas
+    - Example values
+    - Try-it-out functionality
 
 2. **ReDoc** (`/swagger2/redoc`)
-   - Alternative documentation view
-   - Clean, readable format
-   - Schema visualisation
+
+    - Alternative documentation view
+    - Clean, readable format
+    - Schema visualisation
 
 You can access these interactive documentation tools by ensuring your API is running and then navigating to the `/swagger2/docs` or `/swagger2/redoc` URL in a browser (e.g., http://127.0.0.1:8080/swagger2/docs).
 
@@ -613,6 +617,7 @@ The Swagger2 specification is available at `/swagger2.json`
 - Access to the Vector Store Service
 
 ### Setup
+
 1. Clone the repositories:
    ```bash
    # Clone survey-assist-api
