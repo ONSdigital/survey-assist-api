@@ -15,6 +15,7 @@ The Survey Assist API uses **automated CI/CD pipelines** for all deployments to 
 | Production | Automated (via promotion pipeline) | `cicd/cloudbuild_promote_preprod.yaml` |
 
 **What the CI/CD Pipeline Does:**
+
 1. Runs full test suite with coverage checks (80% minimum)
 2. Downloads data files from Google Cloud Storage
 3. Builds Docker image
