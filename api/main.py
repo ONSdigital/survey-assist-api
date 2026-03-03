@@ -30,6 +30,7 @@ from api.routes.v1.sic_lookup import router as sic_lookup_router
 from api.services.firestore_client import init_firestore_client
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
+from api.services.soc_rephrase_client import SOCRephraseClient
 
 
 @asynccontextmanager
@@ -69,6 +70,9 @@ async def lifespan(fastapi_app: FastAPI):
         )
     else:
         fastapi_app.state.sic_rephrase_client = SICRephraseClient()
+
+    # Create SOC rephrase client (index naming and mapping only; data is added later)
+    fastapi_app.state.soc_rephrase_client = SOCRephraseClient()
 
     yield
     # Shutdown
