@@ -24,6 +24,7 @@ from api.models.classify import (
 )
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
+from api.services.soc_rephrase_client import SOCRephraseClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
 from utils.survey import truncate_identifier
 
@@ -79,6 +80,18 @@ def get_rephrase_client(request: Request) -> SICRephraseClient:
     return request.app.state.sic_rephrase_client
 
 
+def get_soc_rephrase_client(request: Request) -> SOCRephraseClient:
+    """Get the SOC rephrase client instance.
+
+    Args:
+        request: The FastAPI request object containing the app state.
+
+    Returns:
+        SOCRephraseClient: The SOC rephrase client (index naming and mapping).
+    """
+    return request.app.state.soc_rephrase_client
+
+
 def get_sic_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
     """Get a SIC ClassificationLLM instance."""
     if ClassificationLLM is None:
@@ -101,6 +114,7 @@ def get_soc_llm_client(request: Request) -> Any:  # type: ignore
 sic_vector_store_dependency = Depends(get_sic_vector_store_client)
 soc_vector_store_dependency = Depends(get_soc_vector_store_client)
 rephrase_dependency = Depends(get_rephrase_client)
+soc_rephrase_dependency = Depends(get_soc_rephrase_client)
 sic_llm_dependency = Depends(get_sic_llm_client)
 soc_llm_dependency = Depends(get_soc_llm_client)
 
@@ -501,6 +515,61 @@ def _apply_rephrasing(
         return candidates
 
 
+def _apply_soc_rephrasing(
+    result: GenericClassificationResult,
+    soc_rephrase_client: SOCRephraseClient,
+    classification_request: ClassificationRequest,
+) -> GenericClassificationResult:
+    """Apply rephrasing to SOC result and candidates if enabled.
+
+    Args:
+        result: SOC classification result to potentially rephrase.
+        soc_rephrase_client: The SOC rephrase client instance.
+        classification_request: The classification request containing options.
+
+    Returns:
+        GenericClassificationResult with rephrased descriptions if enabled.
+    """
+    rephrasing_enabled = (
+        classification_request.options.soc.rephrased
+        if classification_request.options and classification_request.options.soc
+        else True
+    )
+
+    if not rephrasing_enabled:
+        return result
+
+    try:
+        # Rephrase main SOC description if possible
+        if result.code:
+            rephrased_main = soc_rephrase_client.get_rephrased_description(result.code)
+            if rephrased_main:
+                result.description = rephrased_main
+
+        # Rephrase SOC candidates
+        rephrased_candidates: list[GenericCandidate] = []
+        for candidate in result.candidates or []:
+            rephrased_text = soc_rephrase_client.get_rephrased_description(
+                candidate.code
+            )
+            if rephrased_text:
+                rephrased_candidates.append(
+                    GenericCandidate(
+                        code=candidate.code,
+                        descriptive=rephrased_text,
+                        likelihood=candidate.likelihood,
+                    )
+                )
+            else:
+                rephrased_candidates.append(candidate)
+
+        result.candidates = rephrased_candidates
+        return result
+    except Exception as e:  # pylint: disable=broad-except
+        logger.warning(f"Failed to rephrase SOC classification result: {e}")
+        return result
+
+
 async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
@@ -616,13 +685,29 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
             reasoning=getattr(llm_response, "reasoning", "") or "",
         )
 
-        # SOC rephrasing not yet implemented
         if (
             classification_request.options
             and classification_request.options.soc
             and classification_request.options.soc.rephrased
         ):
-            logger.debug("SOC rephrasing requested but not yet implemented")
+            soc_rephrase_client = getattr(
+                request.app.state, "soc_rephrase_client", None
+            )
+            if isinstance(soc_rephrase_client, SOCRephraseClient):
+                result = _apply_soc_rephrasing(
+                    result, soc_rephrase_client, classification_request
+                )
+                logger.info(
+                    "SOC rephrasing applied",
+                    body_id=body_id,
+                    has_rephrase_client=str(soc_rephrase_client is not None),
+                    rephrased_candidates_count=str(len(result.candidates or [])),
+                )
+            else:
+                logger.info(
+                    "SOC rephrasing requested but SOCRephraseClient not available",
+                    body_id=body_id,
+                )
 
         return result
 
