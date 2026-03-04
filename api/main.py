@@ -71,8 +71,14 @@ async def lifespan(fastapi_app: FastAPI):
     else:
         fastapi_app.state.sic_rephrase_client = SICRephraseClient()
 
-    # Create SOC rephrase client (index naming and mapping only; data is added later)
-    fastapi_app.state.soc_rephrase_client = SOCRephraseClient()
+    # Create SOC rephrase client
+    soc_rephrase_data_path = os.getenv("SOC_REPHRASE_DATA_PATH")
+    if soc_rephrase_data_path and soc_rephrase_data_path.strip():
+        fastapi_app.state.soc_rephrase_client = SOCRephraseClient(
+            data_path=soc_rephrase_data_path.strip()
+        )
+    else:
+        fastapi_app.state.soc_rephrase_client = SOCRephraseClient()
 
     yield
     # Shutdown
