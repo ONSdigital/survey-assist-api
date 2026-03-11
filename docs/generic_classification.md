@@ -20,8 +20,8 @@ The classification process works as follows:
 
 ### Current Implementation Status
 
-- **SIC Classification**: Fully implemented with vector store search, LLM classification, and rephrasing support
-- **SOC Classification**: Placeholder implementation - returns hardcoded result (code "9111", description "Farm workers") regardless of input. Full implementation planned for future releases.
+- **SIC Classification**: Fully implemented with vector store search, LLM classification, and rephrasing support.
+- **SOC Classification**: Implemented as a single-step RAG flow using the SOC vector store and a SOC LLM (when configured), with optional SOC rephrasing backed by `soc-classification-library`.
 
 ## Endpoints
 
@@ -80,7 +80,7 @@ List stored survey results filtered by survey_id, wave_id, and optionally case_i
   - `sic` (optional): SIC-specific options
     - `rephrased` (boolean, default: `true`): Whether to apply rephrasing to SIC classification results
   - `soc` (optional): SOC-specific options
-    - `rephrased` (boolean, default: `true`): Whether to apply rephrasing to SOC classification results (not yet implemented)
+    - `rephrased` (boolean, default: `true`): Whether to apply rephrasing to SOC classification results (where rephrased SOC descriptions exist in the configured dataset)
 
 **Note**: If `options` is not provided, rephrasing defaults to `true` for both SIC and SOC to maintain backward compatibility.
 
@@ -165,7 +165,7 @@ The endpoint returns a generic classification response that can contain one or m
     - `soc` (object, optional): Applied SOC options
 
 **Important Notes:**
-- **SOC Classification**: Currently a placeholder implementation. Requests with `type="soc"` or `type="sic_soc"` will return a placeholder SOC result with code "9111" and description "Farm workers". Full SOC classification support is planned for future releases.
+- **SOC Classification**: Uses the SOC vector store and SOC LLM to produce real SOC codes and candidates when those services are configured. If the SOC LLM is not available, requests with `type="soc"` or `type="sic_soc"` will return a 503 `"SOC classification is not available"` error.
 - **Meta Field**: The `meta` field is only included in the response when `options` are provided in the request. This allows clients to see which options were actually applied.
 
 ## Rephrasing Feature
@@ -175,6 +175,7 @@ The API supports rephrasing of classification descriptions to provide more user-
 ### How Rephrasing Works
 
 The rephrase toggle controls whether rephrased descriptions appear in the `candidates` array:
+
 - **When `rephrased: true`**: The `candidates[].descriptive` field contains user-friendly, simplified versions of the SIC code descriptions
 - **When `rephrased: false`**: The `candidates[].descriptive` field contains the original technical, official SIC code descriptions
 
@@ -182,10 +183,14 @@ The rephrase toggle controls whether rephrased descriptions appear in the `candi
 
 ### Rephrasing Data Sources
 
-**Package Data**: Contains 28 agricultural SIC codes (01xxx series) with rephrased descriptions
-**Local Data**: Contains full rephrase dataset with comprehensive coverage
+- **SIC package data**: Contains 28 agricultural SIC codes (01xxx series) with rephrased descriptions.  
+- **SIC local data**: Can contain a full rephrase dataset with comprehensive coverage.  
+- **SOC package data**: The SOC rephrase dataset (`soc_code` → `rephrased_description`) is provided by `soc-classification-library` and is used by `SOCRephraseClient`. It is intentionally small and focuses on testing and demonstration.
 
-The rephrase data source is controlled by the `SIC_REPHRASE_DATA_PATH` environment variable, just like the lookup data.
+The SIC rephrase data source is controlled by the `SIC_REPHRASE_DATA_PATH` environment variable, just like the lookup data.  
+The SOC rephrase data source can be overridden via the `SOC_REPHRASE_DATA_PATH` environment variable; otherwise the packaged SOC rephrase CSV is used.
+
+On the SOC side, the rephrase client also participates in index naming: for each configured SOC source index title the associated rephrased index title follows the pattern `rephrased_<existing title>`. This one-to-one mapping makes it easy to route SOC rephrase lookups to the correct index and to trace a `rephrased_<existing title>` index back to its original SOC source index.
 
 ### Options Structure
 
@@ -207,7 +212,7 @@ The `options` field allows granular control over rephrasing for different classi
 ### Rephrasing Controls
 
 - **SIC Rephrasing**: **Fully implemented and functional**
-- **SOC Rephrasing**: **Not yet implemented** (placeholder for future development)
+- **SOC Rephrasing**: Implemented for those SOC codes that appear in the SOC rephrase dataset. When enabled, SOC results can include `soc_description` and `soc_descriptive` fields populated from the rephrased descriptions.
 
 ### Default Behaviour
 
@@ -220,7 +225,7 @@ If `options` are provided:
 - The `meta` field is included in the response showing which options were applied
 - Rephrasing settings are applied as specified in the request
 
-### Rephrasing Examples
+### Rephrasing Examples (SIC)
 
 When rephrasing is enabled, the `candidates[].descriptive` field contains the rephrased version:
 
@@ -421,6 +426,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 ```
 
 **Expected Response (when SOC vector store is available):**
+
 ```json
 {
   "requested_type": "sic_soc",
@@ -476,10 +482,10 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 ```
 
 **Note:** 
-- SIC results show rephrased descriptions in the `candidates` array when rephrasing is enabled
-- SOC classification is currently a placeholder implementation and will always return code "9111" with description "Farm workers" regardless of input
-- **SOC vector store must be running** for `type="sic_soc"` requests to succeed. If the SOC vector store is not available, the request will return a 500 error
-- SOC rephrasing is not yet implemented, so the `rephrased` option for SOC has no effect currently
+
+- SIC results show rephrased descriptions in the `candidates` array when rephrasing is enabled.
+- SOC classification uses the SOC vector store and SOC LLM to return real SOC codes and candidates when configured; where SOC rephrased descriptions exist they can be applied to the SOC code and candidates.
+- **SOC vector store and SOC LLM must be running** for `type="sic_soc"` requests involving SOC to succeed. If the SOC LLM is not available, the request will return a 503 error for the SOC part of the classification.
 
 ### Data Coverage Note
 
