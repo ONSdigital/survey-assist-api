@@ -7,6 +7,7 @@ The Survey Assist API is a FastAPI-based service that provides endpoints for ind
 ## Architecture
 
 The API is built using:
+
 - **FastAPI**: Modern, fast web framework for building APIs
 - **Pydantic**: Data validation and settings management
 - **SIC Classification Library**: Core classification functionality
@@ -14,7 +15,8 @@ The API is built using:
 - **Firestore**: Google Cloud Firestore for storing results and feedback (optional, requires `FIRESTORE_DB_ID`)
 
 **Important Notes**:
-- **SOC Classification**: Currently a placeholder implementation. Requests with `type="soc"` or `type="sic_soc"` will return placeholder SOC results. Full SOC classification support is planned for future releases.
+
+- **SOC Classification**: Uses a single-step RAG flow with the SOC vector store and a SOC LLM (when configured). If the SOC LLM is not available, requests with `type="soc"` or `type="sic_soc"` return a 503 `"SOC classification is not available"` error. SOC **rephrasing** is applied only for codes that exist in the SOC rephrase dataset from `soc-classification-library`.
 - **Firestore**: Result and feedback endpoints require `FIRESTORE_DB_ID` to be set. If not configured, these endpoints will return 503 errors.
 
 ## API Endpoints
@@ -90,7 +92,7 @@ The API is built using:
     - `sic` (optional): SIC-specific options:
       - `rephrased` (boolean, default: true): Whether to apply rephrasing to SIC classification results
     - `soc` (optional): SOC-specific options:
-      - `rephrased` (boolean, default: true): Whether to apply rephrasing to SOC classification results (not yet implemented)
+      - `rephrased` (boolean, default: true): Whether to apply rephrasing to SOC classification results (where rephrased SOC descriptions exist)
 
 - **Response**: Returns a generic classification response with the following structure:
 
@@ -111,8 +113,8 @@ The API is built using:
     - `applied_options` (object): The options that were applied:
       - `sic` (object, optional): Applied SIC options
       - `soc` (object, optional): Applied SOC options
-
-**Note**: SOC classification is currently a placeholder implementation. Requests with `type="soc"` or `type="sic_soc"` will return a placeholder SOC result.
+    
+    **Note**: SOC classification depends on the SOC vector store and SOC LLM being configured. If they are not available, SOC requests will return a 503 error indicating that SOC classification is not available.
 
 The classification process works as follows:
 
