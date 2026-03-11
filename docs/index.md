@@ -34,7 +34,7 @@ For detailed information on installation, setup, and usage, please refer to the 
 
 ## Notes
 
-- **SOC classification is not implemented yet**: requests with `type="soc"`/`"sic_soc"` return a placeholder SOC result at present.
+- **SOC classification availability**: SOC classification uses the SOC vector store and a SOC LLM when these services are configured. If the SOC LLM is not available, requests with `type="soc"`/`"sic_soc"` will return a 503 `"SOC classification is not available"` error. SOC rephrasing is available for SOC codes that appear in the SOC rephrase dataset provided by `soc-classification-library`.
 
 ## Further reading
 
