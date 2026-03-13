@@ -48,7 +48,7 @@ class SOCRephraseClient:
     def _get_default_path(self) -> str:
         """Get the default path to the rephrased SOC data file."""
         return resolve_package_data_path(
-            "occupational_classification.example_data",
+            "occupational_classification.data",
             "example_rephrased_soc_data.csv",
         )
 
