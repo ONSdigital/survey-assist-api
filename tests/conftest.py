@@ -19,6 +19,7 @@ from survey_assist_utils.logging import get_logger
 from api.main import app
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
+from api.services.soc_lookup_client import SOCLookupClient
 
 try:
     from occupational_classification_utils.llm.llm import (
@@ -71,6 +72,10 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     mock_sic_lookup_client = MagicMock(spec=SICLookupClient)
     mock_sic_lookup_client.get_sic_codes_count.return_value = 1000
 
+    # Mock the SOC lookup client
+    mock_soc_lookup_client = MagicMock(spec=SOCLookupClient)
+    mock_soc_lookup_client.get_soc_codes_count.return_value = 500
+
     # Mock the SIC rephrase client
     mock_sic_rephrase_client = MagicMock(spec=SICRephraseClient)
     mock_sic_rephrase_client.get_rephrased_count.return_value = 500
@@ -106,6 +111,7 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     app.state.gemini_llm = mock_llm
     app.state.soc_llm = mock_soc_llm
     app.state.sic_lookup_client = mock_sic_lookup_client
+    app.state.soc_lookup_client = mock_soc_lookup_client
     app.state.sic_rephrase_client = mock_sic_rephrase_client
 
     logger.info("Global Test Configuration Applied")
