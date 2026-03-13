@@ -72,7 +72,7 @@ class TestSOCRephraseClient:
             call_path = mock_read_csv.call_args[0][0]
             assert "/package/path/example_rephrased_soc_data.csv" in call_path
             mock_resolve.assert_called_once_with(
-                "occupational_classification.example_data",
+                "occupational_classification.data",
                 "example_rephrased_soc_data.csv",
             )
 
