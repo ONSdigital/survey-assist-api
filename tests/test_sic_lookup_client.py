@@ -4,12 +4,15 @@ This module contains pytest-based unit tests for the SICLookupClient class, whic
 provides SIC code lookup functionality.
 """
 
-from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from api.services.sic_lookup_client import SICLookupClient
+from tests.test_lookup_client_common import (
+    DataLoadingLoggingConfig,
+    assert_data_loading_logging,
+)
 
 # Test constants
 EXPECTED_SIC_CODE_COUNT = 250
@@ -215,41 +218,16 @@ class TestSICLookupClient:
 
     def test_data_loading_confirmation(self):
         """Test that data loading is confirmed with logging."""
-        with patch("api.services.sic_lookup_client.SICLookup") as mock_lookup:
-            mock_instance = mock_lookup.return_value
-            mock_instance.get_sic_codes_count.return_value = 150
-            mock_instance.data = MagicMock()
-            mock_instance.data.__len__.return_value = 150
-
-            with patch("api.services.sic_lookup_client.logger") as mock_logger:
-                # Capture the logged message
-                captured_message: str | None = None
-                captured_args: tuple[Any, ...] | None = None
-
-                def mock_info(message: str, *args: Any) -> None:
-                    nonlocal captured_message, captured_args
-                    captured_message = message
-                    captured_args = args
-
-                mock_logger.info.side_effect = mock_info
-
-                SICLookupClient()
-
-                # Verify logging message was called
-                mock_logger.info.assert_called()
-                # Check the captured message and format it
-                assert captured_message is not None
-                assert isinstance(captured_message, str)
-                # pylint: disable=unsupported-membership-test
-                assert "Loaded" in captured_message
-                assert "SIC lookup codes from" in captured_message
-                if captured_args:
-                    formatted_message = captured_message % captured_args
-                    assert "150" in formatted_message
-                    assert "SIC lookup codes from" in formatted_message
-                else:
-                    assert "150" in captured_message
-                    assert "SIC lookup codes from" in captured_message
+        assert_data_loading_logging(
+            SICLookupClient,
+            DataLoadingLoggingConfig(
+                lookup_patch_path="api.services.sic_lookup_client.SICLookup",
+                logger_patch_path="api.services.sic_lookup_client.logger",
+                expected_count=150,
+                codes_substring="SIC lookup codes from",
+                set_get_codes_count=True,
+            ),
+        )
 
 
 # Test the actual API endpoints
