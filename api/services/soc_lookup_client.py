@@ -51,7 +51,7 @@ class SOCLookupClient:
             str: Path to the SOC lookup data file.
         """
         return resolve_package_data_path(
-            "occupational_classification.example_data", "example_soc_lookup_data.csv"
+            "occupational_classification.data", "example_soc_lookup_data.csv"
         )
 
     def lookup(self, description: str) -> dict | None:
