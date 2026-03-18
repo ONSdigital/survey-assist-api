@@ -31,6 +31,12 @@ The classification process works as follows:
 
 This endpoint provides generic classification functionality that can handle SIC, SOC, or combined SIC+SOC classification.
 
+### SOC Lookup Endpoint
+
+**GET** `/v1/survey-assist/soc-lookup?description=<text>&similarity=<bool>`
+
+This endpoint performs SOC lookup by description (exact match by default, with optional similarity search), mirroring the existing SIC lookup pattern.
+
 ### Result Storage Endpoints
 
 The API provides endpoints for storing and retrieving survey results that can contain SIC and/or SOC classification data:
