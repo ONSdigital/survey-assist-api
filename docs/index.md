@@ -1,6 +1,6 @@
 # Survey Assist API
 
-The Survey Assist API is a FastAPI service that provides endpoints for both SIC (industry) and SOC (occupation) classification and lookup. Classification uses a vector-store shortlist plus an LLM to either return a code or ask a follow-up question; lookup provides a direct code lookup by description (with optional similarity search). The API also provides endpoints to store classification results and feedback in Firestore.
+The Survey Assist API is a FastAPI service that provides endpoints for both SIC (industry) and SOC (occupation) classification and lookup. Classification uses a vector-store shortlist plus an LLM to either return a code or ask a follow-up question and lookup provides a direct code lookup by description (with optional similarity search). The API also provides endpoints to store classification results and feedback in Firestore.
 
 ## Key Features
 
