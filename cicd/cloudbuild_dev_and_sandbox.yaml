@@ -39,11 +39,7 @@ steps:
         docker push $_GAR_IMAGE:latest
         docker push $_GAR_IMAGE:$SHORT_SHA
 
-        gcloud run deploy survey-assist-api \
-          --image=$_GAR_IMAGE:$SHORT_SHA \
-          --region $LOCATION \
-          --project $_TARGET_PROJECT_ID \
-          --set-env-vars="SOC_LOOKUP_DATA_PATH=data/${SOC_LOOKUP_BASENAME},SOC_REPHRASE_DATA_PATH=data/${SOC_REPHRASE_BASENAME}"
+        gcloud run deploy survey-assist-api --image=$_GAR_IMAGE:$SHORT_SHA --region $LOCATION --project $_TARGET_PROJECT_ID
         
         export SURVEY_ASSIST_API_URL="https://survey-assist-api-$_TARGET_PROJECT_NUMBER.$LOCATION.run.app/$_API_VERSION/survey-assist"
         export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_API_SA)
