@@ -564,6 +564,85 @@ curl -X POST "http://localhost:8080/v1/survey-assist/feedback" \
   
   **Note**: The `description` field in the response contains the input description (lowercased). When a match is found, `code` contains the SIC code. The `potential_matches` object is only present when `similarity=true` and contains arrays of potential matches.
 
+#### Example usage
+
+```bash
+curl -i "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrical%20installation&similarity=false"
+
+curl -i "http://localhost:8080/v1/survey-assist/sic-lookup?description=electrical%20installation&similarity=true"
+```
+
+### SOC Lookup Endpoint
+- **Path**: `/v1/survey-assist/soc-lookup`
+- **Method**: GET
+- **Parameters**:
+
+    - `description` (required): The occupation description to look up
+    - `similarity` (optional, default: false): Boolean flag for similarity search
+
+- **Description**: Performs SOC code lookup with two modes:
+
+    - Exact match (`similarity=false`): Returns exact matches only
+    - Similarity search (`similarity=true`): Returns similar matches using fuzzy matching
+
+- **Data Sources**:
+
+    - **Default**: Uses packaged example data from the `soc-classification-library` package
+    - **Custom**: Can be overridden by setting `SOC_LOOKUP_DATA_PATH` environment variable
+
+- **Response Structure**: The response structure varies based on whether a match is found and whether similarity search is used:
+  
+  **When a match is found (exact match):**
+  ```json
+  {
+    "code": "1111",
+    "description": "chief executives and senior officials",
+    "code_meta": null,
+    "code_major_group": "1",
+    "code_major_group_meta": null
+  }
+  ```
+  
+  **When no match is found (exact match):**
+  ```json
+  {
+    "description": "senior officials",
+    "code": null,
+    "code_meta": null,
+    "code_major_group": null,
+    "code_major_group_meta": null
+  }
+  ```
+  
+  **When similarity search is enabled (`similarity=true`):**
+  ```json
+  {
+    "description": "senior officials",
+    "code": null,
+    "code_meta": null,
+    "code_major_group": null,
+    "code_major_group_meta": null,
+    "potential_matches": {
+      "descriptions_count": 1,
+      "descriptions": ["chief executives and senior officials"],
+      "codes_count": 1,
+      "codes": ["1111"],
+      "major_groups_count": 1,
+      "major_groups": []
+    }
+  }
+  ```
+  
+  **Note**: The `description` field in the response contains the input description (lowercased). When a match is found, `code` contains the SOC code. The `potential_matches` object is only present when `similarity=true` and contains arrays of potential matches.
+
+#### Example usage
+
+```bash
+curl -i "http://localhost:8080/v1/survey-assist/soc-lookup?description=chief%20executives%20and%20senior%20officials&similarity=false"
+
+curl -i "http://localhost:8080/v1/survey-assist/soc-lookup?description=senior%20officials&similarity=true"
+```
+
 ### Embeddings Endpoint
 - **Path**: `/v1/survey-assist/embeddings`
 - **Method**: GET
