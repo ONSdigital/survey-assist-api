@@ -8,7 +8,7 @@ The Survey Assist API implemented in Fast API
 
 ## Features
 
-- Fast API with endpoints for lookup and classification of SIC (Standard Industrial Classifier)
+- Fast API with endpoints for lookup and classification of SIC (Standard Industrial Classification) and SOC (Standard Occupational Classification)
 - **Rephrasing Toggle**: Control SIC and SOC description rephrasing (where rephrase data exists) via API options for testing and development
 - **Firestore Integration**: Store survey results and feedback data in Google Cloud Firestore
 - **List Results Endpoint**: Query survey results
@@ -112,4 +112,5 @@ The API supports the following environment variables:
 - `SIC_LOOKUP_DATA_PATH`: Path to SIC lookup data file
 - `SIC_REPHRASE_DATA_PATH`: Path to SIC rephrase data file 
 - `SOC_REPHRASE_DATA_PATH`: Optional path to SOC rephrase data file; if unset, packaged example data from `soc-classification-library` is used.
+- `SOC_LOOKUP_DATA_PATH`: Optional path to SOC lookup CSV; if unset, packaged example data from `soc-classification-library` is used.
 - `SIC_VECTOR_STORE`: URL of the vector store service
