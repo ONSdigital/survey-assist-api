@@ -23,6 +23,27 @@ The classification process works as follows:
 - **SIC Classification**: Fully implemented with vector store search, LLM classification, and rephrasing support.
 - **SOC Classification**: Implemented as a single-step RAG flow using the SOC vector store and a SOC LLM (when configured), with optional SOC rephrasing backed by `soc-classification-library`.
 
+### SIC and SOC Data Sources
+
+SIC and SOC are not currently configured identically for startup data validation:
+
+- **SIC runtime data in this API**
+  - Lookup data: SIC CSV knowledge base (`SIC_LOOKUP_DATA_PATH`, typically `data/sic_knowledge_base_utf8.csv`)
+  - Rephrase data: SIC CSV rephrase dataset (`SIC_REPHRASE_DATA_PATH`)
+
+- **SOC runtime data in this API**
+  - Lookup data: SOC CSV lookup dataset (`SOC_LOOKUP_DATA_PATH`)
+  - Rephrase data: SOC CSV rephrase dataset (`SOC_REPHRASE_DATA_PATH`)
+  - Additional required SOC config data in `soc-classification-library`:
+    - `soc_index` (SOC Volume 2 coding index workbook)
+    - `soc_structure` (SOC Volume 1 structure/metadata workbook)
+
+**In practical terms:**
+
+- `soc_index` supports title/code lookup preparation from official SOC index content.
+- `soc_structure` provides SOC hierarchy/metadata used to enrich SOC responses.
+- Startup currently validates that both `soc_index` and `soc_structure` paths resolve.
+
 ## Endpoints
 
 ### Generic Classification Endpoint
