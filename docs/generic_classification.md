@@ -25,7 +25,7 @@ The classification process works as follows:
 
 ### SIC and SOC Data Sources
 
-To avoid ambiguity, SIC and SOC are not currently wired identically for startup data validation:
+SIC and SOC are not currently configured identically for startup data validation:
 
 - **SIC runtime data in this API**
   - Lookup data: SIC CSV knowledge base (`SIC_LOOKUP_DATA_PATH`, typically `data/sic_knowledge_base_utf8.csv`)
