@@ -23,6 +23,9 @@ steps:
         gsutil cp $_SIC_REPHRASE_CSV data/
         gsutil cp $_SOC_LOOKUP_CSV data/
         gsutil cp $_SOC_REPHRASE_CSV data/
+        mkdir -p data/soc_index
+        gsutil cp $_SOC_INDEX_XLSX data/soc_index/
+        gsutil cp $_SOC_STRUCTURE_XLSX data/soc_index/
         ls data
 
         docker build -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
