@@ -7544,7 +7544,7 @@ files = [
 
 [[package]]
 name = "soc-classification-library"
-version = "0.1.2"
+version = "0.1.4"
 description = "Standard Occupational Classification library"
 optional = false
 python-versions = "^3.12"
@@ -7562,12 +7562,12 @@ toml = "^0.10.2"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/soc-classification-library.git"
-reference = "HEAD"
-resolved_reference = "52b70516b139e6d9e8eed6c52d80e843b6bb26e3"
+reference = "v0.1.4"
+resolved_reference = "c920e74754b027bd5e59e93eb9be5e0088368f4b"
 
 [[package]]
 name = "soc-classification-utils"
-version = "0.1.0"
+version = "0.1.1"
 description = "Utility functions used for SOC classification"
 optional = false
 python-versions = "^3.12"
@@ -7592,7 +7592,7 @@ pandas = "^2.3.0"
 posthog = ">=2.4.0,<6.0.0"
 pydantic = "^2.11.1"
 sentence-transformers = "4.1.0"
-soc-classification-library = {git = "https://github.com/ONSdigital/soc-classification-library.git"}
+soc-classification-library = {git = "https://github.com/ONSdigital/soc-classification-library.git", tag = "v0.1.4"}
 survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.7"}
 torch = "2.7.1"
 transformers = "4.48.0"
@@ -7600,8 +7600,8 @@ transformers = "4.48.0"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/soc-classification-utils.git"
-reference = "v0.1.1"
-resolved_reference = "fe570410f78e14ae93345b2c8721203ab599309c"
+reference = "HEAD"
+resolved_reference = "7b53e5a99a2602b2706e66a574531370204abeac"
 
 [[package]]
 name = "sqlalchemy"
@@ -8972,4 +8972,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "022ee3faea63d859ec4eb87497a2e5d262ccdd116445660b26aeba62623cce27"
+content-hash = "75ca7c9b28b4186107a7ae9371823722780cc8566654c0f5545f8c79ea41b382"
