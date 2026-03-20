@@ -25,15 +25,6 @@ steps:
         gsutil cp $_SOC_REPHRASE_CSV data/
         ls data
 
-        SIC_LOOKUP_BASENAME="$(basename "$_SIC_LOOKUP_CSV")"
-        SIC_REPHRASE_BASENAME="$(basename "$_SIC_REPHRASE_CSV")"
-        SOC_LOOKUP_BASENAME="$(basename "$_SOC_LOOKUP_CSV")"
-        SOC_REPHRASE_BASENAME="$(basename "$_SOC_REPHRASE_CSV")"
-        echo "Using SIC lookup CSV: data/${SIC_LOOKUP_BASENAME}"
-        echo "Using SIC rephrase CSV: data/${SIC_REPHRASE_BASENAME}"
-        echo "Using SOC lookup CSV: data/${SOC_LOOKUP_BASENAME}"
-        echo "Using SOC rephrase CSV: data/${SOC_REPHRASE_BASENAME}"
-
         docker build -t $_GAR_IMAGE:$SHORT_SHA -t $_GAR_IMAGE:latest .
 
         docker push $_GAR_IMAGE:latest
