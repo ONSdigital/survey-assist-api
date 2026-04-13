@@ -957,3 +957,36 @@ def test_classify_endpoint_meta_field_exclusion(
     # Verify that meta field is present in the response when options are provided
     assert "meta" in data
     assert data["meta"] is not None
+
+
+@patch(
+    "occupational_classification_utils.utils.soc_data_access.pd.read_excel",
+    side_effect=AssertionError("SOC classify must not use Excel loaders"),
+)
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+def test_soc_classify_does_not_require_excel(mock_soc_vector_store, _mock_read_excel):
+    """SOC classify works even when Excel loaders are unavailable."""
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SOC_CODE,
+                "title": EXPECTED_SOC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+
+    request_data = {
+        "llm": "gemini",
+        "type": "soc",
+        "job_title": "Farm worker",
+        "job_description": "General labour work on a farm",
+        "org_description": "Agricultural business",
+    }
+
+    response = client.post("/v1/survey-assist/classify", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert data["requested_type"] == "soc"
+    assert len(data["results"]) == 1
+    assert data["results"][0]["type"] == "soc"
