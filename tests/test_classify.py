@@ -27,6 +27,8 @@ Dependencies:
     - fastapi.status: Provides standard HTTP status codes for assertions.
 """
 
+# pylint: disable=too-many-lines
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -990,3 +992,114 @@ def test_soc_classify_does_not_require_excel(mock_soc_vector_store, _mock_read_e
     assert data["requested_type"] == "soc"
     assert len(data["results"]) == 1
     assert data["results"][0]["type"] == "soc"
+
+
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.main.app.state.soc_llm")
+def test_soc_classify_rephrases_by_default(mock_soc_llm, mock_soc_vector_store):
+    """SOC rephrasing defaults to enabled when options are omitted (mirrors SIC)."""
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SOC_CODE,
+                "title": EXPECTED_SOC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                soc_code=EXPECTED_SOC_CODE,
+                soc_descriptive="Elementary occupations",
+                soc_candidates=[
+                    MagicMock(
+                        soc_code=EXPECTED_SOC_CODE,
+                        soc_descriptive="Elementary occupations",
+                        likelihood=EXPECTED_LIKELIHOOD,
+                    )
+                ],
+                followup=None,
+                reasoning="Mocked SOC reasoning",
+            ),
+            None,
+            None,
+        )
+    )
+    mock_soc_rephrase_client = MagicMock()
+    mock_soc_rephrase_client.get_rephrased_description.return_value = (
+        EXPECTED_SOC_DESCRIPTION
+    )
+    app.state.soc_rephrase_client = mock_soc_rephrase_client
+
+    request_data = {
+        "llm": "gemini",
+        "type": "soc",
+        "job_title": "Farm worker",
+        "job_description": "General labour work on a farm",
+        "org_description": "Agricultural business",
+    }
+
+    response = client.post("/v1/survey-assist/classify", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    first = data["results"][0]
+    assert first["description"] == EXPECTED_SOC_DESCRIPTION
+    assert first["candidates"][0]["descriptive"] == EXPECTED_SOC_DESCRIPTION
+
+
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.main.app.state.soc_llm")
+def test_soc_classify_rephrased_false_keeps_original_descriptions(
+    mock_soc_llm, mock_soc_vector_store
+):
+    """SOC rephrasing remains disabled when explicitly set to false."""
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SOC_CODE,
+                "title": EXPECTED_SOC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                soc_code=EXPECTED_SOC_CODE,
+                soc_descriptive="Elementary occupations",
+                soc_candidates=[
+                    MagicMock(
+                        soc_code=EXPECTED_SOC_CODE,
+                        soc_descriptive="Elementary occupations",
+                        likelihood=EXPECTED_LIKELIHOOD,
+                    )
+                ],
+                followup=None,
+                reasoning="Mocked SOC reasoning",
+            ),
+            None,
+            None,
+        )
+    )
+    mock_soc_rephrase_client = MagicMock()
+    mock_soc_rephrase_client.get_rephrased_description.return_value = (
+        EXPECTED_SOC_DESCRIPTION
+    )
+    app.state.soc_rephrase_client = mock_soc_rephrase_client
+
+    request_data = {
+        "llm": "gemini",
+        "type": "soc",
+        "job_title": "Farm worker",
+        "job_description": "General labour work on a farm",
+        "org_description": "Agricultural business",
+        "options": {"soc": {"rephrased": False}},
+    }
+
+    response = client.post("/v1/survey-assist/classify", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    first = data["results"][0]
+    assert first["description"] == "Elementary occupations"
+    assert first["candidates"][0]["descriptive"] == "Elementary occupations"
