@@ -685,29 +685,27 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
             reasoning=getattr(llm_response, "reasoning", "") or "",
         )
 
-        if (
+        # Mirror SIC behaviour - rephrasing defaults to enabled unless explicitly false.
+        soc_rephrase_client = getattr(request.app.state, "soc_rephrase_client", None)
+        if soc_rephrase_client and (result.code or result.candidates):
+            result = _apply_soc_rephrasing(
+                result, soc_rephrase_client, classification_request
+            )
+            logger.info(
+                "SOC rephrasing applied",
+                body_id=body_id,
+                has_rephrase_client=str(soc_rephrase_client is not None),
+                rephrased_candidates_count=str(len(result.candidates or [])),
+            )
+        elif (
             classification_request.options
             and classification_request.options.soc
             and classification_request.options.soc.rephrased
         ):
-            soc_rephrase_client = getattr(
-                request.app.state, "soc_rephrase_client", None
+            logger.info(
+                "SOC rephrasing requested but SOCRephraseClient not available",
+                body_id=body_id,
             )
-            if isinstance(soc_rephrase_client, SOCRephraseClient):
-                result = _apply_soc_rephrasing(
-                    result, soc_rephrase_client, classification_request
-                )
-                logger.info(
-                    "SOC rephrasing applied",
-                    body_id=body_id,
-                    has_rephrase_client=str(soc_rephrase_client is not None),
-                    rephrased_candidates_count=str(len(result.candidates or [])),
-                )
-            else:
-                logger.info(
-                    "SOC rephrasing requested but SOCRephraseClient not available",
-                    body_id=body_id,
-                )
 
         return result
 
