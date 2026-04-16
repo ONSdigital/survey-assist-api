@@ -962,7 +962,7 @@ def test_classify_endpoint_meta_field_exclusion(
 
 
 @patch(
-    "occupational_classification_utils.utils.soc_data_access.pd.read_excel",
+    "occupational_classification.data_access.soc_data_access.pd.read_excel",
     side_effect=AssertionError("SOC classify must not use Excel loaders"),
 )
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
