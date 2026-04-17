@@ -33,7 +33,7 @@ class TestSOCRephraseClient:
 
             SOCRephraseClient(data_path=custom_path)
 
-            mock_read_csv.assert_called_once_with(custom_path, dtype={"soc_code": str})
+            mock_read_csv.assert_called_once_with(custom_path)
 
     def test_init_with_config_path(self):
         """Initialisation using package data path (via resolve_package_data_path)."""
@@ -68,7 +68,6 @@ class TestSOCRephraseClient:
             SOCRephraseClient()
 
             mock_read_csv.assert_called_once()
-            assert mock_read_csv.call_args[1]["dtype"] == {"soc_code": str}
             call_path = mock_read_csv.call_args[0][0]
             assert "/package/path/example_rephrased_soc_data.csv" in call_path
             mock_resolve.assert_called_once_with(
@@ -98,7 +97,7 @@ class TestSOCRephraseClient:
     @pytest.mark.parametrize(
         ("setup_kind", "expected_message_fragment"),
         [
-            ("missing_columns", "CSV file must contain columns"),
+            ("missing_columns", "CSV file must contain one of columns"),
             ("file_not_found", "Rephrased SOC data file not found"),
         ],
     )
@@ -122,6 +121,27 @@ class TestSOCRephraseClient:
             expected_status_code = 500
             assert exc_info.value.status_code == expected_status_code
             assert expected_message_fragment in str(exc_info.value.detail)
+
+    def test_load_rephrase_data_supports_column_aliases(self):
+        """Loading supports alternate but equivalent CSV column names."""
+        test_data = [
+            {
+                "code": "1139",
+                "description_rephrased": "Functional managers other roles",
+            },
+        ]
+
+        with patch("pandas.read_csv") as mock_read_csv:
+            mock_df = mock_read_csv.return_value
+            mock_df.columns = ["code", "description_rephrased"]
+            mock_df.iterrows.return_value = list(enumerate(test_data))
+
+            client = SOCRephraseClient()
+
+            assert (
+                client.get_rephrased_description("1139")
+                == "Functional managers other roles"
+            )
 
     def test_get_rephrased_description(self):
         """Get rephrased description for a SOC code."""
