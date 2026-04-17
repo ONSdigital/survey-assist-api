@@ -1,24 +1,28 @@
-"""SOC rephrase client for the Survey Assist API.
+"""SOC rephrase client service for the Survey Assist API.
 
-This client mirrors the behaviour of the SIC rephrase client, but for SOC:
-it loads a packaged SOC rephrase dataset and provides helpers to look up
-respondent-friendly descriptions by `soc_code` and to post-process SOC
-classification responses.
+This module provides a client for the SOC rephrase service, which maps
+standard SOC descriptions to user-friendly rephrased versions.
 """
 
+import logging
 from typing import Any, Optional
 
 import pandas as pd
 from fastapi import HTTPException
-from survey_assist_utils.logging import get_logger
 
 from api.services.package_utils import resolve_package_data_path
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # CSV column names in the SOC rephrase dataset
 SOC_CODE_COL = "soc_code"
 REPHRASED_DESCRIPTION_COL = "rephrased_description"
+SOC_CODE_ALIASES = ("soc_code", "code", "soc")
+REPHRASED_DESCRIPTION_ALIASES = (
+    "rephrased_description",
+    "description_rephrased",
+    "rephrased",
+)
 
 
 class SOCRephraseClient:
@@ -31,19 +35,21 @@ class SOCRephraseClient:
             data_path: Optional path to the rephrased SOC dataset. When not
                 provided, uses the example dataset from soc-classification-library.
         """
-        resolved_path: Any = (
-            self._get_default_path() if data_path is None else data_path
-        )
-        if not isinstance(resolved_path, str):
-            raise ValueError("Data path must be a string")
-
-        self.rephrased_descriptions = self._load_rephrase_data(resolved_path)
+        source_path = self._resolve_data_path(data_path)
+        self.rephrased_descriptions = self._load_rephrase_data(source_path)
 
         logger.info(
-            "SOC rephrase client initialised",
-            data_path=resolved_path,
-            rephrased_count=str(self.get_rephrased_count()),
+            "SOC rephrase data loaded from %s (%d descriptions available)",
+            source_path,
+            self.get_rephrased_count(),
         )
+
+    def _resolve_data_path(self, data_path: Optional[str]) -> str:
+        """Resolve and validate the SOC rephrase source path."""
+        resolved = self._get_default_path() if data_path is None else data_path
+        if not isinstance(resolved, str):
+            raise ValueError("Data path must be a string")
+        return resolved
 
     def _get_default_path(self) -> str:
         """Get the default path to the rephrased SOC data file."""
@@ -65,44 +71,44 @@ class SOCRephraseClient:
             HTTPException: If the file is not found or has invalid format.
         """
         try:
-            df = pd.read_csv(data_path, dtype={SOC_CODE_COL: str})
-
-            required_columns = [SOC_CODE_COL, REPHRASED_DESCRIPTION_COL]
-            if not all(col in df.columns for col in required_columns):
-                raise ValueError(f"CSV file must contain columns: {required_columns}")
+            df = pd.read_csv(data_path)
+            code_col = self._find_column(df, SOC_CODE_ALIASES)
+            rephrased_col = self._find_column(df, REPHRASED_DESCRIPTION_ALIASES)
 
             rephrased_dict: dict[str, str] = {}
             for _, row in df.iterrows():
-                soc_code = str(row[SOC_CODE_COL]).strip()
-                rephrased_description = str(row[REPHRASED_DESCRIPTION_COL]).strip()
+                soc_code = str(row[code_col]).strip()
+                rephrased_description = str(row[rephrased_col]).strip()
                 if soc_code and rephrased_description:
                     rephrased_dict[soc_code] = rephrased_description
 
             logger.info(
-                "Loaded rephrased SOC descriptions",
-                rephrased_count=str(len(rephrased_dict)),
-                data_path=data_path,
+                "Loaded %d rephrased SOC descriptions from %s",
+                len(rephrased_dict),
+                data_path,
             )
             return rephrased_dict
         except FileNotFoundError:
-            logger.error(
-                "Rephrased SOC data file not found",
-                data_path=data_path,
-            )
+            logger.error("Rephrased SOC data file not found: %s", data_path)
             raise HTTPException(
                 status_code=500,
                 detail=f"Rephrased SOC data file not found: {data_path}",
             ) from None
         except Exception as exc:  # pylint: disable=broad-except
-            logger.error(
-                "Error loading rephrased SOC data",
-                data_path=data_path,
-                error=str(exc),
-            )
+            logger.error("Error loading rephrased SOC data from %s: %s", data_path, exc)
             raise HTTPException(
                 status_code=500,
                 detail=f"Error loading rephrased SOC data: {exc}",
             ) from exc
+
+    @staticmethod
+    def _find_column(dataframe: pd.DataFrame, aliases: tuple[str, ...]) -> str:
+        """Return the first matching column name from a list of aliases."""
+        columns_map = {str(col).strip().lower(): str(col) for col in dataframe.columns}
+        for alias in aliases:
+            if alias in columns_map:
+                return columns_map[alias]
+        raise ValueError(f"CSV file must contain one of columns: {aliases}")
 
     def get_rephrased_description(self, soc_code: str) -> Optional[str]:
         """Get the rephrased description for a given SOC code, if available."""
