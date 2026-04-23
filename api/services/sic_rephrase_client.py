@@ -78,7 +78,8 @@ class SICRephraseClient:
 
             if description_column is None:
                 raise ValueError(
-                    f"CSV file must contain column: {description_columns[0]} or {description_columns[1]}"
+                    "CSV file must contain column: "
+                    f"{description_columns[0]} or {description_columns[1]}"
                 )
 
             # Create dictionary mapping SIC codes to rephrased descriptions
