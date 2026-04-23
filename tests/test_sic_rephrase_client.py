@@ -41,7 +41,9 @@ class TestSICRephraseClient:
         """Test initialisation using package data path (environment variables ignored)."""
         with (
             patch("pandas.read_csv") as mock_read_csv,
-            patch("api.services.sic_rephrase_client.resolve_package_data_path") as mock_resolve,
+            patch(
+                "api.services.sic_rephrase_client.resolve_package_data_path"
+            ) as mock_resolve,
         ):
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
@@ -62,7 +64,9 @@ class TestSICRephraseClient:
         """Test initialisation using package data (environment variables ignored)."""
         with (
             patch("pandas.read_csv") as mock_read_csv,
-            patch("api.services.sic_rephrase_client.resolve_package_data_path") as mock_resolve,
+            patch(
+                "api.services.sic_rephrase_client.resolve_package_data_path"
+            ) as mock_resolve,
         ):
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
@@ -78,13 +82,17 @@ class TestSICRephraseClient:
             call_args = mock_read_csv.call_args[0][0]
             # Check for package data path
             assert "/package/path/example_rephrased_sic_data.csv" in call_args
-            mock_resolve.assert_called_once_with("industrial_classification.data", "example_rephrased_sic_data.csv")
+            mock_resolve.assert_called_once_with(
+                "industrial_classification.data", "example_rephrased_sic_data.csv"
+            )
 
     def test_init_with_sic_library_path(self):
         """Test initialisation using package data path (environment variables ignored)."""
         with (
             patch("pandas.read_csv") as mock_read_csv,
-            patch("api.services.sic_rephrase_client.resolve_package_data_path") as mock_resolve,
+            patch(
+                "api.services.sic_rephrase_client.resolve_package_data_path"
+            ) as mock_resolve,
         ):
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
@@ -158,7 +166,9 @@ class TestSICRephraseClient:
 
             expected_status_code = 500
             assert exc_info.value.status_code == expected_status_code
-            assert "rephrased_description or reviewed_description" in str(exc_info.value.detail)
+            assert "rephrased_description or reviewed_description" in str(
+                exc_info.value.detail
+            )
 
     def test_load_rephrase_data_missing_sic_code_column(self):
         """Test loading data with no sic_code column."""
@@ -171,7 +181,9 @@ class TestSICRephraseClient:
 
             expected_status_code = 500
             assert exc_info.value.status_code == expected_status_code
-            assert "CSV file must contain column: sic_code" in str(exc_info.value.detail)
+            assert "CSV file must contain column: sic_code" in str(
+                exc_info.value.detail
+            )
 
     def test_load_rephrase_data_file_not_found(self):
         """Test handling of missing data file."""
@@ -284,7 +296,9 @@ class TestSICRephraseClient:
             # Check that candidate descriptions were rephrased where available
             candidates = processed_response["sic_candidates"]
             assert candidates[0]["sic_descriptive"] == "Cereal farming"
-            assert candidates[1]["sic_descriptive"] == "Some other activity"  # Unchanged
+            assert (
+                candidates[1]["sic_descriptive"] == "Some other activity"
+            )  # Unchanged
 
     def test_process_classification_response_no_rephrased(self):
         """Test processing response when no rephrased descriptions are available."""

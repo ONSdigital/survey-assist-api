@@ -77,7 +77,9 @@ class SICRephraseClient:
             )
 
             if description_column is None:
-                raise ValueError(f"CSV file must contain column: {description_columns[0]} or {description_columns[1]}")
+                raise ValueError(
+                    f"CSV file must contain column: {description_columns[0]} or {description_columns[1]}"
+                )
 
             # Create dictionary mapping SIC codes to rephrased descriptions
             rephrased_dict = {}
@@ -102,8 +104,12 @@ class SICRephraseClient:
                 detail=f"Rephrased SIC data file not found: {data_path}",
             ) from None
         except Exception as e:
-            logger.error("Error loading rephrased SIC data", data_path=data_path, error=str(e))
-            raise HTTPException(status_code=500, detail=f"Error loading rephrased SIC data: {e}") from e
+            logger.error(
+                "Error loading rephrased SIC data", data_path=data_path, error=str(e)
+            )
+            raise HTTPException(
+                status_code=500, detail=f"Error loading rephrased SIC data: {e}"
+            ) from e
 
     def _get_default_path(self) -> str:
         """Get the default path to the rephrased SIC data file.
@@ -112,7 +118,9 @@ class SICRephraseClient:
             str: Path to the rephrased Sic data file.
         """
         # Always use the example dataset from the package
-        return resolve_package_data_path("industrial_classification.data", "example_rephrased_sic_data.csv")
+        return resolve_package_data_path(
+            "industrial_classification.data", "example_rephrased_sic_data.csv"
+        )
 
     def get_rephrased_description(self, sic_code: str) -> Optional[str]:
         """Get the rephrased description for a given SIC code.
@@ -156,7 +164,9 @@ class SICRephraseClient:
         """
         return str(sic_code).strip() in self.rephrased_descriptions
 
-    def process_classification_response(self, response_data: dict[str, Any]) -> dict[str, Any]:
+    def process_classification_response(
+        self, response_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process a classification response to include rephrased descriptions.
 
         Args:
