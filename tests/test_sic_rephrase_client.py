@@ -14,6 +14,13 @@ logger = get_logger(__name__)
 class TestSICRephraseClient:
     """Test cases for the SIC rephrase client."""
 
+    def test_init_with_non_string_path(self):
+        """Test initialisation rejects non-string data paths."""
+        with pytest.raises(ValueError) as exc_info:
+            SICRephraseClient(data_path=123)
+
+        assert str(exc_info.value) == "Data path must be a string"
+
     def test_init_with_custom_path(self):
         """Test initialisation with a custom data path."""
         custom_path = "/custom/path/rephrased.csv"
@@ -152,6 +159,19 @@ class TestSICRephraseClient:
             expected_status_code = 500
             assert exc_info.value.status_code == expected_status_code
             assert "rephrased_description or reviewed_description" in str(exc_info.value.detail)
+
+    def test_load_rephrase_data_missing_sic_code_column(self):
+        """Test loading data with no sic_code column."""
+        with patch("pandas.read_csv") as mock_read_csv:
+            mock_df = mock_read_csv.return_value
+            mock_df.columns = ["rephrased_description"]
+
+            with pytest.raises(HTTPException) as exc_info:
+                SICRephraseClient()
+
+            expected_status_code = 500
+            assert exc_info.value.status_code == expected_status_code
+            assert "CSV file must contain column: sic_code" in str(exc_info.value.detail)
 
     def test_load_rephrase_data_file_not_found(self):
         """Test handling of missing data file."""
