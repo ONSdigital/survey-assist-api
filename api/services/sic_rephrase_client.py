@@ -9,10 +9,11 @@ from typing import Any, Optional
 
 import pandas as pd
 from fastapi import HTTPException
+from survey_assist_utils.logging import get_logger
 
 from api.services.package_utils import resolve_package_data_path
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Constants
 FOUR_DIGIT_SIC_CODE = 4
@@ -41,9 +42,9 @@ class SICRephraseClient:
 
         # Log confirmation of data loading
         logger.info(
-            "SIC rephrase data loaded from %s (%d descriptions available)",
-            resolved_path,
-            self.get_rephrased_count(),
+            "SIC rephrase data loaded",
+            data_path=resolved_path,
+            descriptions_available=self.get_rephrased_count(),
         )
 
     def _load_rephrase_data(self, data_path: str) -> dict[str, str]:
@@ -77,23 +78,21 @@ class SICRephraseClient:
                     rephrased_dict[sic_code] = reviewed_description
 
             logger.info(
-                "Loaded %d rephrased SIC descriptions from %s",
-                len(rephrased_dict),
-                data_path,
+                "Loaded rephrased SIC descriptions",
+                rephrased_count=len(rephrased_dict),
+                data_path=data_path,
             )
             return rephrased_dict
 
         except FileNotFoundError:
-            logger.error("Rephrased SIC data file not found: %s", data_path)
+            logger.error("Rephrased SIC data file not found", data_path=data_path)
             raise HTTPException(
                 status_code=500,
                 detail=f"Rephrased SIC data file not found: {data_path}",
             ) from None
         except Exception as e:
-            logger.error("Error loading rephrased SIC data from %s: %s", data_path, e)
-            raise HTTPException(
-                status_code=500, detail=f"Error loading rephrased SIC data: {e}"
-            ) from e
+            logger.error("Error loading rephrased SIC data", data_path=data_path, error=str(e))
+            raise HTTPException(status_code=500, detail=f"Error loading rephrased SIC data: {e}") from e
 
     def _get_default_path(self) -> str:
         """Get the default path to the rephrased SIC data file.
