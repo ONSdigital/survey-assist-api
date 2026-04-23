@@ -4,7 +4,6 @@ This module provides a client for the SIC rephrase service, which is used to
 map standard SIC descriptions to user-friendly rephrased versions.
 """
 
-import logging
 from typing import Any, Optional
 
 import pandas as pd
@@ -60,22 +59,34 @@ class SICRephraseClient:
             HTTPException: If the file is not found or has invalid format.
         """
         try:
-            # Load the CSV file, ensuring SIC codes are read as strings to preserve leading zeros
-            df = pd.read_csv(data_path, dtype={"sic_code": str})
+            sic_code_column = "sic_code"
+            description_columns = (
+                "rephrased_description",
+                "reviewed_description",
+            )
 
-            # Validate required columns
-            required_columns = ["sic_code", "reviewed_description"]
-            if not all(col in df.columns for col in required_columns):
-                raise ValueError(f"CSV file must contain columns: {required_columns}")
+            # Load the CSV file, ensuring SIC codes are read as strings to preserve leading zeros
+            df = pd.read_csv(data_path, dtype={sic_code_column: str})
+
+            if sic_code_column not in df.columns:
+                raise ValueError(f"CSV file must contain column: {sic_code_column}")
+
+            description_column = next(
+                (column for column in description_columns if column in df.columns),
+                None,
+            )
+
+            if description_column is None:
+                raise ValueError(f"CSV file must contain column: {description_columns[0]} or {description_columns[1]}")
 
             # Create dictionary mapping SIC codes to rephrased descriptions
             rephrased_dict = {}
             for _, row in df.iterrows():
-                sic_code = str(row["sic_code"]).strip()
-                reviewed_description = str(row["reviewed_description"]).strip()
+                sic_code = str(row[sic_code_column]).strip()
+                rephrased_description = str(row[description_column]).strip()
 
-                if sic_code and reviewed_description:
-                    rephrased_dict[sic_code] = reviewed_description
+                if sic_code and rephrased_description:
+                    rephrased_dict[sic_code] = rephrased_description
 
             logger.info(
                 "Loaded rephrased SIC descriptions",
@@ -101,9 +112,7 @@ class SICRephraseClient:
             str: Path to the rephrased Sic data file.
         """
         # Always use the example dataset from the package
-        return resolve_package_data_path(
-            "industrial_classification.data", "example_rephrased_sic_data.csv"
-        )
+        return resolve_package_data_path("industrial_classification.data", "example_rephrased_sic_data.csv")
 
     def get_rephrased_description(self, sic_code: str) -> Optional[str]:
         """Get the rephrased description for a given SIC code.
@@ -147,9 +156,7 @@ class SICRephraseClient:
         """
         return str(sic_code).strip() in self.rephrased_descriptions
 
-    def process_classification_response(
-        self, response_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def process_classification_response(self, response_data: dict[str, Any]) -> dict[str, Any]:
         """Process a classification response to include rephrased descriptions.
 
         Args:
