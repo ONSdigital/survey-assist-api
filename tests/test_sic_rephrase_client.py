@@ -14,16 +14,23 @@ logger = get_logger(__name__)
 class TestSICRephraseClient:
     """Test cases for the SIC rephrase client."""
 
+    def test_init_with_non_string_path(self):
+        """Test initialisation rejects non-string data paths."""
+        with pytest.raises(ValueError) as exc_info:
+            SICRephraseClient(data_path=123)  # type: ignore
+
+        assert str(exc_info.value) == "Data path must be a string"
+
     def test_init_with_custom_path(self):
         """Test initialisation with a custom data path."""
         custom_path = "/custom/path/rephrased.csv"
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [
-                (0, {"sic_code": "01120", "reviewed_description": "Rice farming"}),
-                (1, {"sic_code": "01110", "reviewed_description": "Cereal farming"}),
+                (0, {"sic_code": "01120", "rephrased_description": "Rice farming"}),
+                (1, {"sic_code": "01110", "rephrased_description": "Cereal farming"}),
             ]
 
             SICRephraseClient(data_path=custom_path)
@@ -37,9 +44,9 @@ class TestSICRephraseClient:
         ) as mock_resolve:
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [
-                (0, {"sic_code": "01120", "reviewed_description": "Rice farming"}),
+                (0, {"sic_code": "01120", "rephrased_description": "Rice farming"}),
             ]
 
             SICRephraseClient()
@@ -57,9 +64,9 @@ class TestSICRephraseClient:
         ) as mock_resolve:
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [
-                (0, {"sic_code": "01120", "reviewed_description": "Rice farming"}),
+                (0, {"sic_code": "01120", "rephrased_description": "Rice farming"}),
             ]
 
             SICRephraseClient()
@@ -80,9 +87,9 @@ class TestSICRephraseClient:
         ) as mock_resolve:
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [
-                (0, {"sic_code": "01120", "reviewed_description": "Rice farming"}),
+                (0, {"sic_code": "01120", "rephrased_description": "Rice farming"}),
             ]
 
             SICRephraseClient()
@@ -98,14 +105,14 @@ class TestSICRephraseClient:
     def test_load_rephrase_data_success(self):
         """Test successful loading of rephrase data."""
         test_data = [
-            {"sic_code": "01120", "reviewed_description": "Rice farming"},
-            {"sic_code": "01110", "reviewed_description": "Cereal farming"},
-            {"sic_code": "01130", "reviewed_description": "Vegetable farming"},
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
+            {"sic_code": "01110", "rephrased_description": "Cereal farming"},
+            {"sic_code": "01130", "rephrased_description": "Vegetable farming"},
         ]
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = list(enumerate(test_data))
 
             client = SICRephraseClient()
@@ -124,7 +131,7 @@ class TestSICRephraseClient:
             mock_df.columns = [
                 "sic_code",
                 "wrong_column",
-            ]  # Missing reviewed_description
+            ]  # Missing rephrased_description
 
             with pytest.raises(HTTPException) as exc_info:
                 SICRephraseClient()
@@ -148,12 +155,12 @@ class TestSICRephraseClient:
     def test_get_rephrased_description(self):
         """Test getting rephrased description for a SIC code."""
         test_data = [
-            {"sic_code": "01120", "reviewed_description": "Rice farming"},
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
         ]
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [(0, row) for row in test_data]
 
             client = SICRephraseClient()
@@ -170,12 +177,12 @@ class TestSICRephraseClient:
     def test_has_rephrased_description(self):
         """Test checking if a rephrased description exists."""
         test_data = [
-            {"sic_code": "01120", "reviewed_description": "Rice farming"},
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
         ]
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [(0, row) for row in test_data]
 
             client = SICRephraseClient()
@@ -189,14 +196,14 @@ class TestSICRephraseClient:
     def test_get_rephrased_count(self):
         """Test getting the count of rephrased descriptions."""
         test_data = [
-            {"sic_code": "01120", "reviewed_description": "Rice farming"},
-            {"sic_code": "01110", "reviewed_description": "Cereal farming"},
-            {"sic_code": "01130", "reviewed_description": "Vegetable farming"},
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
+            {"sic_code": "01110", "rephrased_description": "Cereal farming"},
+            {"sic_code": "01130", "rephrased_description": "Vegetable farming"},
         ]
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = list(enumerate(test_data))
 
             client = SICRephraseClient()
@@ -207,13 +214,13 @@ class TestSICRephraseClient:
     def test_process_classification_response(self):
         """Test processing classification response with rephrased descriptions."""
         test_data = [
-            {"sic_code": "01120", "reviewed_description": "Rice farming"},
-            {"sic_code": "01110", "reviewed_description": "Cereal farming"},
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
+            {"sic_code": "01110", "rephrased_description": "Cereal farming"},
         ]
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = list(enumerate(test_data))
 
             client = SICRephraseClient()
@@ -251,12 +258,12 @@ class TestSICRephraseClient:
     def test_process_classification_response_no_rephrased(self):
         """Test processing response when no rephrased descriptions are available."""
         test_data = [
-            {"sic_code": "01120", "reviewed_description": "Rice farming"},
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
         ]
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [(0, row) for row in test_data]
 
             client = SICRephraseClient()
@@ -276,12 +283,12 @@ class TestSICRephraseClient:
     def test_process_classification_response_empty_data(self):
         """Test processing response with empty or missing data."""
         test_data = [
-            {"sic_code": "01120", "reviewed_description": "Rice farming"},
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
         ]
 
         with patch("pandas.read_csv") as mock_read_csv:
             mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "reviewed_description"]
+            mock_df.columns = ["sic_code", "rephrased_description"]
             mock_df.iterrows.return_value = [(0, row) for row in test_data]
 
             client = SICRephraseClient()
