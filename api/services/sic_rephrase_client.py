@@ -4,7 +4,6 @@ This module provides a client for the SIC rephrase service, which is used to
 map standard SIC descriptions to user-friendly rephrased versions.
 """
 
-import logging
 from typing import Any, Optional
 
 import pandas as pd
@@ -64,7 +63,7 @@ class SICRephraseClient:
             df = pd.read_csv(data_path, dtype={"sic_code": str})
 
             # Validate required columns
-            required_columns = ["sic_code", "reviewed_description"]
+            required_columns = ["sic_code", "rephrased_description"]
             if not all(col in df.columns for col in required_columns):
                 raise ValueError(f"CSV file must contain columns: {required_columns}")
 
@@ -72,10 +71,10 @@ class SICRephraseClient:
             rephrased_dict = {}
             for _, row in df.iterrows():
                 sic_code = str(row["sic_code"]).strip()
-                reviewed_description = str(row["reviewed_description"]).strip()
+                rephrased_description = str(row["rephrased_description"]).strip()
 
-                if sic_code and reviewed_description:
-                    rephrased_dict[sic_code] = reviewed_description
+                if sic_code and rephrased_description:
+                    rephrased_dict[sic_code] = rephrased_description
 
             logger.info(
                 "Loaded rephrased SIC descriptions",
@@ -91,8 +90,12 @@ class SICRephraseClient:
                 detail=f"Rephrased SIC data file not found: {data_path}",
             ) from None
         except Exception as e:
-            logger.error("Error loading rephrased SIC data", data_path=data_path, error=str(e))
-            raise HTTPException(status_code=500, detail=f"Error loading rephrased SIC data: {e}") from e
+            logger.error(
+                "Error loading rephrased SIC data", data_path=data_path, error=str(e)
+            )
+            raise HTTPException(
+                status_code=500, detail=f"Error loading rephrased SIC data: {e}"
+            ) from e
 
     def _get_default_path(self) -> str:
         """Get the default path to the rephrased SIC data file.
