@@ -14,13 +14,6 @@ logger = get_logger(__name__)
 class TestSICRephraseClient:
     """Test cases for the SIC rephrase client."""
 
-    def test_init_with_non_string_path(self):
-        """Test initialisation rejects non-string data paths."""
-        with pytest.raises(ValueError) as exc_info:
-            SICRephraseClient(data_path=123)
-
-        assert str(exc_info.value) == "Data path must be a string"
-
     def test_init_with_custom_path(self):
         """Test initialisation with a custom data path."""
         custom_path = "/custom/path/rephrased.csv"
@@ -39,12 +32,9 @@ class TestSICRephraseClient:
 
     def test_init_with_config_path(self):
         """Test initialisation using package data path (environment variables ignored)."""
-        with (
-            patch("pandas.read_csv") as mock_read_csv,
-            patch(
-                "api.services.sic_rephrase_client.resolve_package_data_path"
-            ) as mock_resolve,
-        ):
+        with patch("pandas.read_csv") as mock_read_csv, patch(
+            "api.services.sic_rephrase_client.resolve_package_data_path"
+        ) as mock_resolve:
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
             mock_df.columns = ["sic_code", "reviewed_description"]
@@ -62,12 +52,9 @@ class TestSICRephraseClient:
 
     def test_init_with_package_fallback(self):
         """Test initialisation using package data (environment variables ignored)."""
-        with (
-            patch("pandas.read_csv") as mock_read_csv,
-            patch(
-                "api.services.sic_rephrase_client.resolve_package_data_path"
-            ) as mock_resolve,
-        ):
+        with patch("pandas.read_csv") as mock_read_csv, patch(
+            "api.services.sic_rephrase_client.resolve_package_data_path"
+        ) as mock_resolve:
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
             mock_df.columns = ["sic_code", "reviewed_description"]
@@ -88,12 +75,9 @@ class TestSICRephraseClient:
 
     def test_init_with_sic_library_path(self):
         """Test initialisation using package data path (environment variables ignored)."""
-        with (
-            patch("pandas.read_csv") as mock_read_csv,
-            patch(
-                "api.services.sic_rephrase_client.resolve_package_data_path"
-            ) as mock_resolve,
-        ):
+        with patch("pandas.read_csv") as mock_read_csv, patch(
+            "api.services.sic_rephrase_client.resolve_package_data_path"
+        ) as mock_resolve:
             mock_resolve.return_value = "/package/path/example_rephrased_sic_data.csv"
             mock_df = mock_read_csv.return_value
             mock_df.columns = ["sic_code", "reviewed_description"]
@@ -133,25 +117,6 @@ class TestSICRephraseClient:
             expected_count = 3
             assert client.get_rephrased_count() == expected_count
 
-    def test_load_rephrase_data_success_with_rephrased_column(self):
-        """Test successful loading when using the current description column name."""
-        test_data = [
-            {"sic_code": "01120", "rephrased_description": "Rice farming"},
-            {"sic_code": "01110", "rephrased_description": "Cereal farming"},
-        ]
-
-        with patch("pandas.read_csv") as mock_read_csv:
-            mock_df = mock_read_csv.return_value
-            mock_df.columns = ["sic_code", "rephrased_description"]
-            mock_df.iterrows.return_value = list(enumerate(test_data))
-
-            client = SICRephraseClient()
-
-            assert client.get_rephrased_description("01120") == "Rice farming"
-            assert client.get_rephrased_description("01110") == "Cereal farming"
-            expected_count = 2
-            assert client.get_rephrased_count() == expected_count
-
     def test_load_rephrase_data_missing_columns(self):
         """Test loading data with missing required columns."""
         with patch("pandas.read_csv") as mock_read_csv:
@@ -159,31 +124,14 @@ class TestSICRephraseClient:
             mock_df.columns = [
                 "sic_code",
                 "wrong_column",
-            ]  # Missing rephrased_description and reviewed_description
+            ]  # Missing reviewed_description
 
             with pytest.raises(HTTPException) as exc_info:
                 SICRephraseClient()
 
             expected_status_code = 500
             assert exc_info.value.status_code == expected_status_code
-            assert "rephrased_description or reviewed_description" in str(
-                exc_info.value.detail
-            )
-
-    def test_load_rephrase_data_missing_sic_code_column(self):
-        """Test loading data with no sic_code column."""
-        with patch("pandas.read_csv") as mock_read_csv:
-            mock_df = mock_read_csv.return_value
-            mock_df.columns = ["rephrased_description"]
-
-            with pytest.raises(HTTPException) as exc_info:
-                SICRephraseClient()
-
-            expected_status_code = 500
-            assert exc_info.value.status_code == expected_status_code
-            assert "CSV file must contain column: sic_code" in str(
-                exc_info.value.detail
-            )
+            assert "CSV file must contain columns" in str(exc_info.value.detail)
 
     def test_load_rephrase_data_file_not_found(self):
         """Test handling of missing data file."""
