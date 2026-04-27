@@ -7550,27 +7550,30 @@ optional = false
 python-versions = "^3.12"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
+openpyxl = "^3.1.5"
 pandas = "^2.3.0"
 pydantic = "^2.11.7"
 pyprojroot = "^0.3.0"
 toml = "^0.10.2"
 
 [package.source]
-type = "directory"
-url = "../soc-classification-library"
+type = "git"
+url = "https://github.com/ONSdigital/soc-classification-library.git"
+reference = "v0.1.5"
+resolved_reference = "28e8fb0bb03a7eb492f0453c9e63a73bf45093a0"
 
 [[package]]
 name = "soc-classification-utils"
-version = "0.1.1"
+version = "0.1.2"
 description = "Utility functions used for SOC classification"
 optional = false
 python-versions = "^3.12"
 groups = ["main"]
 files = []
-develop = true
+develop = false
 
 [package.dependencies]
 autocorrect = "^2.6.1"
@@ -7589,14 +7592,16 @@ pandas = "^2.3.0"
 posthog = ">=2.4.0,<6.0.0"
 pydantic = "^2.11.1"
 sentence-transformers = "4.1.0"
-soc-classification-library = {path = "../soc-classification-library", develop = true}
+soc-classification-library = {git = "https://github.com/ONSdigital/soc-classification-library.git", tag = "v0.1.5"}
 survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.7"}
 torch = "2.7.1"
 transformers = "4.48.0"
 
 [package.source]
-type = "directory"
-url = "../soc-classification-utils"
+type = "git"
+url = "https://github.com/ONSdigital/soc-classification-utils.git"
+reference = "v0.1.2"
+resolved_reference = "9f4a8ea7c64d32ac4b383dbda116000bbe220185"
 
 [[package]]
 name = "sqlalchemy"
@@ -8967,4 +8972,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "86695b3c6688b24e504abb036bd136fabf6563463a52be7156d3f66685f8e6c9"
+content-hash = "7c9bb9362bc5f9ca1c9c256b7c0086f5e2a99a83c37b9fdae0208c58f3cb97a7"
