@@ -62,11 +62,7 @@ class SICRephraseClient:
             # Load the CSV file, ensuring SIC codes are read as strings to preserve leading zeros
             df = pd.read_csv(data_path, dtype={"sic_code": str})
 
-<<<<<<< HEAD
-            # Validate required columns
-=======
             # Validate required columns.
->>>>>>> 558c94a (enforce strict sic rephrase csv schema in sic rephrase client)
             required_columns = ["sic_code", "rephrased_description"]
             if not all(col in df.columns for col in required_columns):
                 raise ValueError(
@@ -77,11 +73,7 @@ class SICRephraseClient:
             rephrased_dict = {}
             for _, row in df.iterrows():
                 sic_code = str(row["sic_code"]).strip()
-<<<<<<< HEAD
                 rephrased_description = str(row["rephrased_description"]).strip()
-=======
-                reviewed_description = str(row["rephrased_description"]).strip()
->>>>>>> 558c94a (enforce strict sic rephrase csv schema in sic rephrase client)
 
                 if sic_code and rephrased_description:
                     rephrased_dict[sic_code] = rephrased_description

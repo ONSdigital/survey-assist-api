@@ -124,6 +124,23 @@ class TestSICRephraseClient:
             expected_count = 3
             assert client.get_rephrased_count() == expected_count
 
+    def test_load_rephrase_data_accepts_rephrased_description(self):
+        """Test loading data when file uses rephrased_description column."""
+        test_data = [
+            {"sic_code": "01120", "rephrased_description": "Rice farming"},
+            {"sic_code": "01110", "rephrased_description": "Cereal farming"},
+        ]
+
+        with patch("pandas.read_csv") as mock_read_csv:
+            mock_df = mock_read_csv.return_value
+            mock_df.columns = ["sic_code", "rephrased_description"]
+            mock_df.iterrows.return_value = list(enumerate(test_data))
+
+            client = SICRephraseClient()
+
+            assert client.get_rephrased_description("01120") == "Rice farming"
+            assert client.get_rephrased_description("01110") == "Cereal farming"
+
     def test_load_rephrase_data_missing_columns(self):
         """Test loading data with missing required columns."""
         with patch("pandas.read_csv") as mock_read_csv:
