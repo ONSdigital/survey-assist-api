@@ -65,9 +65,7 @@ class SICRephraseClient:
             # Validate required columns
             required_columns = ["sic_code", "rephrased_description"]
             if not all(col in df.columns for col in required_columns):
-                raise ValueError(
-                    f"CSV file must contain columns: {required_columns}"
-                )
+                raise ValueError(f"CSV file must contain columns: {required_columns}")
 
             # Create dictionary mapping SIC codes to rephrased descriptions
             rephrased_dict = {}
