@@ -14,6 +14,13 @@ logger = get_logger(__name__)
 class TestSICRephraseClient:
     """Test cases for the SIC rephrase client."""
 
+    def test_init_with_non_string_path(self):
+        """Test initialisation rejects non-string data paths."""
+        with pytest.raises(ValueError) as exc_info:
+            SICRephraseClient(data_path=123)  # type: ignore
+
+        assert str(exc_info.value) == "Data path must be a string"
+
     def test_init_with_custom_path(self):
         """Test initialisation with a custom data path."""
         custom_path = "/custom/path/rephrased.csv"
