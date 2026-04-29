@@ -62,7 +62,7 @@ class SICRephraseClient:
             # Load the CSV file, ensuring SIC codes are read as strings to preserve leading zeros
             df = pd.read_csv(data_path, dtype={"sic_code": str})
 
-            # Validate required columns.
+            # Validate required columns
             required_columns = ["sic_code", "rephrased_description"]
             if not all(col in df.columns for col in required_columns):
                 raise ValueError(
