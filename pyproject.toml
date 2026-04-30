@@ -19,9 +19,9 @@ google-auth = "^2.28.0"
 fastapi_swagger2 = "^0.2.4"
 sic-classification-library = {path = "../sic-classification-library", develop = true}
 sic-classification-utils = {path = "../sic-classification-utils", develop = true}
-soc-classification-library = {git = "https://github.com/ONSdigital/soc-classification-library.git", tag = "v0.1.5"}
-soc-classification-utils = {git = "https://github.com/ONSdigital/soc-classification-utils.git", tag = "v0.1.2"}
-survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.7"}
+soc-classification-library = {path = "../soc-classification-library", develop = true}
+soc-classification-utils = {path = "../soc-classification-utils", develop = true}
+survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.8"}
 firebase-admin = "^6.5.0"
 
 [tool.poetry.group.dev.dependencies]
