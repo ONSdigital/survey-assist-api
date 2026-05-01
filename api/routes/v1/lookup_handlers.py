@@ -64,7 +64,13 @@ def execute_lookup_request(
         raise HTTPException(status_code=400, detail="Description cannot be empty")
 
     result = lookup_client.get_result(description, similarity)
-    if not result:
+
+    missing_exact_code = (
+        not similarity
+        and isinstance(result, dict)
+        and not result.get("code")
+    )
+    if not result or missing_exact_code:
         logger.error(
             f"No {code_label} code found for description: {description}",
             lookup_id=lookup_id,
