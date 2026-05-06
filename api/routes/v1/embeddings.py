@@ -6,10 +6,12 @@ It defines the endpoint for checking the status of the embeddings in the vector 
 
 import os
 import time
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from survey_assist_utils.logging import get_logger
 
+from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE, StatusResponse
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
 router = APIRouter(tags=["Embeddings"])
@@ -36,29 +38,28 @@ def get_vector_store_client() -> SICVectorStoreClient:
     return SICVectorStoreClient(base_url=base_url)
 
 
-# Define the dependency at module level
-vector_store_client_dependency = Depends(get_vector_store_client)
-
-
-@router.get("/embeddings")
+@router.get(
+    "/embeddings",
+    response_model=StatusResponse,
+    responses={
+        200: {
+            "description": "Current SIC vector store status",
+            "content": {"application/json": {"example": EMBEDDINGS_STATUS_EXAMPLE}},
+        }
+    },
+)
 async def get_embeddings_status(
-    vector_store_client: SICVectorStoreClient = vector_store_client_dependency,
-) -> dict:
+    vector_store_client: Annotated[
+        SICVectorStoreClient, Depends(get_vector_store_client)
+    ],
+) -> StatusResponse:
     """Get the status of the embeddings in the vector store.
 
     Args:
         vector_store_client: The vector store client instance.
 
     Returns:
-        dict: A dictionary containing the status of the embeddings.
-
-    Example:
-        ```json
-        {
-            "status": "ready",
-            "message": "Embeddings are loaded and ready to query"
-        }
-        ```
+        StatusResponse: The status of the embeddings.
     """
     start_time = time.perf_counter()
     logger.info("Request received for embeddings status")
@@ -71,4 +72,4 @@ async def get_embeddings_status(
         ),
         duration_ms=str(duration_ms),
     )
-    return status
+    return StatusResponse.model_validate(status)
