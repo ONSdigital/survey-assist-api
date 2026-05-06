@@ -24,9 +24,32 @@ from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
+from api.routes.v1.embeddings import get_vector_store_client
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
 logger = get_logger(__name__)
+
+
+@pytest.mark.api
+@pytest.mark.parametrize(
+    ("env_value", "expected_base_url"),
+    [
+        ("  http://vector-store.internal:8088  ", "http://vector-store.internal:8088"),
+        (None, "http://localhost:8088"),
+    ],
+)
+def test_get_vector_store_client_uses_expected_base_url(
+    monkeypatch, env_value, expected_base_url
+):
+    """Test vector store client URL resolution from environment and fallback."""
+    if env_value is None:
+        monkeypatch.delenv("SIC_VECTOR_STORE", raising=False)
+    else:
+        monkeypatch.setenv("SIC_VECTOR_STORE", env_value)
+
+    client = get_vector_store_client()
+
+    assert client.base_url == expected_base_url
 
 
 @pytest.mark.api
