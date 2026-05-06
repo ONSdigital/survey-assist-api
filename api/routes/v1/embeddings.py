@@ -17,6 +17,10 @@ from api.services.sic_vector_store_client import SICVectorStoreClient
 router = APIRouter(tags=["Embeddings"])
 logger = get_logger(__name__)
 
+EMBEDDINGS_STATUS_UNAVAILABLE_EXAMPLE = {
+    "detail": "Failed to check SIC vector store status: All connection attempts failed"
+}
+
 
 def get_vector_store_client() -> SICVectorStoreClient:
     """Get a vector store client instance.
@@ -45,7 +49,13 @@ def get_vector_store_client() -> SICVectorStoreClient:
         200: {
             "description": "Current SIC vector store status",
             "content": {"application/json": {"example": EMBEDDINGS_STATUS_EXAMPLE}},
-        }
+        },
+        503: {
+            "description": "The SIC vector store service is unavailable",
+            "content": {
+                "application/json": {"example": EMBEDDINGS_STATUS_UNAVAILABLE_EXAMPLE}
+            },
+        },
     },
 )
 async def get_embeddings_status(
