@@ -45,20 +45,20 @@ class StatusResponse(BaseModel):
 
 EMBEDDINGS_STATUS_EXAMPLE = StatusResponse(
     status="ready",
-    embedding_model_name="text-embedding-004",
-    db_dir="/app/data/vector_store",
+    embedding_model_name="all-MiniLM-L6-v2",
+    db_dir="src/sic_classification_vector_store/data/vector_store",
     sic_index_source=FileSource(
-        package="industrial_classification_utils",
-        file="data/sic_2007_index.csv",
+        package="sic_classification_vector_store.data.sic_index",
+        file="uksic2007indexeswithaddendumdecember2022.xlsx",
     ),
     sic_structure_source=FileSource(
-        package="industrial_classification_utils",
-        file="data/sic_2007_structure.xlsx",
+        package="sic_classification_vector_store.data.sic_index",
+        file="publisheduksicsummaryofstructureworksheet.xlsx",
     ),
     sic_condensed_source=FileSource(
-        package="industrial_classification_utils",
-        file="data/sic_2007_condensed.csv",
+        package="industrial_classification_utils.data.example",
+        file="sic_2d_condensed.txt",
     ),
     matches=20,
-    index_size=1234,
+    index_size=16618,
 ).model_dump()
