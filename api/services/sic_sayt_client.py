@@ -1,5 +1,6 @@
 """SAYT client service for SIC description suggestions in the Survey Assist API."""
 
+import time
 from pathlib import Path
 
 from industrial_classification_utils.sayt import SAYTSuggester
@@ -48,6 +49,18 @@ class SICSaytClient:
             logger.info("Loaded SIC SAYT corpus", data_path=self._data_path)
 
         return self._suggester
+
+    def warm_up(self) -> None:
+        """Pre-build the underlying suggester so the first request is not cold-started."""
+        start_time = time.perf_counter()
+        logger.info("Warming SIC SAYT corpus", data_path=self._data_path)
+        self._get_suggester()
+        duration_ms = int((time.perf_counter() - start_time) * 1000)
+        logger.info(
+            "Finished warming SIC SAYT corpus",
+            data_path=self._data_path,
+            duration_ms=str(duration_ms),
+        )
 
     def get_suggestions(
         self, description: str | None, num_suggestions: int | None = None
