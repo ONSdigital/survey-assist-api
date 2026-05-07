@@ -178,6 +178,7 @@ cython_debug/
 
 # Data files (not committed to version control)
 data/
+/corpus/
 
 # Service account keys and sensitive files (never commit these)
 *.json
