@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi_swagger2 import FastAPISwagger2
-from industrial_classification_utils.llm.llm import ClassificationLLM
+from industrial_classification_utils.llm import ClassificationLLM
 
 try:
     from occupational_classification_utils.llm.llm import (
@@ -27,10 +27,12 @@ from api.routes.v1.embeddings import router as embeddings_router
 from api.routes.v1.feedback import router as feedback_router
 from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
+from api.routes.v1.sic_sayt import router as sic_sayt_router
 from api.routes.v1.soc_lookup import router as soc_lookup_router
 from api.services.firestore_client import init_firestore_client
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
+from api.services.sic_sayt_client import SICSaytClient
 from api.services.soc_lookup_client import SOCLookupClient
 from api.services.soc_rephrase_client import SOCRephraseClient
 
@@ -63,6 +65,14 @@ async def lifespan(fastapi_app: FastAPI):
         )
     else:
         fastapi_app.state.sic_lookup_client = SICLookupClient()
+
+    # Create SIC SAYT client using the same data source as SIC lookup
+    if sic_lookup_data_path and sic_lookup_data_path.strip():
+        fastapi_app.state.sic_sayt_client = SICSaytClient(
+            data_path=sic_lookup_data_path.strip()
+        )
+    else:
+        fastapi_app.state.sic_sayt_client = SICSaytClient()
 
     # Create SOC lookup client
     soc_lookup_data_path = os.getenv("SOC_LOOKUP_DATA_PATH")
@@ -110,6 +120,7 @@ FastAPISwagger2(app)  # type: ignore
 app.include_router(config_router, prefix="/v1/survey-assist")
 app.include_router(embeddings_router, prefix="/v1/survey-assist")
 app.include_router(sic_lookup_router, prefix="/v1/survey-assist")
+app.include_router(sic_sayt_router, prefix="/v1/survey-assist")
 app.include_router(soc_lookup_router, prefix="/v1/survey-assist")
 app.include_router(classify_router, prefix="/v1/survey-assist")
 app.include_router(result_router, prefix="/v1/survey-assist")
