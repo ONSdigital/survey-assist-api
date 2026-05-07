@@ -23,9 +23,33 @@ import pytest
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
+from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
+from api.routes.v1.embeddings import get_vector_store_client
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
 logger = get_logger(__name__)
+
+
+@pytest.mark.api
+@pytest.mark.parametrize(
+    ("env_value", "expected_base_url"),
+    [
+        ("  http://vector-store.internal:8088  ", "http://vector-store.internal:8088"),
+        (None, "http://localhost:8088"),
+    ],
+)
+def test_get_vector_store_client_uses_expected_base_url(
+    monkeypatch, env_value, expected_base_url
+):
+    """Test vector store client URL resolution from environment and fallback."""
+    if env_value is None:
+        monkeypatch.delenv("SIC_VECTOR_STORE", raising=False)
+    else:
+        monkeypatch.setenv("SIC_VECTOR_STORE", env_value)
+
+    client = get_vector_store_client()
+
+    assert client.base_url == expected_base_url
 
 
 @pytest.mark.api
@@ -84,7 +108,7 @@ async def test_get_status_success():
     - The response matches the expected status dictionary.
     """
     mock_response = AsyncMock()
-    mock_response.json = Mock(return_value={"status": "ready"})
+    mock_response.json = Mock(return_value=EMBEDDINGS_STATUS_EXAMPLE)
     mock_response.raise_for_status = AsyncMock()
 
     mock_client = AsyncMock()
@@ -92,13 +116,16 @@ async def test_get_status_success():
     mock_client.__aexit__.return_value = None
     mock_client.get.return_value = mock_response
 
-    with patch("httpx.AsyncClient", return_value=mock_client), patch(
-        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-        return_value={},
+    with (
+        patch("httpx.AsyncClient", return_value=mock_client),
+        patch(
+            "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
+            return_value={},
+        ),
     ):
         client = SICVectorStoreClient(base_url="http://localhost:8088")
         response = await client.get_status()
-        assert response == {"status": "ready"}
+        assert response == EMBEDDINGS_STATUS_EXAMPLE
 
 
 @pytest.mark.api
@@ -116,11 +143,12 @@ async def test_get_status_connection_error():
     - The raised exception has the correct status code.
     - The error message contains the expected connection failure text.
     """
-    with patch(
-        "httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")
-    ), patch(
-        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-        return_value={},
+    with (
+        patch("httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")),
+        patch(
+            "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
+            return_value={},
+        ),
     ):
         client = SICVectorStoreClient(base_url="http://nonexistent:8088")
         with pytest.raises(HTTPException) as exc_info:
@@ -145,7 +173,7 @@ def test_embeddings_endpoint(test_client):
     with patch(
         "api.services.sic_vector_store_client.SICVectorStoreClient.get_status"
     ) as mock_get_status:
-        mock_get_status.return_value = {"status": "ready"}
+        mock_get_status.return_value = EMBEDDINGS_STATUS_EXAMPLE
         response = test_client.get("/v1/survey-assist/embeddings")
         assert response.status_code == HTTPStatus.OK
-        assert response.json() == {"status": "ready"}
+        assert response.json() == EMBEDDINGS_STATUS_EXAMPLE
