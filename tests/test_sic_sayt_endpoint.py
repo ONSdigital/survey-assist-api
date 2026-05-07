@@ -23,6 +23,15 @@ def _setup_sic_sayt_override(mock_client):
     app.dependency_overrides[get_sayt_client] = lambda: mock_client
 
 
+def test_get_sayt_client_returns_client_from_app_state():
+    """Read the SIC SAYT client directly from FastAPI application state."""
+    mock_client = MagicMock()
+    request = MagicMock()
+    request.app.state.sic_sayt_client = mock_client
+
+    assert get_sayt_client(request) is mock_client
+
+
 def test_sic_sayt_returns_suggestions():
     """Return suggestions for a valid partial SIC description."""
     mock_client = MagicMock()

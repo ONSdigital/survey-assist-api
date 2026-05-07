@@ -1,5 +1,6 @@
 """Tests for the SICSaytClient class."""
 
+from pathlib import Path
 from unittest.mock import patch
 
 from api.services.sic_sayt_client import SICSaytClient
@@ -55,7 +56,9 @@ class TestSICSaytClient:
                 "api.services.sic_sayt_client.SAYTSuggester.from_csv"
             ) as mock_from_csv,
         ):
-            mock_resolve.return_value = "/package/path/example_sic_lookup_data.csv"
+            mock_resolve.return_value = Path(
+                "/package/path/example_sic_lookup_data.csv"
+            )
             mock_suggester = mock_from_csv.return_value
             mock_suggester.suggest.return_value = ["Insulating activities"]
 
