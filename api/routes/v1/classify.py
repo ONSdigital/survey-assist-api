@@ -32,6 +32,8 @@ router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 
 MAX_LEN = 12
+SOC_CLEAR_WINNER_MIN_LIKELIHOOD = 0.85
+SOC_CLEAR_WINNER_MIN_GAP = 0.2
 
 
 def get_sic_vector_store_client() -> SICVectorStoreClient:
@@ -570,6 +572,36 @@ def _apply_soc_rephrasing(
         return result
 
 
+def _select_soc_clear_winner(
+    candidates: list[GenericCandidate],
+) -> Optional[GenericCandidate]:
+    """Return top candidate when SOC evidence is clearly unambiguous.
+
+    SIC-equivalent decision behaviour for SOC: commit to a final code in
+    obvious cases and reserve follow-up questions for genuinely ambiguous
+    candidate sets.
+    """
+    if not candidates:
+        return None
+
+    ranked = sorted(
+        candidates,
+        key=lambda candidate: float(candidate.likelihood),
+        reverse=True,
+    )
+    top = ranked[0]
+    if top.likelihood < SOC_CLEAR_WINNER_MIN_LIKELIHOOD:
+        return None
+
+    if len(ranked) == 1:
+        return top
+
+    gap = top.likelihood - ranked[1].likelihood
+    if gap < SOC_CLEAR_WINNER_MIN_GAP:
+        return None
+    return top
+
+
 async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
@@ -674,11 +706,26 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
         code = getattr(llm_response, "soc_code", None)
         description = getattr(llm_response, "soc_descriptive", None)
         classified = bool(code and str(code).strip())
+        followup = getattr(llm_response, "followup", None)
+
+        if not classified:
+            clear_winner = _select_soc_clear_winner(candidates)
+            if clear_winner is not None:
+                code = clear_winner.code
+                description = clear_winner.descriptive
+                classified = True
+                followup = None
+                logger.info(
+                    "SOC classification promoted to final code from clear winner",
+                    body_id=body_id,
+                    promoted_code=str(code),
+                    top_likelihood=str(clear_winner.likelihood),
+                )
 
         result = GenericClassificationResult(
             type="soc",
             classified=classified,
-            followup=getattr(llm_response, "followup", None),
+            followup=followup if not classified else None,
             code=code if classified else None,
             description=description if classified else None,
             candidates=candidates,
