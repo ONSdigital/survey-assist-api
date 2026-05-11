@@ -1103,3 +1103,122 @@ def test_soc_classify_rephrased_false_keeps_original_descriptions(
     first = data["results"][0]
     assert first["description"] == "Elementary occupations"
     assert first["candidates"][0]["descriptive"] == "Elementary occupations"
+
+
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.main.app.state.soc_llm")
+def test_soc_classify_promotes_clear_winner_to_final_code(
+    mock_soc_llm, mock_soc_vector_store
+):
+    """SOC classify should return final code when one candidate clearly wins."""
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {"code": "9111", "title": "Farm labourers", "distance": 0.05},
+            {"code": "5111", "title": "Skilled trades occupations", "distance": 0.32},
+        ]
+    )
+    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                soc_code=None,
+                soc_descriptive=None,
+                soc_candidates=[
+                    MagicMock(
+                        soc_code="9111",
+                        soc_descriptive="Farm labourers",
+                        likelihood=0.9,
+                    ),
+                    MagicMock(
+                        soc_code="5111",
+                        soc_descriptive="Skilled trades occupations",
+                        likelihood=0.1,
+                    ),
+                ],
+                followup=(
+                    "Does your role involve any supervisory responsibilities or "
+                    "require more advanced skills than basic routine tasks?"
+                ),
+                reasoning="Mocked SOC reasoning",
+            ),
+            None,
+            None,
+        )
+    )
+
+    request_data = {
+        "llm": "gemini",
+        "type": "soc",
+        "job_title": "farm hand",
+        "job_description": (
+            "Manual labour under supervision that requires basic routine tasks only."
+        ),
+        "org_description": "farming",
+        "options": {"soc": {"rephrased": False}},
+    }
+
+    response = client.post("/v1/survey-assist/classify", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()["results"][0]
+    assert result["type"] == "soc"
+    assert result["classified"] is True
+    assert result["code"] == "9111"
+    assert result["description"] == "Farm labourers"
+    assert result["followup"] is None
+
+
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.main.app.state.soc_llm")
+def test_soc_classify_keeps_followup_for_ambiguous_candidates(
+    mock_soc_llm, mock_soc_vector_store
+):
+    """SOC classify should keep follow-up when candidates are still ambiguous."""
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {"code": "9111", "title": "Farm labourers", "distance": 0.15},
+            {"code": "5111", "title": "Skilled trades occupations", "distance": 0.19},
+        ]
+    )
+    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                soc_code=None,
+                soc_descriptive=None,
+                soc_candidates=[
+                    MagicMock(
+                        soc_code="9111",
+                        soc_descriptive="Farm labourers",
+                        likelihood=0.56,
+                    ),
+                    MagicMock(
+                        soc_code="5111",
+                        soc_descriptive="Skilled trades occupations",
+                        likelihood=0.49,
+                    ),
+                ],
+                followup="Can you describe whether the role is mainly manual labour?",
+                reasoning="Mocked SOC reasoning",
+            ),
+            None,
+            None,
+        )
+    )
+
+    request_data = {
+        "llm": "gemini",
+        "type": "soc",
+        "job_title": "farm hand",
+        "job_description": "Work on a farm with varied tasks.",
+        "org_description": "farming",
+        "options": {"soc": {"rephrased": False}},
+    }
+
+    response = client.post("/v1/survey-assist/classify", json=request_data)
+    assert response.status_code == status.HTTP_200_OK
+    result = response.json()["results"][0]
+    assert result["type"] == "soc"
+    assert result["classified"] is False
+    assert result["code"] is None
+    assert result["description"] is None
+    assert result["followup"] == (
+        "Can you describe whether the role is mainly manual labour?"
+    )
