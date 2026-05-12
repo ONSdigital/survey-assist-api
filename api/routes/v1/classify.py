@@ -32,6 +32,10 @@ router: APIRouter = APIRouter(tags=["Classification"])
 logger = get_logger(__name__)
 
 MAX_LEN = 12
+
+# Temporary: server-side clear-winner thresholds only while SOC classify is single-step.
+# SIC uses a dedicated unambiguous vs follow-up path instead. Remove or replace these
+# when SOC is brought in line with that SIC-style multi-step flow.
 SOC_CLEAR_WINNER_MIN_LIKELIHOOD = 0.85
 SOC_CLEAR_WINNER_MIN_GAP = 0.2
 
