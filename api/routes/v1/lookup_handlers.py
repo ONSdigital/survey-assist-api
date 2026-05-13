@@ -66,9 +66,7 @@ def execute_lookup_request(
     result = lookup_client.get_result(description, similarity)
 
     missing_exact_code = (
-        not similarity
-        and isinstance(result, dict)
-        and not result.get("code")
+        not similarity and isinstance(result, dict) and not result.get("code")
     )
     if not result or missing_exact_code:
         logger.error(
