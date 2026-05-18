@@ -11,7 +11,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from survey_assist_utils.logging import get_logger
 
-from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE, StatusResponse
+from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE, EmbeddingStatus
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
 router = APIRouter(tags=["Embeddings"])
@@ -44,7 +44,7 @@ def get_vector_store_client() -> SICVectorStoreClient:
 
 @router.get(
     "/embeddings",
-    response_model=StatusResponse,
+    response_model=EmbeddingStatus,
     responses={
         200: {
             "description": "Current SIC vector store status",
@@ -62,14 +62,14 @@ async def get_embeddings_status(
     vector_store_client: Annotated[
         SICVectorStoreClient, Depends(get_vector_store_client)
     ],
-) -> StatusResponse:
+) -> EmbeddingStatus:
     """Get the status of the embeddings in the vector store.
 
     Args:
         vector_store_client: The vector store client instance.
 
     Returns:
-        StatusResponse: The status of the embeddings.
+        EmbeddingStatus: The status of the embeddings.
     """
     start_time = time.perf_counter()
     logger.info("Request received for embeddings status")
@@ -82,4 +82,4 @@ async def get_embeddings_status(
         ),
         duration_ms=str(duration_ms),
     )
-    return StatusResponse.model_validate(status)
+    return EmbeddingStatus.model_validate(status)
