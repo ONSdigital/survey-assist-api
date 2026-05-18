@@ -6,7 +6,6 @@ returned by the embeddings endpoint in the API.
 
 from industrial_classification_utils.models.config_model import EmbeddingStatus
 
-
 EMBEDDINGS_STATUS_EXAMPLE = EmbeddingStatus(
     status="ready",
     embedding_model_name="all-MiniLM-L6-v2",

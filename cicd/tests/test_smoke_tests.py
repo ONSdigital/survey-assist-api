@@ -93,7 +93,9 @@ class TestSurveyAssistApi:
         ), f"Expected status code 200, but got {response.status_code}."
 
         response_json = response.json()
-        assert "status" in response_json, "Response missing 'status' field."  # noqa: S101
+        assert (  # noqa: S101
+            "status" in response_json
+        ), "Response missing 'status' field."
         assert (  # noqa: S101
             response_json["status"] == "ready"
         ), f"Expected status 'ready', but got '{response_json['status']}'."
