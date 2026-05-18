@@ -28,6 +28,7 @@ class TestSurveyAssistApi:
             headers={"Authorization": f"Bearer {self.id_token}"},
             timeout=30,
         )
+        print(f"Response body: {response.text}")
 
         assert (  # noqa: S101
             response.status_code == 200  # noqa: PLR2004
@@ -74,3 +75,27 @@ class TestSurveyAssistApi:
         assert (  # noqa: S101
             response.status_code == 200  # noqa: PLR2004
         ), f"Expected status code 200, but got {response.status_code}."
+
+    def test_survey_assist_api_embeddings(self) -> None:
+        """Test Survey Assist API returns successful /embeddings response."""
+        endpoint = f"{self.url_base}/embeddings"
+
+        print(f"Calling {endpoint}...")
+        response = requests.get(
+            endpoint,
+            headers={"Authorization": f"Bearer {self.id_token}"},
+            timeout=30,
+        )
+        print(f"Response body: {response.text}")
+
+        assert (  # noqa: S101
+            response.status_code == 200  # noqa: PLR2004
+        ), f"Expected status code 200, but got {response.status_code}."
+
+        response_json = response.json()
+        assert (  # noqa: S101
+            "status" in response_json
+        ), "Response missing 'status' field."
+        assert (  # noqa: S101
+            response_json["status"] == "ready"
+        ), f"Expected status 'ready', but got '{response_json['status']}'."
