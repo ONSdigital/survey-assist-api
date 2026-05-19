@@ -9,25 +9,20 @@ Functions:
     pytest_sessionfinish(session, exitstatus): Logs the end of a test session.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 from industrial_classification_utils.llm.llm import ClassificationLLM
+from occupational_classification_utils.llm.llm import (
+    ClassificationLLM as SOCClassificationLLM,
+)
 from survey_assist_utils.logging import get_logger
 
 from api.main import app
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.soc_lookup_client import SOCLookupClient
-from tests.soc_classify_mocks import configure_unambiguous_soc_code_mock
-
-try:
-    from occupational_classification_utils.llm.llm import (
-        ClassificationLLM as SOCClassificationLLM,
-    )
-except ImportError:
-    SOCClassificationLLM = None  # type: ignore[misc, assignment]
 
 # Configure a global logger
 logger = get_logger(__name__)
@@ -44,30 +39,9 @@ def pytest_configure(config):  # pylint: disable=unused-argument
         config (pytest.Config): The pytest configuration object containing command-line
             options and plugin configurations.
     """
-    # Mock the LLM initialisation
-    mock_llm = MagicMock(spec=ClassificationLLM)
-    mock_llm.model_name = "gemini-2.5-flash"  # Set the model name for config endpoint
-
-    # Mock the sa_rag_sic_code method to return expected values
-    mock_llm.sa_rag_sic_code.return_value = (
-        MagicMock(
-            classified=True,
-            codable=True,
-            followup=None,
-            sic_code="43210",
-            sic_descriptive="Electrical installation",
-            reasoning="Mocked reasoning",
-            sic_candidates=[
-                MagicMock(
-                    sic_code="43210",
-                    sic_descriptive="Electrical installation",
-                    likelihood=0.95,
-                )
-            ],
-        ),
-        None,
-        None,
-    )
+    # Mock SIC LLM on app state (classify tests patch unambiguous_sic_code inline).
+    mock_sic_llm = MagicMock(spec=ClassificationLLM)
+    mock_sic_llm.model_name = "gemini-2.5-flash"
 
     # Mock the SIC lookup client
     mock_sic_lookup_client = MagicMock(spec=SICLookupClient)
@@ -81,22 +55,12 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     mock_sic_rephrase_client = MagicMock(spec=SICRephraseClient)
     mock_sic_rephrase_client.get_rephrased_count.return_value = 500
 
-    # Mock the SOC LLM (two-step classify: unambiguous_soc_code, then formulate_open_question).
-    mock_soc_llm = (
-        MagicMock(spec=SOCClassificationLLM)
-        if SOCClassificationLLM is not None
-        else MagicMock()
-    )
-    configure_unambiguous_soc_code_mock(mock_soc_llm)
-    mock_soc_llm.formulate_open_question = AsyncMock(
-        return_value=(
-            MagicMock(followup="Example follow-up?", reasoning="Mock follow-up."),
-            {},
-        )
-    )
+    # Mock SOC LLM on app state (classify tests patch unambiguous_soc_code inline).
+    mock_soc_llm = MagicMock(spec=SOCClassificationLLM)
+    mock_soc_llm.model_name = "gemini-2.5-flash"
 
     # Set up app state with all required clients
-    app.state.gemini_llm = mock_llm
+    app.state.gemini_llm = mock_sic_llm
     app.state.soc_llm = mock_soc_llm
     app.state.sic_lookup_client = mock_sic_lookup_client
     app.state.soc_lookup_client = mock_soc_lookup_client
