@@ -33,12 +33,6 @@ logger = get_logger(__name__)
 
 MAX_LEN = 12
 
-# Temporary: server-side clear-winner thresholds only while SOC classify is single-step.
-# SIC uses a dedicated unambiguous vs follow-up path instead. Remove or replace these
-# when SOC is brought in line with that SIC-style multi-step flow.
-SOC_CLEAR_WINNER_MIN_LIKELIHOOD = 0.85
-SOC_CLEAR_WINNER_MIN_GAP = 0.2
-
 
 def get_sic_vector_store_client() -> SICVectorStoreClient:
     """Get a SIC vector store client instance.
@@ -576,50 +570,29 @@ def _apply_soc_rephrasing(
         return result
 
 
-def _select_soc_clear_winner(
-    candidates: list[GenericCandidate],
-) -> Optional[GenericCandidate]:
-    """Return top candidate when SOC evidence is clearly unambiguous.
-
-    SIC-equivalent decision behaviour for SOC: commit to a final code in
-    obvious cases and reserve follow-up questions for genuinely ambiguous
-    candidate sets.
-    """
-    if not candidates:
-        return None
-
-    ranked = sorted(
-        candidates,
-        key=lambda candidate: float(candidate.likelihood),
-        reverse=True,
-    )
-    top = ranked[0]
-    if top.likelihood < SOC_CLEAR_WINNER_MIN_LIKELIHOOD:
-        return None
-
-    if len(ranked) == 1:
-        return top
-
-    gap = top.likelihood - ranked[1].likelihood
-    if gap < SOC_CLEAR_WINNER_MIN_GAP:
-        return None
-    return top
-
-
 async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SOCVectorStoreClient,
     body_id: str,
 ) -> GenericClassificationResult:
-    """Classify using SOC classification (single-step RAG with vector store).
+    """Classify using SOC classification with two-step process (mirrors ``_classify_sic``).
 
-    Mirrors the pre-two-step SIC flow: vector store search then one LLM call
-    with the short list. No second prompt for open question formulation.
+    Args:
+        request (Request): The FastAPI request object.
+        classification_request (ClassificationRequest): The classification request.
+        vector_store (SOCVectorStoreClient): SOC vector store client.
+        body_id (str): Pseudo correlation ID built from truncated request fields.
+
+    Returns:
+        GenericClassificationResult: SOC classification result.
+
+    Raises:
+        HTTPException: If the two-step process fails with 422 status, or SOC LLM is
+            unavailable (503).
     """
     try:
-        # Mirror SIC: LLM from app state. SIC uses request.app.state.gemini_llm (required);
-        # SOC is optional, so 503 if not configured.
+        # SOC LLM from app state (optional; 503 if soc-classification-utils not loaded).
         llm = getattr(request.app.state, "soc_llm", None)
         if llm is None:
             logger.error(
@@ -640,7 +613,7 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                 },
             )
 
-        # Get vector store search results (same order as SIC: search then LLM)
+        # Get vector store search results
         search_results = await vector_store.search(
             industry_descr=classification_request.org_description,
             job_title=classification_request.job_title,
@@ -648,7 +621,7 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
             correlation_id=body_id,
         )
 
-        # Build short_list for LLM (same shape as SIC: code, title, distance)
+        # Prepare shortlist for LLM (list of dicts with code/title/distance)
         short_list = [
             {
                 "code": result["code"],
@@ -670,73 +643,139 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                 reasoning="No SOC candidates returned from vector store search.",
             )
 
-        # Single-step LLM call (async SOC LLM, mirrors SIC sa_rag_sic_code flow)
+        # Step 1: Call unambiguous SOC code classification
         logger.info(
-            f"LLM request sent for SOC classification (single-step RAG) - "
+            f"LLM request sent for unambiguous SOC classification - "
             f"job_title: '{truncate_identifier(classification_request.job_title)}', "
             f"job_description: '{truncate_identifier(classification_request.job_description)}', "
             f"org_description: '{truncate_identifier(classification_request.org_description)}'",
             body_id=body_id,
         )
-        llm_start = time.perf_counter()
-        llm_response, _, _ = await llm.sa_rag_soc_code(
-            industry_descr=classification_request.org_description or "",
-            job_title=classification_request.job_title,
-            job_description=classification_request.job_description,
-            expand_search_terms=True,
-            code_digits=4,
-            candidates_limit=5,
-            short_list=short_list,
-        )
-        llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
-        logger.info(
-            "LLM response received for SOC single-step prompt",
-            has_code=str(bool(getattr(llm_response, "soc_code", None))),
-            duration_ms=str(llm_duration_ms),
-            body_id=body_id,
-        )
-
-        # Map to generic result (SurveyAssistSocResponse)
-        soc_candidates = getattr(llm_response, "soc_candidates", []) or []
-        candidates = [
-            GenericCandidate(
-                code=c.soc_code,
-                descriptive=c.soc_descriptive,
-                likelihood=c.likelihood,
+        try:
+            llm_start = time.perf_counter()
+            unambiguous_response, _ = await llm.unambiguous_soc_code(
+                industry_descr=classification_request.org_description or "",
+                semantic_search_results=short_list,
+                job_title=classification_request.job_title,
+                job_description=classification_request.job_description,
+                correlation_id=body_id,
             )
-            for c in soc_candidates
-        ]
+            llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
+            logger.info(
+                "LLM response received for unambiguous soc prompt",
+                codable=str(bool(getattr(unambiguous_response, "codable", False))),
+                selected_code=(
+                    str(getattr(unambiguous_response, "class_code", ""))
+                    if bool(getattr(unambiguous_response, "codable", False))
+                    else ""
+                ),
+                alt_candidates_count=str(
+                    len(getattr(unambiguous_response, "alt_candidates", []) or [])
+                ),
+                duration_ms=str(llm_duration_ms),
+                body_id=body_id,
+            )
+        except Exception as e:
+            logger.error(
+                "Error in unambiguous SOC classification", error=str(e), body_id=body_id
+            )
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error": {
+                        "type": "classification_error",
+                        "message": "The LLM could not generate a valid classification",
+                        "details": f"Unambiguous SOC classification failed: {e!s}",
+                    }
+                },
+            ) from e
 
-        code = getattr(llm_response, "soc_code", None)
-        description = getattr(llm_response, "soc_descriptive", None)
-        classified = bool(code and str(code).strip())
-        followup = getattr(llm_response, "followup", None)
-
-        if not classified:
-            clear_winner = _select_soc_clear_winner(candidates)
-            if clear_winner is not None:
-                code = clear_winner.code
-                description = clear_winner.descriptive
-                classified = True
-                followup = None
-                logger.info(
-                    "SOC classification promoted to final code from clear winner",
-                    body_id=body_id,
-                    promoted_code=str(code),
-                    top_likelihood=str(clear_winner.likelihood),
+        # Check if unambiguous classification found a match
+        if unambiguous_response.codable and unambiguous_response.class_code:
+            candidates = [
+                GenericCandidate(
+                    code=c.class_code,
+                    descriptive=c.class_descriptive,
+                    likelihood=c.likelihood,
                 )
+                for c in unambiguous_response.alt_candidates
+            ]
+            result = GenericClassificationResult(
+                type="soc",
+                classified=True,
+                followup=None,
+                code=unambiguous_response.class_code,
+                description=unambiguous_response.class_descriptive,
+                candidates=candidates,
+                reasoning=unambiguous_response.reasoning,
+            )
+        else:
+            # No unambiguous match found - call formulate open question
+            job_title_trunc = truncate_identifier(classification_request.job_title)
+            job_desc_trunc = truncate_identifier(classification_request.job_description)
+            org_desc_trunc = truncate_identifier(classification_request.org_description)
+            logger.info(
+                f"LLM request sent to formulate open question (SOC) - "
+                f"job_title: '{job_title_trunc}', "
+                f"job_description: '{job_desc_trunc}', "
+                f"org_description: '{org_desc_trunc}'",
+                body_id=body_id,
+            )
+            try:
+                llm_start2 = time.perf_counter()
+                open_question_response, _ = await llm.formulate_open_question(
+                    industry_descr=classification_request.org_description or "",
+                    job_title=classification_request.job_title,
+                    job_description=classification_request.job_description,
+                    llm_output=unambiguous_response.alt_candidates,
+                    correlation_id=body_id,
+                )
+                llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
+                logger.info(
+                    "LLM response received for open question prompt (SOC)",
+                    has_followup=str(
+                        bool(getattr(open_question_response, "followup", None))
+                    ),
+                    duration_ms=str(llm_duration2_ms),
+                    body_id=body_id,
+                )
+            except Exception as e:
+                logger.error(
+                    "Error in formulate open question (SOC)",
+                    error=str(e),
+                    body_id=body_id,
+                )
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "error": {
+                            "type": "classification_error",
+                            "message": "The LLM could not generate a valid classification",
+                            "details": f"Open question formulation failed: {e!s}",
+                        }
+                    },
+                ) from e
 
-        result = GenericClassificationResult(
-            type="soc",
-            classified=classified,
-            followup=followup if not classified else None,
-            code=code if classified else None,
-            description=description if classified else None,
-            candidates=candidates,
-            reasoning=getattr(llm_response, "reasoning", "") or "",
-        )
+            # Map candidates from unambiguous response
+            candidates = [
+                GenericCandidate(
+                    code=c.class_code,
+                    descriptive=c.class_descriptive,
+                    likelihood=c.likelihood,
+                )
+                for c in unambiguous_response.alt_candidates
+            ]
+            result = GenericClassificationResult(
+                type="soc",
+                classified=False,
+                followup=open_question_response.followup,
+                code=None,
+                description=None,
+                candidates=candidates,
+                reasoning=unambiguous_response.reasoning,
+            )
 
-        # Mirror SIC behaviour - rephrasing defaults to enabled unless explicitly false.
+        # Apply rephrasing if enabled (behaviour unchanged from pre-SA-693)
         soc_rephrase_client = getattr(request.app.state, "soc_rephrase_client", None)
         if soc_rephrase_client and (result.code or result.candidates):
             result = _apply_soc_rephrasing(
@@ -761,11 +800,11 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
         return result
 
     except HTTPException:
+        # Re-raise HTTP exceptions as they are already properly formatted
         raise
     except Exception as e:
-        # Mirror SIC: same 422 detail shape and logging (error, body_id)
         logger.error(
-            "Error in SOC classification (single-step)",
+            "Unexpected error in SOC classification",
             error=str(e),
             body_id=body_id,
         )
@@ -774,8 +813,8 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
             detail={
                 "error": {
                     "type": "classification_error",
-                    "message": "The LLM could not generate a valid SOC classification",
-                    "details": f"SOC classification failed: {e!s}",
+                    "message": "The LLM could not generate a valid classification",
+                    "details": f"Response was empty or invalid JSON: {e!s}",
                 }
             },
         ) from e

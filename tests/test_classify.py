@@ -121,18 +121,17 @@ class TestClassifyEndpoint:
         self.mock_rephrase_client.return_value = mock_rephrase_instance
 
         mock_llm_instance = MagicMock()
-        mock_llm_instance.sa_rag_sic_code.return_value = (
-            MagicMock(
-                classified=True,
-                codable=True,
-                followup=None,
-                class_code=EXPECTED_SIC_CODE,
-                class_descriptive=EXPECTED_SIC_DESCRIPTION,
-                reasoning="Mocked reasoning",
-                alt_candidates=[],
-            ),
-            None,
-            None,
+        mock_llm_instance.unambiguous_sic_code = AsyncMock(
+            return_value=(
+                MagicMock(
+                    codable=True,
+                    class_code=EXPECTED_SIC_CODE,
+                    class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                    alt_candidates=[],
+                    reasoning="Mocked reasoning",
+                ),
+                None,
+            )
         )
         self.mock_llm.return_value = mock_llm_instance
 
@@ -966,7 +965,10 @@ def test_classify_endpoint_meta_field_exclusion(
     side_effect=AssertionError("SOC classify must not use Excel loaders"),
 )
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
-def test_soc_classify_does_not_require_excel(mock_soc_vector_store, _mock_read_excel):
+@patch("api.main.app.state.soc_llm")
+def test_soc_classify_does_not_require_excel(
+    mock_soc_llm, mock_soc_vector_store, _mock_read_excel
+):
     """SOC classify works even when Excel loaders are unavailable."""
     mock_soc_vector_store.return_value.search = AsyncMock(
         return_value=[
@@ -976,6 +978,24 @@ def test_soc_classify_does_not_require_excel(mock_soc_vector_store, _mock_read_e
                 "distance": 0.05,
             }
         ]
+    )
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                codable=True,
+                class_code=EXPECTED_SOC_CODE,
+                class_descriptive=EXPECTED_SOC_DESCRIPTION,
+                alt_candidates=[
+                    MagicMock(
+                        class_code=EXPECTED_SOC_CODE,
+                        class_descriptive=EXPECTED_SOC_DESCRIPTION,
+                        likelihood=EXPECTED_LIKELIHOOD,
+                    )
+                ],
+                reasoning="Mocked SOC reasoning for excel guard test.",
+            ),
+            None,
+        )
     )
 
     request_data = {
@@ -1007,23 +1027,22 @@ def test_soc_classify_rephrases_by_default(mock_soc_llm, mock_soc_vector_store):
             }
         ]
     )
-    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(
         return_value=(
             MagicMock(
-                soc_code=EXPECTED_SOC_CODE,
-                soc_descriptive="Elementary occupations",
-                soc_candidates=[
+                codable=True,
+                class_code=EXPECTED_SOC_CODE,
+                class_descriptive="Elementary occupations",
+                alt_candidates=[
                     MagicMock(
-                        soc_code=EXPECTED_SOC_CODE,
-                        soc_descriptive="Elementary occupations",
+                        class_code=EXPECTED_SOC_CODE,
+                        class_descriptive="Elementary occupations",
                         likelihood=EXPECTED_LIKELIHOOD,
                     )
                 ],
-                followup=None,
-                reasoning="Mocked SOC reasoning",
+                reasoning="Mocked SOC reasoning for rephrase test with enough detail.",
             ),
-            None,
-            None,
+            {},
         )
     )
     mock_soc_rephrase_client = MagicMock()
@@ -1063,23 +1082,22 @@ def test_soc_classify_rephrased_false_keeps_original_descriptions(
             }
         ]
     )
-    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(
         return_value=(
             MagicMock(
-                soc_code=EXPECTED_SOC_CODE,
-                soc_descriptive="Elementary occupations",
-                soc_candidates=[
+                codable=True,
+                class_code=EXPECTED_SOC_CODE,
+                class_descriptive="Elementary occupations",
+                alt_candidates=[
                     MagicMock(
-                        soc_code=EXPECTED_SOC_CODE,
-                        soc_descriptive="Elementary occupations",
+                        class_code=EXPECTED_SOC_CODE,
+                        class_descriptive="Elementary occupations",
                         likelihood=EXPECTED_LIKELIHOOD,
                     )
                 ],
-                followup=None,
-                reasoning="Mocked SOC reasoning",
+                reasoning="Mocked SOC reasoning for rephrase false test with detail.",
             ),
-            None,
-            None,
+            {},
         )
     )
     mock_soc_rephrase_client = MagicMock()
@@ -1105,38 +1123,35 @@ def test_soc_classify_rephrased_false_keeps_original_descriptions(
     assert first["candidates"][0]["descriptive"] == "Elementary occupations"
 
 
-def _sa673_llm_no_code_tuple(candidates, followup):
-    """SA-673 mock LLM return, no final ``soc_code`` (same tuple shape as ``sa_rag_soc_code``)."""
-    return (
-        MagicMock(
-            soc_code=None,
-            soc_descriptive=None,
-            soc_candidates=candidates,
-            followup=followup,
-            reasoning="",
-        ),
-        None,
-        None,
-    )
-
-
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
 @patch("api.main.app.state.soc_llm")
-def test_soc_promotes_clear_likelihood_winner(mock_soc_llm, mock_soc_vector_store):
-    """SA-673: dominant likelihood → final code when the LLM omits ``soc_code``."""
+def test_soc_unambiguous_returns_final_code(mock_soc_llm, mock_soc_vector_store):
+    """Farm hand: unambiguous_soc_code returns classified=true with code 9111."""
     mock_soc_vector_store.return_value.search = AsyncMock(
         return_value=[
-            {"code": "9111", "title": "a", "distance": 0.05},
-            {"code": "5111", "title": "b", "distance": 0.32},
+            {"code": "9111", "title": "Farm workers", "distance": 0.05},
+            {"code": "5111", "title": "Other", "distance": 0.32},
         ]
     )
-    mock_soc_llm.sa_rag_soc_code = AsyncMock(
-        return_value=_sa673_llm_no_code_tuple(
-            [
-                MagicMock(soc_code="9111", soc_descriptive="Winner", likelihood=0.9),
-                MagicMock(soc_code="5111", soc_descriptive="Runner", likelihood=0.1),
-            ],
-            "ignored when promoted",
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                codable=True,
+                class_code="9111",
+                class_descriptive="Farm workers",
+                alt_candidates=[
+                    MagicMock(
+                        class_code="9111",
+                        class_descriptive="Farm workers",
+                        likelihood=0.9,
+                    ),
+                    MagicMock(
+                        class_code="5111", class_descriptive="Other", likelihood=0.1
+                    ),
+                ],
+                reasoning="Clear farm worker match.",
+            ),
+            None,
         )
     )
     res = client.post(
@@ -1153,13 +1168,14 @@ def test_soc_promotes_clear_likelihood_winner(mock_soc_llm, mock_soc_vector_stor
     assert res.status_code == status.HTTP_200_OK
     out = res.json()["results"][0]
     assert out["classified"] is True and out["code"] == "9111"
-    assert out["description"] == "Winner" and out["followup"] is None
+    assert out["description"] == "Farm workers" and out["followup"] is None
+    mock_soc_llm.formulate_open_question.assert_not_called()
 
 
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
 @patch("api.main.app.state.soc_llm")
 def test_soc_ambiguous_keeps_followup(mock_soc_llm, mock_soc_vector_store):
-    """SA-673: tight likelihoods → stay unclassified; follow-up unchanged."""
+    """Ambiguous case: formulate_open_question supplies follow-up."""
     follow = "Still need detail?"
     mock_soc_vector_store.return_value.search = AsyncMock(
         return_value=[
@@ -1167,14 +1183,19 @@ def test_soc_ambiguous_keeps_followup(mock_soc_llm, mock_soc_vector_store):
             {"code": "5111", "title": "b", "distance": 0.19},
         ]
     )
-    mock_soc_llm.sa_rag_soc_code = AsyncMock(
-        return_value=_sa673_llm_no_code_tuple(
-            [
-                MagicMock(soc_code="9111", soc_descriptive="A", likelihood=0.56),
-                MagicMock(soc_code="5111", soc_descriptive="B", likelihood=0.49),
-            ],
-            follow,
-        )
+    mock_unambiguous = MagicMock(
+        codable=False,
+        class_code=None,
+        class_descriptive=None,
+        alt_candidates=[
+            MagicMock(class_code="9111", class_descriptive="A", likelihood=0.56),
+            MagicMock(class_code="5111", class_descriptive="B", likelihood=0.49),
+        ],
+        reasoning="Ambiguous shortlist.",
+    )
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(return_value=(mock_unambiguous, None))
+    mock_soc_llm.formulate_open_question = AsyncMock(
+        return_value=(MagicMock(followup=follow, reasoning="Need more detail."), None)
     )
     res = client.post(
         "/v1/survey-assist/classify",

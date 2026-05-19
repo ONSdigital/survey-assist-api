@@ -21,7 +21,7 @@ The classification process works as follows:
 ### Current Implementation Status
 
 - **SIC Classification**: Fully implemented with vector store search, LLM classification, and rephrasing support.
-- **SOC Classification**: Implemented as a single-step RAG flow using the SOC vector store and a SOC LLM (when configured), with optional SOC rephrasing backed by `soc-classification-library`.
+- **SOC Classification**: Two-step flow (mirrors SIC): vector store search, then `unambiguous_soc_code`, then `formulate_open_question` when not codable. Optional SOC rephrasing backed by `soc-classification-library`.
 
 ## Endpoints
 
