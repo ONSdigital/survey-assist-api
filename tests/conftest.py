@@ -20,6 +20,7 @@ from api.main import app
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.soc_lookup_client import SOCLookupClient
+from tests.soc_classify_mocks import configure_unambiguous_soc_code_mock
 
 try:
     from occupational_classification_utils.llm.llm import (
@@ -80,30 +81,17 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     mock_sic_rephrase_client = MagicMock(spec=SICRephraseClient)
     mock_sic_rephrase_client.get_rephrased_count.return_value = 500
 
-    # Mock the SOC LLM (mirrors SIC above: single-step RAG method on app state; async).
-    # Optional import like main.py/classify.py: use SOC class as spec when available.
+    # Mock the SOC LLM (two-step classify: unambiguous_soc_code, then formulate_open_question).
     mock_soc_llm = (
         MagicMock(spec=SOCClassificationLLM)
         if SOCClassificationLLM is not None
         else MagicMock()
     )
-    mock_soc_llm.sa_rag_soc_code = AsyncMock(
+    configure_unambiguous_soc_code_mock(mock_soc_llm)
+    mock_soc_llm.formulate_open_question = AsyncMock(
         return_value=(
-            MagicMock(
-                soc_code="9111",
-                soc_descriptive="Farm workers",
-                soc_candidates=[
-                    MagicMock(
-                        soc_code="9111",
-                        soc_descriptive="Farm workers",
-                        likelihood=0.9,
-                    )
-                ],
-                followup=None,
-                reasoning="Mocked SOC reasoning",
-            ),
-            None,
-            None,
+            MagicMock(followup="Example follow-up?", reasoning="Mock follow-up."),
+            {},
         )
     )
 
