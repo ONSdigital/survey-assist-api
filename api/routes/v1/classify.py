@@ -673,7 +673,7 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
             job_desc_trunc = truncate_identifier(classification_request.job_description)
             org_desc_trunc = truncate_identifier(classification_request.org_description)
             logger.info(
-                f"LLM request sent to formulate open question (SOC) - "
+                f"LLM request sent to formulate open question - "
                 f"job_title: '{job_title_trunc}', "
                 f"job_description: '{job_desc_trunc}', "
                 f"org_description: '{org_desc_trunc}'",
@@ -689,7 +689,7 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                 )
                 llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
                 logger.info(
-                    "LLM response received for open question prompt (SOC)",
+                    "LLM response received for open question prompt",
                     has_followup=str(
                         bool(getattr(open_question_response, "followup", None))
                     ),
@@ -698,7 +698,7 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                 )
             except Exception as e:
                 logger.error(
-                    "Error in formulate open question (SOC)",
+                    "Error in formulate open question",
                     error=str(e),
                     body_id=body_id,
                 )
