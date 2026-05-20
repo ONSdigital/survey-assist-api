@@ -7,7 +7,7 @@ vector store and LLM.
 
 import os
 import time
-from typing import Any, Optional, Union
+from typing import Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from industrial_classification_utils.llm.llm import ClassificationLLM
@@ -447,7 +447,7 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
         # Apply rephrasing if enabled
         if rephrase_client and candidates:
             result.candidates = _apply_rephrasing(
-                candidates, rephrase_client, classification_request
+                candidates, rephrase_client, classification_request, "sic"
             )
 
         return result
@@ -471,25 +471,29 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
 
 def _apply_rephrasing(
     candidates: list[GenericCandidate],
-    rephrase_client: SICRephraseClient,
+    rephrase_client: SICRephraseClient | SOCRephraseClient,
     classification_request: ClassificationRequest,
+    classification_type: Literal["sic", "soc"],
 ) -> list[GenericCandidate]:
-    """Apply rephrasing to SIC candidates if enabled.
+    """Apply rephrasing to classification candidates when enabled in request options.
 
     Args:
-        candidates: List of SIC candidates to potentially rephrase.
-        rephrase_client: The rephrase client instance.
+        candidates: Candidates to potentially rephrase.
+        rephrase_client: SIC or SOC rephrase client (both expose get_rephrased_description).
         classification_request: The classification request containing options.
+        classification_type: ``sic`` or ``soc`` — selects which options.rephrased flag to read.
 
     Returns:
         List of candidates with rephrased descriptions if enabled.
     """
-    # Check if SIC rephrasing is enabled (default to True for backward compatibility)
-    rephrasing_enabled = (
-        classification_request.options.sic.rephrased
-        if classification_request.options and classification_request.options.sic
-        else True
-    )
+    type_label = classification_type.upper()
+    if classification_request.options:
+        type_options = getattr(classification_request.options, classification_type, None)
+        rephrasing_enabled = (
+            type_options.rephrased if type_options is not None else True
+        )
+    else:
+        rephrasing_enabled = True
 
     if not rephrasing_enabled:
         return candidates
@@ -507,54 +511,14 @@ def _apply_rephrasing(
                     )
                 )
             else:
-                # Keep original description if no rephrased version available
                 logger.debug(
-                    f"No rephrased description found for SIC code {candidate.code}, "
-                    "keeping original description"
+                    f"No rephrased description found for {type_label} code "
+                    f"{candidate.code}, keeping original description"
                 )
                 rephrased_candidates.append(candidate)
         return rephrased_candidates
     except Exception as e:  # pylint: disable=broad-except
-        logger.warning(f"Failed to rephrase SIC candidates: {e}")
-        return candidates
-
-
-def _apply_soc_rephrasing(
-    candidates: list[GenericCandidate],
-    soc_rephrase_client: SOCRephraseClient,
-    classification_request: ClassificationRequest,
-) -> list[GenericCandidate]:
-    """Apply rephrasing to SOC candidates if enabled (mirrors ``_apply_rephrasing``)."""
-    rephrasing_enabled = (
-        classification_request.options.soc.rephrased
-        if classification_request.options and classification_request.options.soc
-        else True
-    )
-
-    if not rephrasing_enabled:
-        return candidates
-
-    try:
-        rephrased_candidates = []
-        for candidate in candidates:
-            rephrased_text = soc_rephrase_client.get_rephrased_description(candidate.code)
-            if rephrased_text:
-                rephrased_candidates.append(
-                    GenericCandidate(
-                        code=candidate.code,
-                        descriptive=rephrased_text,
-                        likelihood=candidate.likelihood,
-                    )
-                )
-            else:
-                logger.debug(
-                    f"No rephrased description found for SOC code {candidate.code}, "
-                    "keeping original description"
-                )
-                rephrased_candidates.append(candidate)
-        return rephrased_candidates
-    except Exception as e:  # pylint: disable=broad-except
-        logger.warning(f"Failed to rephrase SOC candidates: {e}")
+        logger.warning(f"Failed to rephrase {type_label} candidates: {e}")
         return candidates
 
 
@@ -732,10 +696,10 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                 reasoning=unambiguous_response.reasoning,
             )
 
-        # Apply rephrasing if enabled (mirrors SIC: candidates only)
+        # Apply rephrasing if enabled
         if soc_rephrase_client and candidates:
-            result.candidates = _apply_soc_rephrasing(
-                candidates, soc_rephrase_client, classification_request
+            result.candidates = _apply_rephrasing(
+                candidates, soc_rephrase_client, classification_request, "soc"
             )
 
         return result
