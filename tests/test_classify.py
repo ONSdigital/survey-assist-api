@@ -1216,3 +1216,44 @@ def test_soc_ambiguous_keeps_followup(mock_soc_llm, mock_soc_vector_store):
         and out["description"] is None
     )
     assert out["followup"] == follow
+
+
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.main.app.state.soc_llm")
+def test_soc_empty_vector_store_still_calls_unambiguous(
+    mock_soc_llm, mock_soc_vector_store
+):
+    """Empty search results still run two-step flow (mirrors SIC)."""
+    mock_soc_vector_store.return_value.search = AsyncMock(return_value=[])
+    mock_unambiguous = MagicMock(
+        codable=False,
+        class_code=None,
+        class_descriptive=None,
+        alt_candidates=[
+            MagicMock(class_code="9111", class_descriptive="A", likelihood=0.5),
+        ],
+        reasoning="No vector candidates; LLM still evaluated.",
+    )
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(return_value=(mock_unambiguous, None))
+    mock_soc_llm.formulate_open_question = AsyncMock(
+        return_value=(
+            MagicMock(followup="What are your main tasks?", reasoning=""),
+            None,
+        )
+    )
+    res = client.post(
+        "/v1/survey-assist/classify",
+        json={
+            "llm": "gemini",
+            "type": "soc",
+            "job_title": "farm hand",
+            "job_description": "Varied farm work.",
+            "org_description": "farming",
+            "options": {"soc": {"rephrased": False}},
+        },
+    )
+    assert res.status_code == status.HTTP_200_OK
+    mock_soc_llm.unambiguous_soc_code.assert_called_once()
+    call_kwargs = mock_soc_llm.unambiguous_soc_code.call_args.kwargs
+    assert call_kwargs["semantic_search_results"] == []
+    mock_soc_llm.formulate_open_question.assert_called_once()
