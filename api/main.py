@@ -10,16 +10,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi_swagger2 import FastAPISwagger2
 from industrial_classification_utils.llm.llm import ClassificationLLM
-
-try:
-    from occupational_classification_utils.llm.llm import (
-        ClassificationLLM as SOCClassificationLLM,
-    )
-
-    SOC_LLM_AVAILABLE = True
-except ImportError:
-    SOCClassificationLLM = None  # type: ignore[misc, assignment]
-    SOC_LLM_AVAILABLE = False
+from occupational_classification_utils.llm.llm import (
+    ClassificationLLM as SOCClassificationLLM,
+)
 
 from api.routes.v1.classify import router as classify_router
 from api.routes.v1.config import router as config_router
@@ -46,11 +39,8 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-2.5-flash")
 
     # SOC classification LLM (two-step: unambiguous_soc_code, then formulate_open_question)
-    if SOC_LLM_AVAILABLE and SOCClassificationLLM is not None:
-        soc_model = os.getenv("SOC_LLM_MODEL", "gemini-2.5-flash")
-        fastapi_app.state.soc_llm = SOCClassificationLLM(model_name=soc_model)
-    else:
-        fastapi_app.state.soc_llm = None
+    soc_model = os.getenv("SOC_LLM_MODEL", "gemini-2.5-flash")
+    fastapi_app.state.soc_llm = SOCClassificationLLM(model_name=soc_model)
 
     # Initialise Firestore client (if configured)
     init_firestore_client()
