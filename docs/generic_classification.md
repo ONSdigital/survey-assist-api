@@ -171,7 +171,7 @@ The endpoint returns a generic classification response that can contain one or m
     - `soc` (object, optional): Applied SOC options
 
 **Important Notes:**
-- **SOC Classification**: Uses the SOC vector store and SOC LLM to produce real SOC codes and candidates when those services are configured. If the SOC LLM is not available, requests with `type="soc"` or `type="sic_soc"` will return a 503 `"SOC classification is not available"` error.
+- **SOC Classification**: Uses the SOC vector store and the SOC LLM (two-step: `unambiguous_soc_code`, then `formulate_open_question` when not codable). The SOC LLM is initialised at API startup alongside the SIC LLM. Unreachable vector stores or LLM failures surface as request errors (for example 422 for LLM classification failures), not a separate “SOC unavailable” 503.
 - **Meta Field**: The `meta` field is only included in the response when `options` are provided in the request. This allows clients to see which options were actually applied.
 
 ## Rephrasing Feature
@@ -470,7 +470,7 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
           "likelihood": 1.0
         }
       ],
-      "reasoning": "Placeholder SOC classification reasoning"
+      "reasoning": "The job title 'Farmer' and description of growing cereals on an agricultural farm align with SOC unit group 9111 (Farm workers), which covers general farm work including crop growing. The shortlist and respondent data support a single four-digit code with high confidence."
     }
   ],
   "meta": {
@@ -490,8 +490,8 @@ curl -X POST "http://localhost:8080/v1/survey-assist/classify" \
 **Note:** 
 
 - SIC results show rephrased descriptions in the `candidates` array when rephrasing is enabled.
-- SOC classification uses the SOC vector store and SOC LLM to return real SOC codes and candidates when configured; where SOC rephrased descriptions exist they can be applied to the SOC code and candidates.
-- **SOC vector store and SOC LLM must be running** for `type="sic_soc"` requests involving SOC to succeed. If the SOC LLM is not available, the request will return a 503 error for the SOC part of the classification.
+- SOC classification uses the same two-step flow as SIC (`unambiguous_soc_code`, then `formulate_open_question` when not codable). Where SOC rephrased descriptions exist they can be applied to candidates when `options.soc.rephrased` is true.
+- For `type="sic_soc"`, both the SIC and SOC vector stores must be reachable; each leg runs the two-step classify flow independently.
 
 ### Data Coverage Note
 
