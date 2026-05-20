@@ -93,6 +93,16 @@ def test_get_config(test_client):
     assert "actual_prompt" in response.json()
     assert isinstance(response.json()["actual_prompt"], str)
 
+    v3_types = {
+        entry["type"]: {p["name"] for p in entry["prompts"]}
+        for entry in response.json()["v3"]["classification"]
+    }
+    assert v3_types["sic"] == {"SIC_PROMPT_RERANKER", "SIC_PROMPT_UNAMBIGUOUS"}
+    assert v3_types["soc"] == {"SOC_PROMPT_UNAMBIGUOUS", "SOC_PROMPT_OPENFOLLOWUP"}
+
+    v1v2_types = {entry["type"] for entry in response.json()["v1v2"]["classification"]}
+    assert v1v2_types == {"sic", "soc"}
+
 
 @pytest.mark.api
 @pytest.mark.asyncio
