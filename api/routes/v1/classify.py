@@ -646,7 +646,6 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                 semantic_search_results=short_list,
                 job_title=classification_request.job_title,
                 job_description=classification_request.job_description,
-                correlation_id=body_id,
             )
             llm_duration_ms = int((time.perf_counter() - llm_start) * 1000)
             logger.info(
@@ -716,7 +715,6 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                     job_title=classification_request.job_title,
                     job_description=classification_request.job_description,
                     llm_output=unambiguous_response.alt_candidates,
-                    correlation_id=body_id,
                 )
                 llm_duration2_ms = int((time.perf_counter() - llm_start2) * 1000)
                 logger.info(
