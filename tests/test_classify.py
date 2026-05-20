@@ -453,7 +453,9 @@ def test_sic_unambiguous_returns_final_code(mock_llm, mock_vector_store):
         "org_description": "Electrical contracting company",
         "options": {"sic": {"rephrased": False}},
     }
-    expected_body_id = _classify_body_id(ClassificationRequest.model_validate(request_json))
+    expected_body_id = _classify_body_id(
+        ClassificationRequest.model_validate(request_json)
+    )
     res = client.post("/v1/survey-assist/classify", json=request_json)
     assert res.status_code == status.HTTP_200_OK
     out = res.json()["results"][0]
@@ -1364,7 +1366,9 @@ def test_soc_unambiguous_returns_final_code(mock_soc_llm, mock_soc_vector_store)
         "org_description": "farming",
         "options": {"soc": {"rephrased": False}},
     }
-    expected_body_id = _classify_body_id(ClassificationRequest.model_validate(request_json))
+    expected_body_id = _classify_body_id(
+        ClassificationRequest.model_validate(request_json)
+    )
     res = client.post("/v1/survey-assist/classify", json=request_json)
     assert res.status_code == status.HTTP_200_OK
     out = res.json()["results"][0]
