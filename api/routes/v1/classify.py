@@ -258,6 +258,8 @@ async def classify_text(
         )
         return response_obj
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Error in classify endpoint", error=str(e), body_id=body_id)
         raise HTTPException(
