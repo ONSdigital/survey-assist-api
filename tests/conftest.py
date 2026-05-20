@@ -23,6 +23,7 @@ from api.main import app
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.soc_lookup_client import SOCLookupClient
+from api.services.soc_rephrase_client import SOCRephraseClient
 
 # Configure a global logger
 logger = get_logger(__name__)
@@ -55,6 +56,8 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     mock_sic_rephrase_client = MagicMock(spec=SICRephraseClient)
     mock_sic_rephrase_client.get_rephrased_count.return_value = 500
 
+    mock_soc_rephrase_client = MagicMock(spec=SOCRephraseClient)
+
     # Mock SOC LLM on app state (classify tests patch unambiguous_soc_code inline).
     mock_soc_llm = MagicMock(spec=SOCClassificationLLM)
     mock_soc_llm.model_name = "gemini-2.5-flash"
@@ -65,6 +68,7 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     app.state.sic_lookup_client = mock_sic_lookup_client
     app.state.soc_lookup_client = mock_soc_lookup_client
     app.state.sic_rephrase_client = mock_sic_rephrase_client
+    app.state.soc_rephrase_client = mock_soc_rephrase_client
 
     logger.info("Global Test Configuration Applied")
 
