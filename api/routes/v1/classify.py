@@ -631,18 +631,6 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
             for result in search_results
         ]
 
-        if not short_list:
-            logger.warning("SOC vector store returned no results", body_id=body_id)
-            return GenericClassificationResult(
-                type="soc",
-                classified=False,
-                followup=None,
-                code=None,
-                description=None,
-                candidates=[],
-                reasoning="No SOC candidates returned from vector store search.",
-            )
-
         # Step 1: Call unambiguous SOC code classification
         logger.info(
             f"LLM request sent for unambiguous SOC classification - "
