@@ -249,6 +249,10 @@ async def get_config(
                     type="soc",
                     prompts=[
                         PromptModel(
+                            name="SA_SOC_PROMPT_RAG",
+                            text=soc_prompts["sa_rag"],
+                        ),
+                        PromptModel(
                             name="SOC_PROMPT_UNAMBIGUOUS",
                             text=soc_prompts["unambiguous"],
                         ),
