@@ -102,7 +102,11 @@ def test_get_config(test_client):
         "SIC_PROMPT_UNAMBIGUOUS",
         "SIC_PROMPT_OPENFOLLOWUP",
     }
-    assert v3_types["soc"] == {"SOC_PROMPT_UNAMBIGUOUS", "SOC_PROMPT_OPENFOLLOWUP"}
+    assert v3_types["soc"] == {
+        "SA_SOC_PROMPT_RAG",
+        "SOC_PROMPT_UNAMBIGUOUS",
+        "SOC_PROMPT_OPENFOLLOWUP",
+    }
 
     v1v2_types = {entry["type"] for entry in response.json()["v1v2"]["classification"]}
     assert v1v2_types == {"sic", "soc"}
