@@ -7,6 +7,7 @@ vector store and LLM.
 
 import os
 import time
+from dataclasses import dataclass
 from typing import Any, Literal, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -109,58 +110,50 @@ def get_soc_llm_client(request: Request) -> Any:  # type: ignore
 # Define dependencies at module level
 sic_vector_store_dependency = Depends(get_sic_vector_store_client)
 soc_vector_store_dependency = Depends(get_soc_vector_store_client)
-rephrase_dependency = Depends(get_rephrase_client)
-soc_rephrase_dependency = Depends(get_soc_rephrase_client)
 sic_llm_dependency = Depends(get_sic_llm_client)
 soc_llm_dependency = Depends(get_soc_llm_client)
 
 
-@router.post(
-    "/classify",
-    response_model=Union[
-        GenericClassificationResponse, GenericClassificationResponseWithoutMeta
-    ],
-)
-async def classify_text(
+@dataclass(frozen=True)
+class ClassifyClients:
+    """Vector store and rephrase clients injected into the classify route."""
+
+    sic_vector_store: SICVectorStoreClient
+    soc_vector_store: SOCVectorStoreClient
+    sic_rephrase: SICRephraseClient
+    soc_rephrase: SOCRephraseClient
+
+
+def get_classify_clients(
     request: Request,
-    classification_request: ClassificationRequest,
     sic_vector_store: SICVectorStoreClient = sic_vector_store_dependency,
     soc_vector_store: SOCVectorStoreClient = soc_vector_store_dependency,
-    rephrase_client: SICRephraseClient = rephrase_dependency,
-    soc_rephrase_client: SOCRephraseClient = soc_rephrase_dependency,
-) -> Union[GenericClassificationResponse, GenericClassificationResponseWithoutMeta]:
-    """Classify the provided text using the generic response format.
+) -> ClassifyClients:
+    """Resolve all classify-route clients in one FastAPI dependency."""
+    return ClassifyClients(
+        sic_vector_store=sic_vector_store,
+        soc_vector_store=soc_vector_store,
+        sic_rephrase=get_rephrase_client(request),
+        soc_rephrase=get_soc_rephrase_client(request),
+    )
 
-    Args:
-        request (Request): The FastAPI request object.
-        classification_request (ClassificationRequest): The request containing the text to classify.
-        sic_vector_store (SICVectorStoreClient): SIC vector store client instance.
-        soc_vector_store (SOCVectorStoreClient): SOC vector store client instance.
-        rephrase_client (SICRephraseClient): SIC rephrase client instance.
-        soc_rephrase_client (SOCRephraseClient): SOC rephrase client instance.
 
-    Returns:
-        GenericClassificationResponse: A response containing the classification results in
-        generic format.
+classify_clients_dependency = Depends(get_classify_clients)
 
-    Raises:
-        HTTPException: If the input is invalid or classification fails.
-    """
-    # Validate input
-    start_time = time.perf_counter()
-    body_id = (
+
+def _classify_body_id(classification_request: ClassificationRequest) -> str:
+    """Build a pseudo correlation ID from truncated request fields."""
+    return (
         truncate_identifier(classification_request.job_title)
         + truncate_identifier(classification_request.job_description)
         + truncate_identifier(classification_request.org_description)
     )
-    logger.info(
-        "Request received for classify",
-        type=classification_request.type,
-        body_id=body_id,
-        job_title=truncate_identifier(classification_request.job_title),
-        job_description=truncate_identifier(classification_request.job_description),
-        org_description=truncate_identifier(classification_request.org_description),
-    )
+
+
+def _validate_classify_request(
+    classification_request: ClassificationRequest, body_id: str
+) -> None:
+    """Reject empty job title or description."""
     if (
         not classification_request.job_title.strip()
         or not classification_request.job_description.strip()
@@ -173,80 +166,125 @@ async def classify_text(
             status_code=400, detail="Job title and description cannot be empty"
         )
 
-    results = []
 
-    try:
-        # Handle SIC classification
-        if classification_request.type in ["sic", "sic_soc"]:
-            sic_result = await _classify_sic(
+async def _collect_classify_results(
+    request: Request,
+    classification_request: ClassificationRequest,
+    clients: ClassifyClients,
+    body_id: str,
+) -> list[GenericClassificationResult]:
+    """Run SIC and/or SOC two-step classify flows according to request type."""
+    results: list[GenericClassificationResult] = []
+    req_type = classification_request.type
+
+    if req_type in ("sic", "sic_soc"):
+        results.append(
+            await _classify_sic(
                 request,
                 classification_request,
-                sic_vector_store,
-                rephrase_client,
+                clients.sic_vector_store,
+                clients.sic_rephrase,
                 body_id,
             )
-            results.append(sic_result)
+        )
 
-        # Handle SOC classification
-        if classification_request.type in ["soc", "sic_soc"]:
-            soc_result = await _classify_soc(
+    if req_type in ("soc", "sic_soc"):
+        results.append(
+            await _classify_soc(
                 request,
                 classification_request,
-                soc_vector_store,
-                soc_rephrase_client,
+                clients.soc_vector_store,
+                clients.soc_rephrase,
                 body_id,
             )
-            results.append(soc_result)
+        )
 
-        # Build meta response if options were provided
-        meta = None
-        if classification_request.options:
-            applied_options = AppliedOptions()
+    return results
 
-            # Add SIC options if SIC classification was performed
-            if (
-                classification_request.type in ["sic", "sic_soc"]
-                and classification_request.options.sic
-            ):
-                applied_options.sic = {
-                    "rephrased": classification_request.options.sic.rephrased
-                }
 
-            # Add SOC options if SOC classification was performed
-            if (
-                classification_request.type in ["soc", "sic_soc"]
-                and classification_request.options.soc
-            ):
-                applied_options.soc = {
-                    "rephrased": classification_request.options.soc.rephrased
-                }
+def _build_classify_meta(
+    classification_request: ClassificationRequest,
+) -> ResponseMeta | None:
+    """Build response meta when the client sent options."""
+    if not classification_request.options:
+        return None
 
-            meta = ResponseMeta(
-                llm=classification_request.llm, applied_options=applied_options
-            )
+    applied_options = AppliedOptions()
+    req_type = classification_request.type
 
-        # Build response without meta field if it's None
-        if meta is None:
-            response_obj: Union[
-                GenericClassificationResponse, GenericClassificationResponseWithoutMeta
-            ] = GenericClassificationResponseWithoutMeta(
-                requested_type=classification_request.type,
-                results=results,
-            )
-            duration_ms = int((time.perf_counter() - start_time) * 1000)
-            logger.info(
-                "Response sent for classify",
-                requested_type=classification_request.type,
-                results_count=len(results),
-                body_id=body_id,
-                duration_ms=str(duration_ms),
-            )
-            return response_obj
-        response_obj = GenericClassificationResponse(
+    if req_type in ("sic", "sic_soc") and classification_request.options.sic:
+        applied_options.sic = {
+            "rephrased": classification_request.options.sic.rephrased
+        }
+
+    if req_type in ("soc", "sic_soc") and classification_request.options.soc:
+        applied_options.soc = {
+            "rephrased": classification_request.options.soc.rephrased
+        }
+
+    return ResponseMeta(llm=classification_request.llm, applied_options=applied_options)
+
+
+def _build_classify_response(
+    classification_request: ClassificationRequest,
+    results: list[GenericClassificationResult],
+    meta: ResponseMeta | None,
+) -> Union[GenericClassificationResponse, GenericClassificationResponseWithoutMeta]:
+    """Return classify response with or without meta depending on options."""
+    if meta is None:
+        return GenericClassificationResponseWithoutMeta(
             requested_type=classification_request.type,
             results=results,
-            meta=meta,
         )
+    return GenericClassificationResponse(
+        requested_type=classification_request.type,
+        results=results,
+        meta=meta,
+    )
+
+
+@router.post(
+    "/classify",
+    response_model=Union[
+        GenericClassificationResponse, GenericClassificationResponseWithoutMeta
+    ],
+)
+async def classify_text(
+    request: Request,
+    classification_request: ClassificationRequest,
+    clients: ClassifyClients = classify_clients_dependency,
+) -> Union[GenericClassificationResponse, GenericClassificationResponseWithoutMeta]:
+    """Classify the provided text using the generic response format.
+
+    Args:
+        request: The FastAPI request object.
+        classification_request: The classification request body.
+        clients: Vector store and rephrase clients for SIC and SOC legs.
+
+    Returns:
+        Classification results in generic format, with meta when options were sent.
+
+    Raises:
+        HTTPException: If the input is invalid or classification fails.
+    """
+    start_time = time.perf_counter()
+    body_id = _classify_body_id(classification_request)
+    logger.info(
+        "Request received for classify",
+        type=classification_request.type,
+        body_id=body_id,
+        job_title=truncate_identifier(classification_request.job_title),
+        job_description=truncate_identifier(classification_request.job_description),
+        org_description=truncate_identifier(classification_request.org_description),
+    )
+    _validate_classify_request(classification_request, body_id)
+
+    try:
+        results = await _collect_classify_results(
+            request, classification_request, clients, body_id
+        )
+        meta = _build_classify_meta(classification_request)
+        response_obj = _build_classify_response(classification_request, results, meta)
         duration_ms = int((time.perf_counter() - start_time) * 1000)
         logger.info(
             "Response sent for classify",
@@ -492,7 +530,9 @@ def _apply_rephrasing(
     """
     type_label = classification_type.upper()
     if classification_request.options:
-        type_options = getattr(classification_request.options, classification_type, None)
+        type_options = getattr(
+            classification_request.options, classification_type, None
+        )
         rephrasing_enabled = (
             type_options.rephrased if type_options is not None else True
         )
