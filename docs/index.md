@@ -4,7 +4,8 @@ The Survey Assist API is a FastAPI service that provides endpoints for both SIC 
 
 ## Key Features
 
-- **SIC classification**: `POST /v1/survey-assist/classify` performs a two-step SIC classification using a vector-store shortlist and a Gemini LLM.
+- **SIC classification**: `POST /v1/survey-assist/classify` performs a two-step SIC classification using a vector-store shortlist and a Gemini LLM (`unambiguous_sic_code`, then `formulate_open_question` when not codable).
+- **SOC classification**: Same endpoint with `type: "soc"` or `"sic_soc"` performs a two-step SOC classification (vector-store shortlist, then `unambiguous_soc_code`, then `formulate_open_question` when not codable).
 - **SIC lookup**: `GET /v1/survey-assist/sic-lookup` looks up SIC codes by description (with optional similarity search).
 - **SOC lookup**: `GET /v1/survey-assist/soc-lookup` looks up SOC codes by description (with optional similarity search).
 - **Vector store status**: `GET /v1/survey-assist/embeddings` checks whether SIC embeddings are ready to query.
@@ -28,6 +29,7 @@ For detailed information on installation, setup, and usage, please refer to the 
 ## Configuration
 
 - **`SIC_VECTOR_STORE`**: Base URL for the SIC vector store (defaults to `http://localhost:8088`).
+- **`SOC_VECTOR_STORE`**: Base URL for the SOC vector store (defaults to `http://localhost:8089`).
 - **`SIC_LOOKUP_DATA_PATH`**: Optional path to a SIC lookup CSV. If unset, packaged example data is used.
 - **`SIC_REPHRASE_DATA_PATH`**: Optional path to a rephrased SIC CSV. If unset, packaged example data is used.
 - **`FIRESTORE_DB_ID`**: Enables Firestore-backed endpoints when set; if unset, result/feedback endpoints will fail because the Firestore client is not initialised.
