@@ -339,7 +339,9 @@ def test_classify_followup_question(  # pylint: disable=too-many-locals
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_sic_unambiguous_llm_failure_returns_422(mock_auth, mock_llm, mock_vector_store):
+def test_sic_unambiguous_llm_failure_returns_422(
+    mock_auth, mock_llm, mock_vector_store
+):
     """Step 1 LLM failure returns 422 with unambiguous error details."""
     mock_auth.return_value = (MagicMock(), "test-project")
     mock_vector_store.return_value.search = AsyncMock(
@@ -1330,7 +1332,9 @@ def test_soc_not_codable_returns_followup(mock_soc_llm, mock_soc_vector_store):
         class_descriptive=None,
         reasoning="Ambiguous shortlist.",
     )
-    candidate1 = MagicMock(class_code="9111", class_descriptive="Farm workers", likelihood=0.56)
+    candidate1 = MagicMock(
+        class_code="9111", class_descriptive="Farm workers", likelihood=0.56
+    )
     candidate2 = MagicMock(
         class_code="5111", class_descriptive="Other agricultural", likelihood=0.49
     )
