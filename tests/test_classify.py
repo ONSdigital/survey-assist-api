@@ -1017,7 +1017,7 @@ def test_soc_classify_does_not_require_excel(
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
 @patch("api.main.app.state.soc_llm")
 def test_soc_classify_rephrases_by_default(mock_soc_llm, mock_soc_vector_store):
-    """SOC rephrasing defaults to enabled when options are omitted (mirrors SIC)."""
+    """SOC rephrasing defaults on and applies to candidates only (mirrors SIC)."""
     mock_soc_vector_store.return_value.search = AsyncMock(
         return_value=[
             {
@@ -1063,7 +1063,7 @@ def test_soc_classify_rephrases_by_default(mock_soc_llm, mock_soc_vector_store):
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     first = data["results"][0]
-    assert first["description"] == EXPECTED_SOC_DESCRIPTION
+    assert first["description"] == "Elementary occupations"
     assert first["candidates"][0]["descriptive"] == EXPECTED_SOC_DESCRIPTION
 
 
