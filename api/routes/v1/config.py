@@ -111,53 +111,68 @@ def _get_actual_prompt(request: Request) -> str:
         return "Could not retrieve actual prompt"
 
 
-def _get_prompts_from_llm(request: Request) -> dict:
-    """Get actual prompts from the LLM instance.
+def _prompt_template_text(prompt: Any, fallback: str) -> str:
+    """Return prompt template text or a fallback label."""
+    if prompt is not None:
+        return str(prompt.template)
+    return fallback
 
-    Args:
-        request: The FastAPI request object.
 
-    Returns:
-        dict: Dictionary containing the actual prompts or fallback text.
-    """
+def _get_sic_prompts(request: Request) -> dict[str, str]:
+    """Get SIC prompt templates from the SIC LLM on app state."""
     try:
         if hasattr(request.app.state, "gemini_llm"):
             llm = request.app.state.gemini_llm
-            # Get the actual prompt templates from the LLM instance
-            sa_sic_prompt = getattr(llm, "sa_sic_prompt_rag", None)
-            sic_reranker_prompt = getattr(llm, "sic_prompt_reranker", None)
-            sic_unambiguous_prompt = getattr(llm, "sic_prompt_unambiguous", None)
-
-            # Extract the template text if available
-            sa_sic_text = (
-                str(sa_sic_prompt.template)
-                if sa_sic_prompt
-                else "[Core prompt] + [Survey Assist SIC RAG template]"
-            )
-            reranker_text = (
-                str(sic_reranker_prompt.template)
-                if sic_reranker_prompt
-                else "[Core prompt] + [SIC reranker template]"
-            )
-            unambiguous_text = (
-                str(sic_unambiguous_prompt.template)
-                if sic_unambiguous_prompt
-                else "[Core prompt] + [SIC unambiguous template]"
-            )
-
             return {
-                "sa_sic_text": sa_sic_text,
-                "reranker_text": reranker_text,
-                "unambiguous_text": unambiguous_text,
+                "sa_rag": _prompt_template_text(
+                    getattr(llm, "sa_sic_prompt_rag", None),
+                    "[Core prompt] + [Survey Assist SIC RAG template]",
+                ),
+                "reranker": _prompt_template_text(
+                    getattr(llm, "sic_prompt_reranker", None),
+                    "[Core prompt] + [SIC reranker template]",
+                ),
+                "unambiguous": _prompt_template_text(
+                    getattr(llm, "sic_prompt_unambiguous", None),
+                    "[Core prompt] + [SIC unambiguous template]",
+                ),
             }
     except (AttributeError, TypeError, RuntimeError) as e:
-        logger.warning(f"Could not retrieve prompts from LLM: {e}")
+        logger.warning(f"Could not retrieve SIC prompts from LLM: {e}")
 
-    # Fallback to placeholder text
     return {
-        "sa_sic_text": "[Core prompt] + [Survey Assist SIC RAG template]",
-        "reranker_text": "[Core prompt] + [SIC reranker template]",
-        "unambiguous_text": "[Core prompt] + [SIC unambiguous template]",
+        "sa_rag": "[Core prompt] + [Survey Assist SIC RAG template]",
+        "reranker": "[Core prompt] + [SIC reranker template]",
+        "unambiguous": "[Core prompt] + [SIC unambiguous template]",
+    }
+
+
+def _get_soc_prompts(request: Request) -> dict[str, str]:
+    """Get SOC prompt templates from the SOC LLM on app state."""
+    try:
+        if hasattr(request.app.state, "soc_llm"):
+            llm = request.app.state.soc_llm
+            return {
+                "sa_rag": _prompt_template_text(
+                    getattr(llm, "sa_soc_prompt_rag", None),
+                    "[Core prompt] + [Survey Assist SOC RAG template]",
+                ),
+                "unambiguous": _prompt_template_text(
+                    getattr(llm, "soc_prompt_unambiguous", None),
+                    "[Core prompt] + [SOC unambiguous template]",
+                ),
+                "open_followup": _prompt_template_text(
+                    getattr(llm, "soc_prompt_openfollowup", None),
+                    "[Core prompt] + [SOC open follow-up template]",
+                ),
+            }
+    except (AttributeError, TypeError, RuntimeError) as e:
+        logger.warning(f"Could not retrieve SOC prompts from LLM: {e}")
+
+    return {
+        "sa_rag": "[Core prompt] + [Survey Assist SOC RAG template]",
+        "unambiguous": "[Core prompt] + [SOC unambiguous template]",
+        "open_followup": "[Core prompt] + [SOC open follow-up template]",
     }
 
 
@@ -180,10 +195,9 @@ async def get_config(
     # Get actual prompt used by making a test classification call
     actual_prompt = _get_actual_prompt(request)
 
-    # Get actual prompts from LLM instance
-    prompts = _get_prompts_from_llm(request)
+    sic_prompts = _get_sic_prompts(request)
+    soc_prompts = _get_soc_prompts(request)
 
-    # Return config with actual model names and prompts
     return ConfigResponse(
         llm_model=actual_llm_model,
         data_store="Firestore",
@@ -194,10 +208,18 @@ async def get_config(
                     type="sic",
                     prompts=[
                         PromptModel(
-                            name="SA_SIC_PROMPT_RAG", text=prompts["sa_sic_text"]
+                            name="SA_SIC_PROMPT_RAG", text=sic_prompts["sa_rag"]
                         ),
                     ],
-                )
+                ),
+                ClassificationModel(
+                    type="soc",
+                    prompts=[
+                        PromptModel(
+                            name="SA_SOC_PROMPT_RAG", text=soc_prompts["sa_rag"]
+                        ),
+                    ],
+                ),
             ]
         },
         v3={
@@ -206,14 +228,27 @@ async def get_config(
                     type="sic",
                     prompts=[
                         PromptModel(
-                            name="SIC_PROMPT_RERANKER", text=prompts["reranker_text"]
+                            name="SIC_PROMPT_RERANKER", text=sic_prompts["reranker"]
                         ),
                         PromptModel(
                             name="SIC_PROMPT_UNAMBIGUOUS",
-                            text=prompts["unambiguous_text"],
+                            text=sic_prompts["unambiguous"],
                         ),
                     ],
-                )
+                ),
+                ClassificationModel(
+                    type="soc",
+                    prompts=[
+                        PromptModel(
+                            name="SOC_PROMPT_UNAMBIGUOUS",
+                            text=soc_prompts["unambiguous"],
+                        ),
+                        PromptModel(
+                            name="SOC_PROMPT_OPENFOLLOWUP",
+                            text=soc_prompts["open_followup"],
+                        ),
+                    ],
+                ),
             ]
         },
         embedding_model=embedding_model,
