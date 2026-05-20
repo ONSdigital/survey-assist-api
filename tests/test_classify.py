@@ -1217,6 +1217,8 @@ def test_soc_not_codable_returns_followup(mock_soc_llm, mock_soc_vector_store):
     )
     assert out["followup"] == follow
     mock_soc_llm.formulate_open_question.assert_called_once()
+    call_args = mock_soc_llm.formulate_open_question.call_args
+    assert call_args.kwargs.get("llm_output") == mock_unambiguous.alt_candidates
 
 
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
