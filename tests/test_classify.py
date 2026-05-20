@@ -404,6 +404,65 @@ def test_sic_formulate_open_question_llm_failure_returns_422(
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
+def test_sic_unambiguous_returns_final_code(mock_llm, mock_vector_store):
+    """Electrician: unambiguous_sic_code returns classified=true with code 43210."""
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            },
+            {
+                "code": "43220",
+                "title": "Plumbing installation",
+                "distance": 0.32,
+            },
+        ]
+    )
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(
+            MagicMock(
+                codable=True,
+                class_code=EXPECTED_SIC_CODE,
+                class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                alt_candidates=[
+                    MagicMock(
+                        class_code=EXPECTED_SIC_CODE,
+                        class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                        likelihood=EXPECTED_LIKELIHOOD,
+                    ),
+                    MagicMock(
+                        class_code="43220",
+                        class_descriptive="Plumbing installation",
+                        likelihood=0.1,
+                    ),
+                ],
+                reasoning="Clear electrical installation match.",
+            ),
+            None,
+        )
+    )
+    res = client.post(
+        "/v1/survey-assist/classify",
+        json={
+            "llm": "gemini",
+            "type": "sic",
+            "job_title": "Electrician",
+            "job_description": "Installing and maintaining electrical systems in buildings",
+            "org_description": "Electrical contracting company",
+            "options": {"sic": {"rephrased": False}},
+        },
+    )
+    assert res.status_code == status.HTTP_200_OK
+    out = res.json()["results"][0]
+    assert out["classified"] is True and out["code"] == EXPECTED_SIC_CODE
+    assert out["description"] == EXPECTED_SIC_DESCRIPTION and out["followup"] is None
+    mock_llm.formulate_open_question.assert_not_called()
+
+
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
 def test_sic_empty_vector_store_still_calls_unambiguous(mock_llm, mock_vector_store):
     """Empty search results still run two-step flow (mirrors SOC)."""
     mock_vector_store.return_value.search = AsyncMock(return_value=[])
