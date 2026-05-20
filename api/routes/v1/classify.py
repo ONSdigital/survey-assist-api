@@ -456,7 +456,11 @@ async def _classify_sic(  # pylint: disable=unused-argument,too-many-locals
         # Re-raise HTTP exceptions as they are already properly formatted
         raise
     except Exception as e:
-        logger.error("Unexpected error in SIC classification", error=str(e))
+        logger.error(
+            "Unexpected error in SIC classification",
+            error=str(e),
+            body_id=body_id,
+        )
         raise HTTPException(
             status_code=422,
             detail={
