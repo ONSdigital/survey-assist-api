@@ -37,6 +37,8 @@ from fastapi.testclient import TestClient
 from survey_assist_utils.logging import get_logger
 
 from api.main import app
+from api.models.classify import ClassificationRequest
+from api.routes.v1.classify import _classify_body_id
 
 logger = get_logger(__name__)
 client = TestClient(app)
@@ -443,22 +445,25 @@ def test_sic_unambiguous_returns_final_code(mock_llm, mock_vector_store):
             None,
         )
     )
-    res = client.post(
-        "/v1/survey-assist/classify",
-        json={
-            "llm": "gemini",
-            "type": "sic",
-            "job_title": "Electrician",
-            "job_description": "Installing and maintaining electrical systems in buildings",
-            "org_description": "Electrical contracting company",
-            "options": {"sic": {"rephrased": False}},
-        },
-    )
+    request_json = {
+        "llm": "gemini",
+        "type": "sic",
+        "job_title": "Electrician",
+        "job_description": "Installing and maintaining electrical systems in buildings",
+        "org_description": "Electrical contracting company",
+        "options": {"sic": {"rephrased": False}},
+    }
+    expected_body_id = _classify_body_id(ClassificationRequest.model_validate(request_json))
+    res = client.post("/v1/survey-assist/classify", json=request_json)
     assert res.status_code == status.HTTP_200_OK
     out = res.json()["results"][0]
     assert out["classified"] is True and out["code"] == EXPECTED_SIC_CODE
     assert out["description"] == EXPECTED_SIC_DESCRIPTION and out["followup"] is None
     mock_llm.formulate_open_question.assert_not_called()
+    assert (
+        mock_llm.unambiguous_sic_code.call_args.kwargs["correlation_id"]
+        == expected_body_id
+    )
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
@@ -1351,22 +1356,25 @@ def test_soc_unambiguous_returns_final_code(mock_soc_llm, mock_soc_vector_store)
             None,
         )
     )
-    res = client.post(
-        "/v1/survey-assist/classify",
-        json={
-            "llm": "gemini",
-            "type": "soc",
-            "job_title": "farm hand",
-            "job_description": "Basic supervised manual work.",
-            "org_description": "farming",
-            "options": {"soc": {"rephrased": False}},
-        },
-    )
+    request_json = {
+        "llm": "gemini",
+        "type": "soc",
+        "job_title": "farm hand",
+        "job_description": "Basic supervised manual work.",
+        "org_description": "farming",
+        "options": {"soc": {"rephrased": False}},
+    }
+    expected_body_id = _classify_body_id(ClassificationRequest.model_validate(request_json))
+    res = client.post("/v1/survey-assist/classify", json=request_json)
     assert res.status_code == status.HTTP_200_OK
     out = res.json()["results"][0]
     assert out["classified"] is True and out["code"] == "9111"
     assert out["description"] == "Farm workers" and out["followup"] is None
     mock_soc_llm.formulate_open_question.assert_not_called()
+    assert (
+        mock_soc_llm.unambiguous_soc_code.call_args.kwargs["correlation_id"]
+        == expected_body_id
+    )
 
 
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
