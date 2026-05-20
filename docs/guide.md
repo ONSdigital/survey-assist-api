@@ -16,7 +16,7 @@ The API is built using:
 
 **Important Notes**:
 
-- **SOC Classification**: Uses a single-step RAG flow with the SOC vector store and a SOC LLM (when configured). If the SOC LLM is not available, requests with `type="soc"` or `type="sic_soc"` return a 503 `"SOC classification is not available"` error. SOC **rephrasing** is applied only for codes that exist in the SOC rephrase dataset from `soc-classification-library`.
+- **SOC Classification**: Uses the same two-step flow as SIC: SOC vector-store search, then `unambiguous_soc_code`, then `formulate_open_question` when the first step is not codable. Both steps use the SOC LLM initialised at API startup (`gemini-2.5-flash`). SOC **rephrasing** is applied only for codes that exist in the SOC rephrase dataset from `soc-classification-library`.
 - **Firestore**: Result and feedback endpoints require `FIRESTORE_DB_ID` to be set. If not configured, these endpoints will return 503 errors.
 
 ## API Endpoints
@@ -114,15 +114,15 @@ The API is built using:
       - `sic` (object, optional): Applied SIC options
       - `soc` (object, optional): Applied SOC options
     
-    **Note**: SOC classification depends on the SOC vector store and SOC LLM being configured. If they are not available, SOC requests will return a 503 error indicating that SOC classification is not available.
+    **Note**: SIC and SOC classification require the corresponding vector store service to be reachable. Classification failures from the LLM (for example invalid or unparseable responses) return HTTP 422 with a classification error payload.
 
-The classification process works as follows:
+The classification process works as follows (the same steps apply to SIC and SOC; only the vector store, LLM client, and code scheme differ):
 
-1. The input text is used to search the vector store for a list of candidate SIC codes.
-2. The LLM first attempts to find an **unambiguous** classification from the candidates.
-3. If a definitive SIC code is found, the API returns a response with `classified: true` and the found code. The `followup` field will be `null`.
-4. If the result is ambiguous and a definitive code cannot be determined, the LLM then formulates a **follow-up question** to gather more information from the user.
-5. In this case, the API returns a response with `classified: false`, no code/description, and the `followup` question populated.
+1. The input text is used to search the vector store for a shortlist of candidate codes.
+2. The LLM first attempts an **unambiguous** classification from that shortlist (`unambiguous_sic_code` or `unambiguous_soc_code`).
+3. If a definitive code is found (`codable: true`), the API returns `classified: true`, the code and description, candidates from the first step, and `followup: null`.
+4. If the result is not codable, the LLM formulates a **follow-up question** (`formulate_open_question`) using the alternative candidates from step 2.
+5. In that case, the API returns `classified: false`, `code` and `description` null, candidates and reasoning from step 2, and a non-empty `followup`.
 
 
 ### Result Endpoints
