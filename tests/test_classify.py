@@ -1174,8 +1174,8 @@ def test_soc_unambiguous_returns_final_code(mock_soc_llm, mock_soc_vector_store)
 
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
 @patch("api.main.app.state.soc_llm")
-def test_soc_ambiguous_keeps_followup(mock_soc_llm, mock_soc_vector_store):
-    """Ambiguous case: formulate_open_question supplies follow-up."""
+def test_soc_not_codable_returns_followup(mock_soc_llm, mock_soc_vector_store):
+    """When unambiguous_soc_code sets codable false, formulate_open_question supplies followup."""
     follow = "Still need detail?"
     mock_soc_vector_store.return_value.search = AsyncMock(
         return_value=[
@@ -1216,6 +1216,7 @@ def test_soc_ambiguous_keeps_followup(mock_soc_llm, mock_soc_vector_store):
         and out["description"] is None
     )
     assert out["followup"] == follow
+    mock_soc_llm.formulate_open_question.assert_called_once()
 
 
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
