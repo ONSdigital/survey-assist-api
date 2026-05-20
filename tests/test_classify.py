@@ -1311,24 +1311,35 @@ def test_soc_unambiguous_returns_final_code(mock_soc_llm, mock_soc_vector_store)
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
 @patch("api.main.app.state.soc_llm")
 def test_soc_not_codable_returns_followup(mock_soc_llm, mock_soc_vector_store):
-    """When unambiguous_soc_code sets codable false, formulate_open_question supplies followup."""
+    """When unambiguous_soc_code sets codable false, formulate_open_question supplies followup.
+
+    Mirrors ``test_classify_followup_question``: all ``alt_candidates`` are passed to
+    ``formulate_open_question``, not only the first.
+    """
     follow = "Still need detail?"
     mock_soc_vector_store.return_value.search = AsyncMock(
         return_value=[
-            {"code": "9111", "title": "a", "distance": 0.15},
-            {"code": "5111", "title": "b", "distance": 0.19},
+            {"code": "9111", "title": "Farm workers", "distance": 0.15},
+            {"code": "5111", "title": "Other agricultural", "distance": 0.19},
+            {"code": "9112", "title": "Other farm workers", "distance": 0.22},
         ]
     )
     mock_unambiguous = MagicMock(
         codable=False,
         class_code=None,
         class_descriptive=None,
-        alt_candidates=[
-            MagicMock(class_code="9111", class_descriptive="A", likelihood=0.56),
-            MagicMock(class_code="5111", class_descriptive="B", likelihood=0.49),
-        ],
         reasoning="Ambiguous shortlist.",
     )
+    candidate1 = MagicMock(class_code="9111", class_descriptive="Farm workers", likelihood=0.56)
+    candidate2 = MagicMock(
+        class_code="5111", class_descriptive="Other agricultural", likelihood=0.49
+    )
+    candidate3 = MagicMock(
+        class_code="9112", class_descriptive="Other farm workers", likelihood=0.45
+    )
+    mock_unambiguous.alt_candidates = [candidate1, candidate2, candidate3]
+    expected_candidates_count = len(mock_unambiguous.alt_candidates)
+
     mock_soc_llm.unambiguous_soc_code = AsyncMock(return_value=(mock_unambiguous, None))
     mock_soc_llm.formulate_open_question = AsyncMock(
         return_value=(MagicMock(followup=follow, reasoning="Need more detail."), None)
@@ -1352,9 +1363,21 @@ def test_soc_not_codable_returns_followup(mock_soc_llm, mock_soc_vector_store):
         and out["description"] is None
     )
     assert out["followup"] == follow
-    mock_soc_llm.formulate_open_question.assert_called_once()
+    assert len(out["candidates"]) == expected_candidates_count
+
+    assert mock_soc_llm.formulate_open_question.called
     call_args = mock_soc_llm.formulate_open_question.call_args
-    assert call_args.kwargs.get("llm_output") == mock_unambiguous.alt_candidates
+    assert call_args is not None
+    llm_output = call_args.kwargs.get("llm_output")
+    assert llm_output == mock_unambiguous.alt_candidates, (
+        "formulate_open_question should receive the full list of candidates, "
+        f"not just the first one. Expected {len(mock_unambiguous.alt_candidates)} "
+        f"candidates, got {len(llm_output) if llm_output else 0}"
+    )
+    assert len(llm_output) == expected_candidates_count, (
+        f"Expected {expected_candidates_count} candidates to be passed, "
+        f"got {len(llm_output)}"
+    )
 
 
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
