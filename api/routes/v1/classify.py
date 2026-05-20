@@ -579,9 +579,6 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
         HTTPException: If the two-step process fails with 422 status.
     """
     try:
-        # Get LLM instance (mirrors SIC: request.app.state.gemini_llm)
-        llm = request.app.state.soc_llm
-
         # Get vector store search results
         search_results = await vector_store.search(
             industry_descr=classification_request.org_description,
@@ -590,15 +587,18 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
             correlation_id=body_id,
         )
 
-        # Prepare shortlist for LLM (list of dicts with code/title/distance)
+        # Prepare shortlist for LLM (list of dicts with code/title/likelihood)
         short_list = [
             {
                 "code": result["code"],
                 "title": result["title"],
-                "distance": result.get("distance", 0.0),
+                "distance": result["distance"],
             }
             for result in search_results
         ]
+
+        # Get LLM instance
+        llm = request.app.state.soc_llm
 
         # Step 1: Call unambiguous SOC code classification
         logger.info(
