@@ -643,7 +643,7 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                     "error": {
                         "type": "classification_error",
                         "message": "The LLM could not generate a valid classification",
-                        "details": f"Unambiguous SOC classification failed: {e!s}",
+                        "details": f"Unambiguous classification failed: {e!s}",
                     }
                 },
             ) from e

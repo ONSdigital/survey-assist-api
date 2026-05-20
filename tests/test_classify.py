@@ -1336,7 +1336,7 @@ def test_soc_unambiguous_llm_failure_returns_422(mock_soc_llm, mock_soc_vector_s
             "options": {"soc": {"rephrased": False}},
         },
     )
-    _assert_llm_classification_422(response, "Unambiguous SOC classification failed")
+    _assert_llm_classification_422(response, "Unambiguous classification failed")
     mock_soc_llm.formulate_open_question.assert_not_called()
 
 
