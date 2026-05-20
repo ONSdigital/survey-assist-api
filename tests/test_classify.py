@@ -402,6 +402,52 @@ def test_sic_formulate_open_question_llm_failure_returns_422(
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
 @patch("api.main.app.state.gemini_llm")
+def test_sic_empty_vector_store_still_calls_unambiguous(mock_llm, mock_vector_store):
+    """Empty search results still run two-step flow (mirrors SOC)."""
+    mock_vector_store.return_value.search = AsyncMock(return_value=[])
+    mock_unambiguous = MagicMock(
+        codable=False,
+        class_code=None,
+        class_descriptive=None,
+        alt_candidates=[
+            MagicMock(
+                class_code=EXPECTED_SIC_CODE,
+                class_descriptive=EXPECTED_SIC_DESCRIPTION,
+                likelihood=0.5,
+            ),
+        ],
+        reasoning="No vector candidates; LLM still evaluated.",
+    )
+    mock_llm.unambiguous_sic_code = AsyncMock(return_value=(mock_unambiguous, None))
+    mock_llm.formulate_open_question = AsyncMock(
+        return_value=(
+            MagicMock(
+                followup="What is the employer's main product or service?",
+                reasoning="",
+            ),
+            None,
+        )
+    )
+    res = client.post(
+        "/v1/survey-assist/classify",
+        json={
+            "llm": "gemini",
+            "type": "sic",
+            "job_title": "Electrician",
+            "job_description": "Installing electrical systems",
+            "org_description": "Electrical contracting company",
+            "options": {"sic": {"rephrased": False}},
+        },
+    )
+    assert res.status_code == status.HTTP_200_OK
+    mock_llm.unambiguous_sic_code.assert_called_once()
+    call_kwargs = mock_llm.unambiguous_sic_code.call_args.kwargs
+    assert call_kwargs["semantic_search_results"] == []
+    mock_llm.formulate_open_question.assert_called_once()
+
+
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
 @patch("api.main.app.state.sic_rephrase_client")
 @patch("google.auth.default")
 def test_classify_endpoint_success(
