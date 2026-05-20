@@ -39,8 +39,7 @@ async def lifespan(fastapi_app: FastAPI):
     fastapi_app.state.gemini_llm = ClassificationLLM(model_name="gemini-2.5-flash")
 
     # SOC classification LLM (two-step: unambiguous_soc_code, then formulate_open_question)
-    soc_model = os.getenv("SOC_LLM_MODEL", "gemini-2.5-flash")
-    fastapi_app.state.soc_llm = SOCClassificationLLM(model_name=soc_model)
+    fastapi_app.state.soc_llm = SOCClassificationLLM(model_name="gemini-2.5-flash")
 
     # Initialise Firestore client (if configured)
     init_firestore_client()
