@@ -49,6 +49,32 @@ EXPECTED_SOC_CODE = "9111"
 EXPECTED_SOC_DESCRIPTION = "Farm workers"
 EXPECTED_COMBINED_RESULTS_COUNT = 2  # SIC + SOC results
 
+_LLM_STEP_ERROR = RuntimeError("mock llm step failure")
+
+
+def _assert_llm_classification_422(response, expected_details_fragment: str) -> None:
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    error = response.json()["detail"]["error"]
+    assert error["type"] == "classification_error"
+    assert error["message"] == "The LLM could not generate a valid classification"
+    assert expected_details_fragment in error["details"]
+
+
+def _mock_not_codable_unambiguous():
+    mock = MagicMock()
+    mock.codable = False
+    mock.class_code = None
+    mock.class_descriptive = None
+    mock.alt_candidates = [
+        MagicMock(
+            class_code=EXPECTED_SIC_CODE,
+            class_descriptive=EXPECTED_SIC_DESCRIPTION,
+            likelihood=0.5,
+        ),
+    ]
+    mock.reasoning = "Not codable for LLM error test."
+    return mock
+
 
 class TestClassifyEndpoint:
     """Test class for the classification endpoint."""
@@ -308,6 +334,70 @@ def test_classify_followup_question(  # pylint: disable=too-many-locals
     assert (
         len(llm_output) == expected_candidates_count
     ), f"Expected {expected_candidates_count} candidates to be passed, got {len(llm_output)}"
+
+
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_sic_unambiguous_llm_failure_returns_422(mock_auth, mock_llm, mock_vector_store):
+    """Step 1 LLM failure returns 422 with unambiguous error details."""
+    mock_auth.return_value = (MagicMock(), "test-project")
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+    mock_llm.unambiguous_sic_code = AsyncMock(side_effect=_LLM_STEP_ERROR)
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json={
+            "llm": "gemini",
+            "type": "sic",
+            "job_title": "Electrician",
+            "job_description": "Installing electrical systems",
+            "org_description": "Electrical contracting company",
+        },
+    )
+    _assert_llm_classification_422(response, "Unambiguous classification failed")
+    mock_llm.formulate_open_question.assert_not_called()
+
+
+@patch("api.routes.v1.classify.SICVectorStoreClient")
+@patch("api.main.app.state.gemini_llm")
+@patch("google.auth.default")
+def test_sic_formulate_open_question_llm_failure_returns_422(
+    mock_auth, mock_llm, mock_vector_store
+):
+    """Step 2 LLM failure returns 422 with open question error details."""
+    mock_auth.return_value = (MagicMock(), "test-project")
+    mock_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SIC_CODE,
+                "title": EXPECTED_SIC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+    mock_llm.unambiguous_sic_code = AsyncMock(
+        return_value=(_mock_not_codable_unambiguous(), None)
+    )
+    mock_llm.formulate_open_question = AsyncMock(side_effect=_LLM_STEP_ERROR)
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json={
+            "llm": "gemini",
+            "type": "sic",
+            "job_title": "Electrician",
+            "job_description": "Installing electrical systems",
+            "org_description": "Electrical contracting company",
+        },
+    )
+    _assert_llm_classification_422(response, "Open question formulation failed")
 
 
 @patch("api.routes.v1.classify.SICVectorStoreClient")
@@ -1219,6 +1309,68 @@ def test_soc_not_codable_returns_followup(mock_soc_llm, mock_soc_vector_store):
     mock_soc_llm.formulate_open_question.assert_called_once()
     call_args = mock_soc_llm.formulate_open_question.call_args
     assert call_args.kwargs.get("llm_output") == mock_unambiguous.alt_candidates
+
+
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.main.app.state.soc_llm")
+def test_soc_unambiguous_llm_failure_returns_422(mock_soc_llm, mock_soc_vector_store):
+    """Step 1 LLM failure returns 422 with unambiguous SOC error details."""
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SOC_CODE,
+                "title": EXPECTED_SOC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(side_effect=_LLM_STEP_ERROR)
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json={
+            "llm": "gemini",
+            "type": "soc",
+            "job_title": "farm hand",
+            "job_description": "Varied farm work.",
+            "org_description": "farming",
+            "options": {"soc": {"rephrased": False}},
+        },
+    )
+    _assert_llm_classification_422(response, "Unambiguous SOC classification failed")
+    mock_soc_llm.formulate_open_question.assert_not_called()
+
+
+@patch("api.routes.v1.classify.SOCVectorStoreClient")
+@patch("api.main.app.state.soc_llm")
+def test_soc_formulate_open_question_llm_failure_returns_422(
+    mock_soc_llm, mock_soc_vector_store
+):
+    """Step 2 LLM failure returns 422 with open question error details."""
+    mock_soc_vector_store.return_value.search = AsyncMock(
+        return_value=[
+            {
+                "code": EXPECTED_SOC_CODE,
+                "title": EXPECTED_SOC_DESCRIPTION,
+                "distance": 0.05,
+            }
+        ]
+    )
+    mock_soc_llm.unambiguous_soc_code = AsyncMock(
+        return_value=(_mock_not_codable_unambiguous(), None)
+    )
+    mock_soc_llm.formulate_open_question = AsyncMock(side_effect=_LLM_STEP_ERROR)
+    response = client.post(
+        "/v1/survey-assist/classify",
+        json={
+            "llm": "gemini",
+            "type": "soc",
+            "job_title": "farm hand",
+            "job_description": "Varied farm work.",
+            "org_description": "farming",
+            "options": {"soc": {"rephrased": False}},
+        },
+    )
+    _assert_llm_classification_422(response, "Open question formulation failed")
 
 
 @patch("api.routes.v1.classify.SOCVectorStoreClient")
