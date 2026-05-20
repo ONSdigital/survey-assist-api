@@ -127,6 +127,7 @@ async def classify_text(
     sic_vector_store: SICVectorStoreClient = sic_vector_store_dependency,
     soc_vector_store: SOCVectorStoreClient = soc_vector_store_dependency,
     rephrase_client: SICRephraseClient = rephrase_dependency,
+    soc_rephrase_client: SOCRephraseClient = soc_rephrase_dependency,
 ) -> Union[GenericClassificationResponse, GenericClassificationResponseWithoutMeta]:
     """Classify the provided text using the generic response format.
 
@@ -136,6 +137,7 @@ async def classify_text(
         sic_vector_store (SICVectorStoreClient): SIC vector store client instance.
         soc_vector_store (SOCVectorStoreClient): SOC vector store client instance.
         rephrase_client (SICRephraseClient): SIC rephrase client instance.
+        soc_rephrase_client (SOCRephraseClient): SOC rephrase client instance.
 
     Returns:
         GenericClassificationResponse: A response containing the classification results in
@@ -188,7 +190,11 @@ async def classify_text(
         # Handle SOC classification
         if classification_request.type in ["soc", "sic_soc"]:
             soc_result = await _classify_soc(
-                request, classification_request, soc_vector_store, body_id
+                request,
+                classification_request,
+                soc_vector_store,
+                soc_rephrase_client,
+                body_id,
             )
             results.append(soc_result)
 
@@ -512,20 +518,11 @@ def _apply_rephrasing(
 
 
 def _apply_soc_rephrasing(
-    result: GenericClassificationResult,
+    candidates: list[GenericCandidate],
     soc_rephrase_client: SOCRephraseClient,
     classification_request: ClassificationRequest,
-) -> GenericClassificationResult:
-    """Apply rephrasing to SOC result and candidates if enabled.
-
-    Args:
-        result: SOC classification result to potentially rephrase.
-        soc_rephrase_client: The SOC rephrase client instance.
-        classification_request: The classification request containing options.
-
-    Returns:
-        GenericClassificationResult with rephrased descriptions if enabled.
-    """
+) -> list[GenericCandidate]:
+    """Apply rephrasing to SOC candidates if enabled (mirrors ``_apply_rephrasing``)."""
     rephrasing_enabled = (
         classification_request.options.soc.rephrased
         if classification_request.options and classification_request.options.soc
@@ -533,21 +530,12 @@ def _apply_soc_rephrasing(
     )
 
     if not rephrasing_enabled:
-        return result
+        return candidates
 
     try:
-        # Rephrase main SOC description if possible
-        if result.code:
-            rephrased_main = soc_rephrase_client.get_rephrased_description(result.code)
-            if rephrased_main:
-                result.description = rephrased_main
-
-        # Rephrase SOC candidates
-        rephrased_candidates: list[GenericCandidate] = []
-        for candidate in result.candidates or []:
-            rephrased_text = soc_rephrase_client.get_rephrased_description(
-                candidate.code
-            )
+        rephrased_candidates = []
+        for candidate in candidates:
+            rephrased_text = soc_rephrase_client.get_rephrased_description(candidate.code)
             if rephrased_text:
                 rephrased_candidates.append(
                     GenericCandidate(
@@ -557,19 +545,22 @@ def _apply_soc_rephrasing(
                     )
                 )
             else:
+                logger.debug(
+                    f"No rephrased description found for SOC code {candidate.code}, "
+                    "keeping original description"
+                )
                 rephrased_candidates.append(candidate)
-
-        result.candidates = rephrased_candidates
-        return result
+        return rephrased_candidates
     except Exception as e:  # pylint: disable=broad-except
-        logger.warning(f"Failed to rephrase SOC classification result: {e}")
-        return result
+        logger.warning(f"Failed to rephrase SOC candidates: {e}")
+        return candidates
 
 
 async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
     request: Request,
     classification_request: ClassificationRequest,
     vector_store: SOCVectorStoreClient,
+    soc_rephrase_client: SOCRephraseClient,
     body_id: str,
 ) -> GenericClassificationResult:
     """Classify using SOC classification with two-step process (mirrors ``_classify_sic``).
@@ -578,6 +569,7 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
         request (Request): The FastAPI request object.
         classification_request (ClassificationRequest): The classification request.
         vector_store (SOCVectorStoreClient): SOC vector store client.
+        soc_rephrase_client (SOCRephraseClient): SOC rephrase client.
         body_id (str): Pseudo correlation ID built from truncated request fields.
 
     Returns:
@@ -738,26 +730,10 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
                 reasoning=unambiguous_response.reasoning,
             )
 
-        # Apply rephrasing if enabled (behaviour unchanged from pre-SA-693)
-        soc_rephrase_client = getattr(request.app.state, "soc_rephrase_client", None)
-        if soc_rephrase_client and (result.code or result.candidates):
-            result = _apply_soc_rephrasing(
-                result, soc_rephrase_client, classification_request
-            )
-            logger.info(
-                "SOC rephrasing applied",
-                body_id=body_id,
-                has_rephrase_client=str(soc_rephrase_client is not None),
-                rephrased_candidates_count=str(len(result.candidates or [])),
-            )
-        elif (
-            classification_request.options
-            and classification_request.options.soc
-            and classification_request.options.soc.rephrased
-        ):
-            logger.info(
-                "SOC rephrasing requested but SOCRephraseClient not available",
-                body_id=body_id,
+        # Apply rephrasing if enabled (mirrors SIC: candidates only)
+        if soc_rephrase_client and candidates:
+            result.candidates = _apply_soc_rephrasing(
+                candidates, soc_rephrase_client, classification_request
             )
 
         return result
