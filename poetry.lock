@@ -7621,12 +7621,12 @@ pydantic = "^2.11.7"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/sic-classification-library.git"
-reference = "v0.1.3"
-resolved_reference = "3487e260c58072337818b314d74dce8ba24750b3"
+reference = "v0.1.4"
+resolved_reference = "2f2592dfc501ea48ee1fb0a9a452bbea2e3642c1"
 
 [[package]]
 name = "sic-classification-utils"
-version = "0.1.11"
+version = "0.1.13"
 description = "Utility functions used for SIC classification"
 optional = false
 python-versions = ">=3.12,<4.0"
@@ -7648,14 +7648,14 @@ pandas = "^2.3.0"
 pydantic = "^2.11.1"
 scikit-learn = "^1.3.0"
 scipy = "^1.15.0"
-sic-classification-library = {git = "https://github.com/ONSdigital/sic-classification-library.git", tag = "v0.1.3"}
+sic-classification-library = {git = "https://github.com/ONSdigital/sic-classification-library.git", tag = "v0.1.4"}
 survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.8"}
 
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/sic-classification-utils.git"
-reference = "11cfc48"
-resolved_reference = "11cfc48a2e53610d42cdcc7922fc590d4e33f821"
+reference = "a814ab4"
+resolved_reference = "a814ab4d8dc660c7402ce79cfc03b77acb2d7808"
 
 [[package]]
 name = "six"
@@ -9118,4 +9118,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "37aaea9d1c46cb53aab3b1f249dfd63078d32ee83937737e9e0afb7a01e94036"
+content-hash = "af75e5dd11d068a1906cb0af42ce90c39754b63cea31f3d667bf2938f2f2c153"

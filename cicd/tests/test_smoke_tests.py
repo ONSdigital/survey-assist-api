@@ -28,7 +28,6 @@ class TestSurveyAssistApi:
             headers={"Authorization": f"Bearer {self.id_token}"},
             timeout=30,
         )
-        print(f"Response body: {response.text}")
 
         assert (  # noqa: S101
             response.status_code == 200  # noqa: PLR2004
@@ -86,7 +85,6 @@ class TestSurveyAssistApi:
             headers={"Authorization": f"Bearer {self.id_token}"},
             timeout=30,
         )
-        print(f"Response body: {response.text}")
 
         assert (  # noqa: S101
             response.status_code == 200  # noqa: PLR2004
