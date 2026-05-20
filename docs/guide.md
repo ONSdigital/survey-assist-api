@@ -76,6 +76,10 @@ The API is built using:
             { 
               "name": "SIC_PROMPT_UNAMBIGUOUS", 
               "text": "You are a conscientious classification assistant... [full prompt text]" 
+            },
+            { 
+              "name": "SIC_PROMPT_OPENFOLLOWUP", 
+              "text": "You are a conscientious classification assistant... [full prompt text]" 
             }
           ]
         },
@@ -99,7 +103,7 @@ The API is built using:
   
   **Note**: The `text` field in each prompt is the full template from the utils package (it starts with `You are a conscientious classification assistant...`). The ellipsis in the example above is only for readability in this doc.
 
-  - **v3 `soc`** lists `SOC_PROMPT_UNAMBIGUOUS` and `SOC_PROMPT_OPENFOLLOWUP` (the two-step classify flow). There is no SOC reranker entry (SIC still includes `SIC_PROMPT_RERANKER`).
+  - **v3 two-step classify prompts**: `sic` lists `SIC_PROMPT_UNAMBIGUOUS` and `SIC_PROMPT_OPENFOLLOWUP` (plus `SIC_PROMPT_RERANKER` for reranking); `soc` lists `SOC_PROMPT_UNAMBIGUOUS` and `SOC_PROMPT_OPENFOLLOWUP`. There is no SOC reranker entry.
   - **`embedding_model`** comes from the **SIC** vector store (`SIC_VECTOR_STORE`, default `http://localhost:8088`). It is `unknown` when that service is not reachable. A running **SOC** vector store on port 8089 does not populate this field.
   - **`firestore_database_id`** is `not-configured` when `FIRESTORE_DB_ID` is unset (typical local run).
   - **`actual_prompt`** is a fixed sample string, not the live classify prompt.
@@ -117,7 +121,7 @@ The API is built using:
   "
   ```
 
-  Expected prompt names when the current API code is loaded: `v1v2` — `sic` → `SA_SIC_PROMPT_RAG`, `soc` → `SA_SOC_PROMPT_RAG`; `v3` — `sic` → `SIC_PROMPT_RERANKER`, `SIC_PROMPT_UNAMBIGUOUS`, `soc` → `SOC_PROMPT_UNAMBIGUOUS`, `SOC_PROMPT_OPENFOLLOWUP`.
+  Expected prompt names when the current API code is loaded: `v1v2` — `sic` → `SA_SIC_PROMPT_RAG`, `soc` → `SA_SOC_PROMPT_RAG`; `v3` — `sic` → `SIC_PROMPT_RERANKER`, `SIC_PROMPT_UNAMBIGUOUS`, `SIC_PROMPT_OPENFOLLOWUP`, `soc` → `SOC_PROMPT_UNAMBIGUOUS`, `SOC_PROMPT_OPENFOLLOWUP`.
 
 ### Classification Endpoint
 - **Path**: `/v1/survey-assist/classify`
