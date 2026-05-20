@@ -102,12 +102,8 @@ def get_sic_llm_client(model_name: Optional[str] = None) -> Any:  # type: ignore
 
 
 def get_soc_llm_client(request: Request) -> Any:  # type: ignore
-    """Get the SOC ClassificationLLM from app state (or None if not available).
-
-    Mirrors SIC pattern: LLM is provided via app state (main.py). SOC is optional,
-    so returns None when soc-classification-utils is not installed.
-    """
-    return getattr(request.app.state, "soc_llm", None)
+    """Get the SOC ClassificationLLM from app state (mirrors SIC via gemini_llm)."""
+    return request.app.state.soc_llm
 
 
 # Define dependencies at module level
@@ -588,30 +584,11 @@ async def _classify_soc(  # pylint: disable=unused-argument,too-many-locals
         GenericClassificationResult: SOC classification result.
 
     Raises:
-        HTTPException: If the two-step process fails with 422 status, or SOC LLM is
-            unavailable (503).
+        HTTPException: If the two-step process fails with 422 status.
     """
     try:
-        # SOC LLM from app state (optional; 503 if soc-classification-utils not loaded).
-        llm = getattr(request.app.state, "soc_llm", None)
-        if llm is None:
-            logger.error(
-                "SOC LLM not available (soc-classification-utils not installed)",
-                body_id=body_id,
-            )
-            raise HTTPException(
-                status_code=503,
-                detail={
-                    "error": {
-                        "type": "service_unavailable",
-                        "message": "SOC classification is not available",
-                        "details": (
-                            "SOC LLM is not configured "
-                            "(soc-classification-utils may not be installed)."
-                        ),
-                    }
-                },
-            )
+        # Get LLM instance (mirrors SIC: request.app.state.gemini_llm)
+        llm = request.app.state.soc_llm
 
         # Get vector store search results
         search_results = await vector_store.search(
