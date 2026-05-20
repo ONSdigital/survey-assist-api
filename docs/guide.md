@@ -38,9 +38,9 @@ The API is built using:
   ```json
   {
     "llm_model": "gemini-2.5-flash",
-    "embedding_model": "all-MiniLM-L6-v2",
+    "embedding_model": "unknown",
     "data_store": "Firestore",
-    "firestore_database_id": "your-database-id",
+    "firestore_database_id": "not-configured",
     "actual_prompt": "Sample SIC classification prompt for testing purposes",
     "v1v2": {
       "classification": [
@@ -50,6 +50,15 @@ The API is built using:
             { 
               "name": "SA_SIC_PROMPT_RAG", 
               "text": "You are a conscientious classification assistant... [full prompt text]" 
+            }
+          ]
+        },
+        {
+          "type": "soc",
+          "prompts": [
+            {
+              "name": "SA_SOC_PROMPT_RAG",
+              "text": "You are a conscientious classification assistant... [full prompt text]"
             }
           ]
         }
@@ -69,13 +78,46 @@ The API is built using:
               "text": "You are a conscientious classification assistant... [full prompt text]" 
             }
           ]
+        },
+        {
+          "type": "soc",
+          "prompts": [
+            {
+              "name": "SOC_PROMPT_UNAMBIGUOUS",
+              "text": "You are a conscientious classification assistant... [full prompt text]"
+            },
+            {
+              "name": "SOC_PROMPT_OPENFOLLOWUP",
+              "text": "You are a conscientious classification assistant... [full prompt text]"
+            }
+          ]
         }
       ]
     }
   }
   ```
   
-  **Note**: The `text` field in prompts contains the full prompt template text, not placeholder text. The `embedding_model` is retrieved from the vector store service. The `actual_prompt` field contains a sample/fallback text.
+  **Note**: The `text` field in each prompt is the full template from the utils package (it starts with `You are a conscientious classification assistant...`). The ellipsis in the example above is only for readability in this doc.
+
+  - **v3 `soc`** lists `SOC_PROMPT_UNAMBIGUOUS` and `SOC_PROMPT_OPENFOLLOWUP` (the two-step classify flow). There is no SOC reranker entry (SIC still includes `SIC_PROMPT_RERANKER`).
+  - **`embedding_model`** comes from the **SIC** vector store (`SIC_VECTOR_STORE`, default `http://localhost:8088`). It is `unknown` when that service is not reachable. A running **SOC** vector store on port 8089 does not populate this field.
+  - **`firestore_database_id`** is `not-configured` when `FIRESTORE_DB_ID` is unset (typical local run).
+  - **`actual_prompt`** is a fixed sample string, not the live classify prompt.
+
+  Verify locally (API on port 8080; restart `make run-api` after pulling config changes so `soc` entries appear):
+
+  ```bash
+  curl -s http://localhost:8080/v1/survey-assist/config | python3 -c "
+  import json, sys
+  d = json.load(sys.stdin)
+  for ver in ('v1v2', 'v3'):
+      for e in d[ver]['classification']:
+          print(ver, e['type'], [p['name'] for p in e['prompts']])
+  print('embedding_model', d.get('embedding_model'))
+  "
+  ```
+
+  Expected prompt names when the current API code is loaded: `v1v2` — `sic` → `SA_SIC_PROMPT_RAG`, `soc` → `SA_SOC_PROMPT_RAG`; `v3` — `sic` → `SIC_PROMPT_RERANKER`, `SIC_PROMPT_UNAMBIGUOUS`, `soc` → `SOC_PROMPT_UNAMBIGUOUS`, `SOC_PROMPT_OPENFOLLOWUP`.
 
 ### Classification Endpoint
 - **Path**: `/v1/survey-assist/classify`
