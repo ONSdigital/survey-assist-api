@@ -136,6 +136,10 @@ def _get_sic_prompts(request: Request) -> dict[str, str]:
                     getattr(llm, "sic_prompt_unambiguous", None),
                     "[Core prompt] + [SIC unambiguous template]",
                 ),
+                "open_followup": _prompt_template_text(
+                    getattr(llm, "sic_prompt_openfollowup", None),
+                    "[Core prompt] + [SIC open follow-up template]",
+                ),
             }
     except (AttributeError, TypeError, RuntimeError) as e:
         logger.warning(f"Could not retrieve SIC prompts from LLM: {e}")
@@ -144,6 +148,7 @@ def _get_sic_prompts(request: Request) -> dict[str, str]:
         "sa_rag": "[Core prompt] + [Survey Assist SIC RAG template]",
         "reranker": "[Core prompt] + [SIC reranker template]",
         "unambiguous": "[Core prompt] + [SIC unambiguous template]",
+        "open_followup": "[Core prompt] + [SIC open follow-up template]",
     }
 
 
@@ -233,6 +238,10 @@ async def get_config(
                         PromptModel(
                             name="SIC_PROMPT_UNAMBIGUOUS",
                             text=sic_prompts["unambiguous"],
+                        ),
+                        PromptModel(
+                            name="SIC_PROMPT_OPENFOLLOWUP",
+                            text=sic_prompts["open_followup"],
                         ),
                     ],
                 ),
