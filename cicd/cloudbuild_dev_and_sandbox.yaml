@@ -34,7 +34,8 @@ steps:
         
         export SURVEY_ASSIST_API_URL="https://survey-assist-api-$_TARGET_PROJECT_NUMBER.$LOCATION.run.app/$_API_VERSION/survey-assist"
         export SA_ID_TOKEN=$(gcloud auth print-identity-token --impersonate-service-account=$_API_SA)
-
+        
+        sleep 30
         pytest cicd
     id: Run tests, build, tag, deploy survey assist API and run survey assist API smoke tests
     entrypoint: bash
