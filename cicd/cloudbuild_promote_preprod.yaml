@@ -22,7 +22,7 @@ steps:
 
         echo Running smoke tests against Survey Assist API $$SURVEY_ASSIST_API_URL
 
-        sleep 60
+        sleep 90
         pytest cicd
     id: 'Promote release image, Deploy and Run Smoke Tests'
     entrypoint: bash
