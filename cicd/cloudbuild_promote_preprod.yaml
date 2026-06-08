@@ -22,6 +22,8 @@ steps:
 
         echo Running smoke tests against Survey Assist API $$SURVEY_ASSIST_API_URL
 
+        echo === Sleeping for 90 seconds before running smoke tests ===
+
         sleep 90
         pytest cicd
     id: 'Promote release image, Deploy and Run Smoke Tests'
