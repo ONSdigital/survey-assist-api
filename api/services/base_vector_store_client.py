@@ -47,6 +47,11 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         self.base_url = base_url
         self._http_client = http_client
 
+    @property
+    def http_client(self) -> httpx.AsyncClient:
+        """Return the shared async HTTP client used for outbound requests."""
+        return self._http_client
+
     def _get_auth_headers(self) -> dict[str, str]:
         """Get authentication headers for Google Cloud services.
 
