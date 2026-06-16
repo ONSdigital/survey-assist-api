@@ -21,11 +21,11 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 from survey_assist_utils.logging import get_logger
 
+from api.main import app, resolve_sic_vector_store_base_url
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
-from api.routes.v1.embeddings import get_vector_store_client
-from api.services.sic_vector_store_client import SICVectorStoreClient
 
 logger = get_logger(__name__)
 
@@ -38,18 +38,28 @@ logger = get_logger(__name__)
         (None, "http://localhost:8088"),
     ],
 )
-def test_get_vector_store_client_uses_expected_base_url(
+def test_resolve_sic_vector_store_base_url_uses_expected_base_url(
     monkeypatch, env_value, expected_base_url
 ):
-    """Test vector store client URL resolution from environment and fallback."""
+    """Test SIC vector store URL resolution from environment and fallback."""
     if env_value is None:
         monkeypatch.delenv("SIC_VECTOR_STORE", raising=False)
     else:
         monkeypatch.setenv("SIC_VECTOR_STORE", env_value)
 
-    client = get_vector_store_client()
+    assert resolve_sic_vector_store_base_url() == expected_base_url
 
-    assert client.base_url == expected_base_url
+
+@pytest.mark.api
+def test_vector_store_clients_share_http_client():
+    """Vector store clients are app-scoped and share one HTTP client."""
+    with TestClient(app) as client:
+        shared_http_client = client.app.state.vector_store_http_client
+        sic_client = client.app.state.sic_vector_store_client
+        soc_client = client.app.state.soc_vector_store_client
+
+        assert sic_client._http_client is shared_http_client
+        assert soc_client._http_client is shared_http_client
 
 
 @pytest.mark.api
@@ -127,21 +137,21 @@ async def test_get_status_success():
     """
     mock_response = AsyncMock()
     mock_response.json = Mock(return_value=EMBEDDINGS_STATUS_EXAMPLE)
-    mock_response.raise_for_status = AsyncMock()
+    mock_response.raise_for_status = Mock()
 
-    mock_client = AsyncMock()
-    mock_client.__aenter__.return_value = mock_client
-    mock_client.__aexit__.return_value = None
-    mock_client.get.return_value = mock_response
+    mock_http_client = AsyncMock()
+    mock_http_client.get.return_value = mock_response
 
-    with (
-        patch("httpx.AsyncClient", return_value=mock_client),
-        patch(
-            "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-            return_value={},
-        ),
+    with patch(
+        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
+        return_value={},
     ):
-        client = SICVectorStoreClient(base_url="http://localhost:8088")
+        from api.services.sic_vector_store_client import SICVectorStoreClient
+
+        client = SICVectorStoreClient(
+            base_url="http://localhost:8088",
+            http_client=mock_http_client,
+        )
         response = await client.get_status()
         assert response == EMBEDDINGS_STATUS_EXAMPLE
 
@@ -161,14 +171,19 @@ async def test_get_status_connection_error():
     - The raised exception has the correct status code.
     - The error message contains the expected connection failure text.
     """
-    with (
-        patch("httpx.AsyncClient.get", side_effect=httpx.HTTPError("Connection error")),
-        patch(
-            "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-            return_value={},
-        ),
+    mock_http_client = AsyncMock()
+    mock_http_client.get.side_effect = httpx.HTTPError("Connection error")
+
+    with patch(
+        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
+        return_value={},
     ):
-        client = SICVectorStoreClient(base_url="http://nonexistent:8088")
+        from api.services.sic_vector_store_client import SICVectorStoreClient
+
+        client = SICVectorStoreClient(
+            base_url="http://nonexistent:8088",
+            http_client=mock_http_client,
+        )
         with pytest.raises(HTTPException) as exc_info:
             await client.get_status()
         assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
@@ -188,10 +203,8 @@ def test_embeddings_endpoint(test_client):
     - The response status code is HTTPStatus.OK.
     - The response JSON matches the expected status dictionary.
     """
-    with patch(
-        "api.services.sic_vector_store_client.SICVectorStoreClient.get_status"
-    ) as mock_get_status:
-        mock_get_status.return_value = EMBEDDINGS_STATUS_EXAMPLE
-        response = test_client.get("/v1/survey-assist/embeddings")
-        assert response.status_code == HTTPStatus.OK
-        assert response.json() == EMBEDDINGS_STATUS_EXAMPLE
+    mock_get_status = AsyncMock(return_value=EMBEDDINGS_STATUS_EXAMPLE)
+    app.state.sic_vector_store_client.get_status = mock_get_status
+    response = test_client.get("/v1/survey-assist/embeddings")
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == EMBEDDINGS_STATUS_EXAMPLE
