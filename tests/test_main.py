@@ -16,7 +16,7 @@ Dependencies:
 """
 
 from http import HTTPStatus
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import httpx
 import pytest
@@ -52,8 +52,18 @@ def test_resolve_sic_vector_store_base_url_uses_expected_base_url(
 
 
 @pytest.mark.api
-def test_vector_store_clients_share_http_client():
+@patch("api.main.init_firestore_client")
+@patch("api.main.SOCClassificationLLM")
+@patch("api.main.ClassificationLLM")
+def test_vector_store_clients_share_http_client(
+    mock_classification_llm,
+    mock_soc_classification_llm,
+    _mock_init_firestore,
+):
     """Vector store clients are app-scoped and share one HTTP client."""
+    mock_classification_llm.return_value = MagicMock()
+    mock_soc_classification_llm.return_value = MagicMock()
+
     with TestClient(app) as client:
         shared_http_client = client.app.state.vector_store_http_client
         sic_client = client.app.state.sic_vector_store_client
