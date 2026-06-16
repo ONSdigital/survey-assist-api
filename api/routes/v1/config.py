@@ -4,7 +4,6 @@ This module contains the configuration endpoint for the Survey Assist API.
 It defines the configuration endpoint and returns the current configuration settings.
 """
 
-import os
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
