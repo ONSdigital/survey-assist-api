@@ -4,6 +4,8 @@ This module provides a client for the SOC vector store service, which is used to
 check the status of the SOC embeddings and perform similarity searches.
 """
 
+import httpx
+
 from api.services.base_vector_store_client import BaseVectorStoreClient
 
 
@@ -19,13 +21,19 @@ class SOCVectorStoreClient(
         base_url: The base URL of the SOC vector store service.
     """
 
-    def __init__(self, base_url: str = "http://localhost:8089") -> None:
+    def __init__(
+        self,
+        base_url: str = "http://localhost:8089",
+        *,
+        http_client: httpx.AsyncClient,
+    ) -> None:
         """Initialise the SOC vector store client.
 
         Args:
             base_url: The base URL of the SOC vector store service.
+            http_client: Shared async HTTP client for outbound requests.
         """
-        super().__init__(base_url)
+        super().__init__(base_url, http_client=http_client)
 
     def get_status_url(self) -> str:
         """Get the SOC vector store status endpoint URL.
