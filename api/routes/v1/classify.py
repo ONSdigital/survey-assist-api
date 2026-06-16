@@ -5,7 +5,6 @@ It defines the classification endpoint and returns classification results using
 vector store and LLM.
 """
 
-import os
 import time
 from dataclasses import dataclass
 from typing import Any, Literal, Optional, Union
@@ -35,38 +34,28 @@ logger = get_logger(__name__)
 MAX_LEN = 12
 
 
-def get_sic_vector_store_client() -> SICVectorStoreClient:
-    """Get a SIC vector store client instance.
+def get_sic_vector_store_client(request: Request) -> SICVectorStoreClient:
+    """Get the SIC vector store client from app state.
+
+    Args:
+        request: The FastAPI request object containing the app state.
 
     Returns:
-        SICVectorStoreClient: A SIC vector store client instance.
+        SICVectorStoreClient: The SIC vector store client instance.
     """
-    env_url = os.getenv("SIC_VECTOR_STORE")
-    if env_url and env_url.strip():
-        logger.info(f"Using SIC vector store URL from environment: {env_url}")
-        return SICVectorStoreClient(base_url=env_url.strip())
-
-    logger.warning(
-        "SIC_VECTOR_STORE environment variable not set, using default localhost URL"
-    )
-    return SICVectorStoreClient()
+    return request.app.state.sic_vector_store_client
 
 
-def get_soc_vector_store_client() -> SOCVectorStoreClient:
-    """Get a SOC vector store client instance.
+def get_soc_vector_store_client(request: Request) -> SOCVectorStoreClient:
+    """Get the SOC vector store client from app state.
+
+    Args:
+        request: The FastAPI request object containing the app state.
 
     Returns:
-        SOCVectorStoreClient: A SOC vector store client instance.
+        SOCVectorStoreClient: The SOC vector store client instance.
     """
-    env_url = os.getenv("SOC_VECTOR_STORE")
-    if env_url and env_url.strip():
-        logger.info(f"Using SOC vector store URL from environment: {env_url}")
-        return SOCVectorStoreClient(base_url=env_url.strip())
-
-    logger.warning(
-        "SOC_VECTOR_STORE environment variable not set, using default localhost URL"
-    )
-    return SOCVectorStoreClient()
+    return request.app.state.soc_vector_store_client
 
 
 def get_rephrase_client(request: Request) -> SICRephraseClient:
