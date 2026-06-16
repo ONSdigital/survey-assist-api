@@ -9,7 +9,7 @@ Functions:
     pytest_sessionfinish(session, exitstatus): Logs the end of a test session.
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,10 +20,13 @@ from occupational_classification_utils.llm.llm import (
 from survey_assist_utils.logging import get_logger
 
 from api.main import app
+from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
+from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_lookup_client import SOCLookupClient
 from api.services.soc_rephrase_client import SOCRephraseClient
+from api.services.soc_vector_store_client import SOCVectorStoreClient
 
 # Configure a global logger
 logger = get_logger(__name__)
@@ -58,6 +61,18 @@ def pytest_configure(config):  # pylint: disable=unused-argument
 
     mock_soc_rephrase_client = MagicMock(spec=SOCRephraseClient)
 
+    mock_sic_vector_store_client = MagicMock(spec=SICVectorStoreClient)
+    mock_sic_vector_store_client.search = AsyncMock(return_value=[])
+    mock_sic_vector_store_client.get_status = AsyncMock(
+        return_value=EMBEDDINGS_STATUS_EXAMPLE
+    )
+
+    mock_soc_vector_store_client = MagicMock(spec=SOCVectorStoreClient)
+    mock_soc_vector_store_client.search = AsyncMock(return_value=[])
+    mock_soc_vector_store_client.get_status = AsyncMock(
+        return_value=EMBEDDINGS_STATUS_EXAMPLE
+    )
+
     # Mock SOC LLM on app state (classify tests patch unambiguous_soc_code inline).
     mock_soc_llm = MagicMock(spec=SOCClassificationLLM)
     mock_soc_llm.model_name = "gemini-2.5-flash"
@@ -69,6 +84,8 @@ def pytest_configure(config):  # pylint: disable=unused-argument
     app.state.soc_lookup_client = mock_soc_lookup_client
     app.state.sic_rephrase_client = mock_sic_rephrase_client
     app.state.soc_rephrase_client = mock_soc_rephrase_client
+    app.state.sic_vector_store_client = mock_sic_vector_store_client
+    app.state.soc_vector_store_client = mock_soc_vector_store_client
 
     logger.info("Global Test Configuration Applied")
 
