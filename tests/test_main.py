@@ -16,17 +16,21 @@ Dependencies:
 """
 
 from http import HTTPStatus
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
 from fastapi import HTTPException
-from fastapi.testclient import TestClient
 from survey_assist_utils.logging import get_logger
 
-from api.main import app, resolve_sic_vector_store_base_url
+from api.main import (
+    app,
+    resolve_sic_vector_store_base_url,
+    resolve_soc_vector_store_base_url,
+)
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
 from api.services.sic_vector_store_client import SICVectorStoreClient
+from api.services.soc_vector_store_client import SOCVectorStoreClient
 
 logger = get_logger(__name__)
 
@@ -52,25 +56,24 @@ def test_resolve_sic_vector_store_base_url_uses_expected_base_url(
 
 
 @pytest.mark.api
-@patch("api.main.init_firestore_client")
-@patch("api.main.SOCClassificationLLM")
-@patch("api.main.ClassificationLLM")
-def test_vector_store_clients_share_http_client(
-    mock_classification_llm,
-    mock_soc_classification_llm,
-    _mock_init_firestore,
-):
-    """Vector store clients are app-scoped and share one HTTP client."""
-    mock_classification_llm.return_value = MagicMock()
-    mock_soc_classification_llm.return_value = MagicMock()
-
-    with TestClient(app) as client:
-        shared_http_client = client.app.state.vector_store_http_client
-        sic_client = client.app.state.sic_vector_store_client
-        soc_client = client.app.state.soc_vector_store_client
+@pytest.mark.asyncio
+async def test_vector_store_clients_share_http_client():
+    """SIC and SOC vector store clients share one injected HTTP client."""
+    shared_http_client = httpx.AsyncClient()
+    try:
+        sic_client = SICVectorStoreClient(
+            base_url=resolve_sic_vector_store_base_url(),
+            http_client=shared_http_client,
+        )
+        soc_client = SOCVectorStoreClient(
+            base_url=resolve_soc_vector_store_base_url(),
+            http_client=shared_http_client,
+        )
 
         assert sic_client.http_client is shared_http_client
         assert soc_client.http_client is shared_http_client
+    finally:
+        await shared_http_client.aclose()
 
 
 @pytest.mark.api
