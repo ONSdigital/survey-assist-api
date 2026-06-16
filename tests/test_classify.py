@@ -235,13 +235,15 @@ def test_classify_followup_question(  # pylint: disable=too-many-locals
         - All candidates from alt_candidates are passed to formulate_open_question.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client
     mock_rephrase_instance = MagicMock()
@@ -340,18 +342,18 @@ def test_classify_followup_question(  # pylint: disable=too-many-locals
 
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_sic_unambiguous_llm_failure_returns_422(
-    mock_auth, mock_llm
-):
+def test_sic_unambiguous_llm_failure_returns_422(mock_auth, mock_llm):
     """Step 1 LLM failure returns 422 with unambiguous error details."""
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
     mock_llm.unambiguous_sic_code = AsyncMock(side_effect=_LLM_STEP_ERROR)
     response = client.post(
         "/v1/survey-assist/classify",
@@ -369,18 +371,18 @@ def test_sic_unambiguous_llm_failure_returns_422(
 
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_sic_formulate_open_question_llm_failure_returns_422(
-    mock_auth, mock_llm
-):
+def test_sic_formulate_open_question_llm_failure_returns_422(mock_auth, mock_llm):
     """Step 2 LLM failure returns 422 with open question error details."""
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
     mock_llm.unambiguous_sic_code = AsyncMock(
         return_value=(_mock_not_codable_unambiguous(), None)
     )
@@ -401,7 +403,8 @@ def test_sic_formulate_open_question_llm_failure_returns_422(
 @patch("api.main.app.state.gemini_llm")
 def test_sic_unambiguous_returns_final_code(mock_llm):
     """Electrician: unambiguous_sic_code returns classified=true with code 43210."""
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
@@ -412,7 +415,8 @@ def test_sic_unambiguous_returns_final_code(mock_llm):
                 "title": "Plumbing installation",
                 "distance": 0.32,
             },
-        ])
+        ]
+    )
     mock_llm.unambiguous_sic_code = AsyncMock(
         return_value=(
             MagicMock(
@@ -507,9 +511,7 @@ def test_sic_empty_vector_store_still_calls_unambiguous(mock_llm):
 @patch("api.main.app.state.gemini_llm")
 @patch("api.main.app.state.sic_rephrase_client")
 @patch("google.auth.default")
-def test_classify_endpoint_success(
-    mock_auth, mock_rephrase_client, mock_llm
-):
+def test_classify_endpoint_success(mock_auth, mock_rephrase_client, mock_llm):
     """Test the structure of a successful classification response.
 
     This test verifies that a successful classification response contains all
@@ -524,13 +526,15 @@ def test_classify_endpoint_success(
         - The candidates list contains the expected structure.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client
     mock_rephrase_client.get_rephrased_description.return_value = (
@@ -585,9 +589,7 @@ def test_classify_endpoint_success(
 @patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_json(
-    mock_auth, mock_llm, mock_rephrase_client
-):
+def test_classify_endpoint_invalid_json(mock_auth, mock_llm, mock_rephrase_client):
     """Test the endpoint's handling of invalid JSON input.
 
     This test verifies that the endpoint correctly handles invalid JSON input by:
@@ -598,13 +600,15 @@ def test_classify_endpoint_invalid_json(
         - The response status code is 422.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client
     mock_rephrase_instance = MagicMock()
@@ -640,9 +644,7 @@ def test_classify_endpoint_invalid_json(
 @patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_llm(
-    mock_auth, mock_llm, mock_rephrase_client
-):
+def test_classify_endpoint_invalid_llm(mock_auth, mock_llm, mock_rephrase_client):
     """Test the endpoint's handling of invalid LLM model specifications.
 
     This test verifies that the endpoint correctly handles invalid LLM model
@@ -654,13 +656,15 @@ def test_classify_endpoint_invalid_llm(
         - The response status code is 422.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client
     mock_rephrase_instance = MagicMock()
@@ -703,9 +707,7 @@ def test_classify_endpoint_invalid_llm(
 @patch("api.routes.v1.classify.SICRephraseClient")
 @patch("api.main.app.state.gemini_llm")
 @patch("google.auth.default")
-def test_classify_endpoint_invalid_type(
-    mock_auth, mock_llm, mock_rephrase_client
-):
+def test_classify_endpoint_invalid_type(mock_auth, mock_llm, mock_rephrase_client):
     """Test the endpoint's handling of invalid classification types.
 
     This test verifies that the endpoint correctly handles invalid classification
@@ -717,13 +719,15 @@ def test_classify_endpoint_invalid_type(
         - The response status code is 422.
     """
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client
     mock_rephrase_instance = MagicMock()
@@ -773,7 +777,8 @@ def test_classify_endpoint_rephrasing_enabled(
 ):
     """Test that rephrasing is enabled when explicitly set to True."""
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": "01110",
                 "title": (
@@ -781,7 +786,8 @@ def test_classify_endpoint_rephrasing_enabled(
                 ),
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client with rephrased descriptions
     mock_rephrase_client.get_rephrased_description.return_value = "Crop growing"
@@ -845,7 +851,8 @@ def test_classify_endpoint_rephrasing_disabled(
 ):
     """Test that rephrasing is disabled when explicitly set to False."""
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": "01110",
                 "title": (
@@ -853,7 +860,8 @@ def test_classify_endpoint_rephrasing_disabled(
                 ),
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client
     mock_rephrase_instance = MagicMock()
@@ -921,7 +929,8 @@ def test_classify_endpoint_rephrasing_default(
 ):
     """Test that rephrasing defaults to True when no options provided."""
     mock_auth.return_value = (MagicMock(), "test-project")
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": "01110",
                 "title": (
@@ -929,7 +938,8 @@ def test_classify_endpoint_rephrasing_default(
                 ),
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client with rephrased descriptions
     mock_rephrase_client.get_rephrased_description.return_value = "Crop growing"
@@ -1046,13 +1056,15 @@ def test_classify_endpoint_meta_field_exclusion(
     mock_auth.return_value = (MagicMock(), "test-project")
 
     # Mock vector store
-    _mock_sic_vector_store_search([
+    _mock_sic_vector_store_search(
+        [
             {
                 "code": EXPECTED_SIC_CODE,
                 "title": EXPECTED_SIC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
 
     # Mock the rephrase client
     mock_rephrase_instance = MagicMock()
@@ -1134,17 +1146,17 @@ def test_classify_endpoint_meta_field_exclusion(
     side_effect=AssertionError("SOC classify must not use Excel loaders"),
 )
 @patch("api.main.app.state.soc_llm")
-def test_soc_classify_does_not_require_excel(
-    mock_soc_llm, _mock_read_excel
-):
+def test_soc_classify_does_not_require_excel(mock_soc_llm, _mock_read_excel):
     """SOC classify works even when Excel loaders are unavailable."""
-    _mock_soc_vector_store_search([
+    _mock_soc_vector_store_search(
+        [
             {
                 "code": EXPECTED_SOC_CODE,
                 "title": EXPECTED_SOC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
     mock_soc_llm.unambiguous_soc_code = AsyncMock(
         return_value=(
             MagicMock(
@@ -1183,13 +1195,15 @@ def test_soc_classify_does_not_require_excel(
 @patch("api.main.app.state.soc_llm")
 def test_soc_classify_rephrases_by_default(mock_soc_llm):
     """SOC rephrasing defaults on and applies to candidates only (mirrors SIC)."""
-    _mock_soc_vector_store_search([
+    _mock_soc_vector_store_search(
+        [
             {
                 "code": EXPECTED_SOC_CODE,
                 "title": EXPECTED_SOC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
     mock_soc_llm.unambiguous_soc_code = AsyncMock(
         return_value=(
             MagicMock(
@@ -1231,17 +1245,17 @@ def test_soc_classify_rephrases_by_default(mock_soc_llm):
 
 
 @patch("api.main.app.state.soc_llm")
-def test_soc_classify_rephrased_false_keeps_original_descriptions(
-    mock_soc_llm
-):
+def test_soc_classify_rephrased_false_keeps_original_descriptions(mock_soc_llm):
     """SOC rephrasing remains disabled when explicitly set to false."""
-    _mock_soc_vector_store_search([
+    _mock_soc_vector_store_search(
+        [
             {
                 "code": EXPECTED_SOC_CODE,
                 "title": EXPECTED_SOC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
     mock_soc_llm.unambiguous_soc_code = AsyncMock(
         return_value=(
             MagicMock(
@@ -1286,10 +1300,12 @@ def test_soc_classify_rephrased_false_keeps_original_descriptions(
 @patch("api.main.app.state.soc_llm")
 def test_soc_unambiguous_returns_final_code(mock_soc_llm):
     """Farm hand: unambiguous_soc_code returns classified=true with code 9111."""
-    _mock_soc_vector_store_search([
+    _mock_soc_vector_store_search(
+        [
             {"code": "9111", "title": "Farm workers", "distance": 0.05},
             {"code": "5111", "title": "Other", "distance": 0.32},
-        ])
+        ]
+    )
     mock_soc_llm.unambiguous_soc_code = AsyncMock(
         return_value=(
             MagicMock(
@@ -1342,11 +1358,13 @@ def test_soc_not_codable_returns_followup(mock_soc_llm):
     ``formulate_open_question``, not only the first.
     """
     follow = "Still need detail?"
-    _mock_soc_vector_store_search([
+    _mock_soc_vector_store_search(
+        [
             {"code": "9111", "title": "Farm workers", "distance": 0.15},
             {"code": "5111", "title": "Other agricultural", "distance": 0.19},
             {"code": "9112", "title": "Other farm workers", "distance": 0.22},
-        ])
+        ]
+    )
     mock_unambiguous = MagicMock(
         codable=False,
         class_code=None,
@@ -1408,13 +1426,15 @@ def test_soc_not_codable_returns_followup(mock_soc_llm):
 @patch("api.main.app.state.soc_llm")
 def test_soc_unambiguous_llm_failure_returns_422(mock_soc_llm):
     """Step 1 LLM failure returns 422 with unambiguous SOC error details."""
-    _mock_soc_vector_store_search([
+    _mock_soc_vector_store_search(
+        [
             {
                 "code": EXPECTED_SOC_CODE,
                 "title": EXPECTED_SOC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
     mock_soc_llm.unambiguous_soc_code = AsyncMock(side_effect=_LLM_STEP_ERROR)
     response = client.post(
         "/v1/survey-assist/classify",
@@ -1432,17 +1452,17 @@ def test_soc_unambiguous_llm_failure_returns_422(mock_soc_llm):
 
 
 @patch("api.main.app.state.soc_llm")
-def test_soc_formulate_open_question_llm_failure_returns_422(
-    mock_soc_llm
-):
+def test_soc_formulate_open_question_llm_failure_returns_422(mock_soc_llm):
     """Step 2 LLM failure returns 422 with open question error details."""
-    _mock_soc_vector_store_search([
+    _mock_soc_vector_store_search(
+        [
             {
                 "code": EXPECTED_SOC_CODE,
                 "title": EXPECTED_SOC_DESCRIPTION,
                 "distance": 0.05,
             }
-        ])
+        ]
+    )
     mock_soc_llm.unambiguous_soc_code = AsyncMock(
         return_value=(_mock_not_codable_unambiguous(), None)
     )
@@ -1462,9 +1482,7 @@ def test_soc_formulate_open_question_llm_failure_returns_422(
 
 
 @patch("api.main.app.state.soc_llm")
-def test_soc_empty_vector_store_still_calls_unambiguous(
-    mock_soc_llm
-):
+def test_soc_empty_vector_store_still_calls_unambiguous(mock_soc_llm):
     """Empty search results still run two-step flow (mirrors SIC)."""
     _mock_soc_vector_store_search([])
     mock_unambiguous = MagicMock(
