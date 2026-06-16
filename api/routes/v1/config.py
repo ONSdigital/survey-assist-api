@@ -32,17 +32,16 @@ def _is_valid_prompt(value: Any) -> bool:
     return isinstance(value, str) and bool(value)
 
 
-def get_vector_store_client() -> SICVectorStoreClient:
-    """Get a vector store client instance.
+def get_vector_store_client(request: Request) -> SICVectorStoreClient:
+    """Get the SIC vector store client from app state.
+
+    Args:
+        request: The FastAPI request object containing the app state.
 
     Returns:
-        SICVectorStoreClient: A vector store client instance.
+        SICVectorStoreClient: The SIC vector store client instance.
     """
-    base_url = "http://localhost:8088"
-    env_url = os.getenv("SIC_VECTOR_STORE")
-    if env_url and env_url.strip():
-        base_url = env_url.strip()
-    return SICVectorStoreClient(base_url=base_url)
+    return request.app.state.sic_vector_store_client
 
 
 vector_store_client_dependency = Depends(get_vector_store_client)
