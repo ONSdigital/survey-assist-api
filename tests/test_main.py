@@ -26,6 +26,7 @@ from survey_assist_utils.logging import get_logger
 
 from api.main import app, resolve_sic_vector_store_base_url
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
+from api.services.sic_vector_store_client import SICVectorStoreClient
 
 logger = get_logger(__name__)
 
@@ -58,8 +59,8 @@ def test_vector_store_clients_share_http_client():
         sic_client = client.app.state.sic_vector_store_client
         soc_client = client.app.state.soc_vector_store_client
 
-        assert sic_client._http_client is shared_http_client
-        assert soc_client._http_client is shared_http_client
+        assert sic_client.http_client is shared_http_client
+        assert soc_client.http_client is shared_http_client
 
 
 @pytest.mark.api
@@ -146,8 +147,6 @@ async def test_get_status_success():
         "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
         return_value={},
     ):
-        from api.services.sic_vector_store_client import SICVectorStoreClient
-
         client = SICVectorStoreClient(
             base_url="http://localhost:8088",
             http_client=mock_http_client,
@@ -178,8 +177,6 @@ async def test_get_status_connection_error():
         "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
         return_value={},
     ):
-        from api.services.sic_vector_store_client import SICVectorStoreClient
-
         client = SICVectorStoreClient(
             base_url="http://nonexistent:8088",
             http_client=mock_http_client,
