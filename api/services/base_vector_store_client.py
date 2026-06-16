@@ -37,13 +37,15 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         base_url: The base URL of the vector store service.
     """
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, http_client: httpx.AsyncClient) -> None:
         """Initialise the base vector store client.
 
         Args:
             base_url: The base URL of the vector store service.
+            http_client: Shared async HTTP client for outbound requests.
         """
         self.base_url = base_url
+        self._http_client = http_client
 
     def _get_auth_headers(self) -> dict[str, str]:
         """Get authentication headers for Google Cloud services.
@@ -132,26 +134,25 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 f"Vector store request sent - {self.get_service_name()} status",
                 url=url,
             )
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, headers=headers)
-                duration_ms = int((time.perf_counter() - start_time) * 1000)
-                logger.info(
-                    f"Vector store response received - {self.get_service_name()} status",
-                    status_code=str(response.status_code),
-                    duration_ms=str(duration_ms),
-                )
-                response.raise_for_status()
-                result = response.json()
-                # Log only summary information, not full payloads
-                summary: dict[str, Any] = (
-                    {"keys": list(result.keys())[:5]}
-                    if isinstance(result, dict)
-                    else {"type": type(result).__name__}
-                )
-                logger.debug(
-                    f"{self.get_service_name()} status summary", summary=str(summary)
-                )
-                return result
+            response = await self._http_client.get(url, headers=headers)
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                f"Vector store response received - {self.get_service_name()} status",
+                status_code=str(response.status_code),
+                duration_ms=str(duration_ms),
+            )
+            response.raise_for_status()
+            result = response.json()
+            # Log only summary information, not full payloads
+            summary: dict[str, Any] = (
+                {"keys": list(result.keys())[:5]}
+                if isinstance(result, dict)
+                else {"type": type(result).__name__}
+            )
+            logger.debug(
+                f"{self.get_service_name()} status summary", summary=str(summary)
+            )
+            return result
         except httpx.HTTPError as e:
             logger.error(
                 f"Failed to check {self.get_service_name()} status", error=str(e)
@@ -212,64 +213,63 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 org_description=truncate_identifier(industry_descr),
                 correlation_id=correlation_id,
             )
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    url,
-                    json={
-                        "industry_descr": industry_descr or "",
-                        "job_title": job_title,
-                        "job_description": job_description,
-                    },
-                    headers=headers,
-                )
-                duration_ms = int((time.perf_counter() - start_time) * 1000)
+            response = await self._http_client.post(
+                url,
+                json={
+                    "industry_descr": industry_descr or "",
+                    "job_title": job_title,
+                    "job_description": job_description,
+                },
+                headers=headers,
+            )
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                f"Vector store response received - {self.get_service_name()} search",
+                status_code=str(response.status_code),
+                duration_ms=str(duration_ms),
+                job_title=truncate_identifier(job_title),
+                job_description=truncate_identifier(job_description),
+                org_description=truncate_identifier(industry_descr),
+                correlation_id=correlation_id,
+            )
+            response.raise_for_status()
+            result = response.json()
+            # Log only counts/summaries, not full payloads
+            if (
+                isinstance(result, dict)
+                and "results" in result
+                and isinstance(result["results"], list)
+            ):
                 logger.info(
-                    f"Vector store response received - {self.get_service_name()} search",
-                    status_code=str(response.status_code),
-                    duration_ms=str(duration_ms),
+                    f"{self.get_service_name()} search results summary",
+                    results_count=str(len(result["results"])),
                     job_title=truncate_identifier(job_title),
                     job_description=truncate_identifier(job_description),
                     org_description=truncate_identifier(industry_descr),
                     correlation_id=correlation_id,
                 )
-                response.raise_for_status()
-                result = response.json()
-                # Log only counts/summaries, not full payloads
-                if (
-                    isinstance(result, dict)
-                    and "results" in result
-                    and isinstance(result["results"], list)
-                ):
-                    logger.info(
-                        f"{self.get_service_name()} search results summary",
-                        results_count=str(len(result["results"])),
-                        job_title=truncate_identifier(job_title),
-                        job_description=truncate_identifier(job_description),
-                        org_description=truncate_identifier(industry_descr),
-                        correlation_id=correlation_id,
-                    )
-                elif isinstance(result, list):
-                    logger.info(
-                        f"{self.get_service_name()} search results summary",
-                        results_count=str(len(result)),
-                        job_title=truncate_identifier(job_title),
-                        job_description=truncate_identifier(job_description),
-                        org_description=truncate_identifier(industry_descr),
-                        correlation_id=correlation_id,
-                    )
-                else:
-                    logger.warning(
-                        f"{self.get_service_name()} search results type",
-                        type=str(type(result).__name__),
-                        job_title=truncate_identifier(job_title),
-                        job_description=truncate_identifier(job_description),
-                        org_description=truncate_identifier(industry_descr),
-                        correlation_id=correlation_id,
-                    )
-                # Handle different response formats
-                if isinstance(result, dict) and "results" in result:
-                    return result["results"]
-                return result
+            elif isinstance(result, list):
+                logger.info(
+                    f"{self.get_service_name()} search results summary",
+                    results_count=str(len(result)),
+                    job_title=truncate_identifier(job_title),
+                    job_description=truncate_identifier(job_description),
+                    org_description=truncate_identifier(industry_descr),
+                    correlation_id=correlation_id,
+                )
+            else:
+                logger.warning(
+                    f"{self.get_service_name()} search results type",
+                    type=str(type(result).__name__),
+                    job_title=truncate_identifier(job_title),
+                    job_description=truncate_identifier(job_description),
+                    org_description=truncate_identifier(industry_descr),
+                    correlation_id=correlation_id,
+                )
+            # Handle different response formats
+            if isinstance(result, dict) and "results" in result:
+                return result["results"]
+            return result
         except httpx.HTTPError as e:
             logger.error(
                 f"Failed to search {self.get_service_name()}",
