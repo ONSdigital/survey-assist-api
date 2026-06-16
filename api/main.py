@@ -7,12 +7,14 @@ It defines the FastAPI application and the API endpoints.
 import os
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi_swagger2 import FastAPISwagger2
 from industrial_classification_utils.llm.llm import ClassificationLLM
 from occupational_classification_utils.llm.llm import (
     ClassificationLLM as SOCClassificationLLM,
 )
+from survey_assist_utils.logging import get_logger
 
 from api.routes.v1.classify import router as classify_router
 from api.routes.v1.config import router as config_router
@@ -24,8 +26,41 @@ from api.routes.v1.soc_lookup import router as soc_lookup_router
 from api.services.firestore_client import init_firestore_client
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
+from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_lookup_client import SOCLookupClient
 from api.services.soc_rephrase_client import SOCRephraseClient
+from api.services.soc_vector_store_client import SOCVectorStoreClient
+
+logger = get_logger(__name__)
+
+DEFAULT_SIC_VECTOR_STORE_URL = "http://localhost:8088"
+DEFAULT_SOC_VECTOR_STORE_URL = "http://localhost:8089"
+
+
+def resolve_sic_vector_store_base_url() -> str:
+    """Resolve the SIC vector store base URL from environment or default."""
+    env_url = os.getenv("SIC_VECTOR_STORE")
+    if env_url and env_url.strip():
+        logger.info(f"Using SIC vector store URL from environment: {env_url.strip()}")
+        return env_url.strip()
+
+    logger.warning(
+        "SIC_VECTOR_STORE environment variable not set, using default localhost URL"
+    )
+    return DEFAULT_SIC_VECTOR_STORE_URL
+
+
+def resolve_soc_vector_store_base_url() -> str:
+    """Resolve the SOC vector store base URL from environment or default."""
+    env_url = os.getenv("SOC_VECTOR_STORE")
+    if env_url and env_url.strip():
+        logger.info(f"Using SOC vector store URL from environment: {env_url.strip()}")
+        return env_url.strip()
+
+    logger.warning(
+        "SOC_VECTOR_STORE environment variable not set, using default localhost URL"
+    )
+    return DEFAULT_SOC_VECTOR_STORE_URL
 
 
 @asynccontextmanager
@@ -80,9 +115,20 @@ async def lifespan(fastapi_app: FastAPI):
     else:
         fastapi_app.state.soc_rephrase_client = SOCRephraseClient()
 
+    shared_http_client = httpx.AsyncClient()
+    fastapi_app.state.vector_store_http_client = shared_http_client
+    fastapi_app.state.sic_vector_store_client = SICVectorStoreClient(
+        base_url=resolve_sic_vector_store_base_url(),
+        http_client=shared_http_client,
+    )
+    fastapi_app.state.soc_vector_store_client = SOCVectorStoreClient(
+        base_url=resolve_soc_vector_store_base_url(),
+        http_client=shared_http_client,
+    )
+
     yield
     # Shutdown
-    # Add any cleanup code here if needed
+    await shared_http_client.aclose()
 
 
 app: FastAPI = FastAPI(
