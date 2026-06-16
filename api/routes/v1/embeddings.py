@@ -4,11 +4,10 @@ This module contains the embeddings endpoint for the Survey Assist API.
 It defines the endpoint for checking the status of the embeddings in the vector store.
 """
 
-import os
 import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from survey_assist_utils.logging import get_logger
 
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE, EmbeddingStatus
@@ -22,24 +21,16 @@ EMBEDDINGS_STATUS_UNAVAILABLE_EXAMPLE = {
 }
 
 
-def get_vector_store_client() -> SICVectorStoreClient:
-    """Get a vector store client instance.
+def get_vector_store_client(request: Request) -> SICVectorStoreClient:
+    """Get the SIC vector store client from app state.
+
+    Args:
+        request: The FastAPI request object containing the app state.
 
     Returns:
-        SICVectorStoreClient: A vector store client instance.
+        SICVectorStoreClient: The SIC vector store client instance.
     """
-    # Default to local development URL
-    base_url = "http://localhost:8088"
-
-    # Only use environment variable if it's set and not empty
-    env_url = os.getenv("SIC_VECTOR_STORE")
-    if env_url and env_url.strip():
-        base_url = env_url.strip()
-        logger.debug(f"Using vector store URL from environment: {base_url}")
-    else:
-        logger.debug("Using default vector store URL: http://localhost:8088")
-
-    return SICVectorStoreClient(base_url=base_url)
+    return request.app.state.sic_vector_store_client
 
 
 @router.get(
