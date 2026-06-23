@@ -7707,7 +7707,7 @@ resolved_reference = "62871f81d09010deb15331cfba7782d9b78e5234"
 
 [[package]]
 name = "soc-classification-utils"
-version = "0.1.5"
+version = "0.1.4"
 description = "Utility functions used for SOC classification"
 optional = false
 python-versions = "^3.12"
@@ -7740,8 +7740,8 @@ transformers = ">=4.52.4,<5.0.0"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/soc-classification-utils.git"
-reference = "v0.1.5"
-resolved_reference = "6a5648e9c401ebf08c387cec9f74a99d0d630b0d"
+reference = "f48c0c6"
+resolved_reference = "f48c0c6c9cd4860f3a16bcc58ee55e9bd43d4810"
 
 [[package]]
 name = "sqlalchemy"
@@ -9119,4 +9119,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "9892fb407d0b767a1575344a83683068c23ad451ff7644a18d7cca5b278fa987"
+content-hash = "370d16addb003c65bfe8567f1c934f7d8aeca9296d42f7c675a074d0b020ffd7"
