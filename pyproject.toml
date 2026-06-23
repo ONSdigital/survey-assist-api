@@ -20,7 +20,7 @@ fastapi_swagger2 = "^0.2.4"
 sic-classification-library = {git = "https://github.com/ONSdigital/sic-classification-library.git", tag = "v0.1.5"}
 sic-classification-utils = {git = "https://github.com/ONSdigital/sic-classification-utils.git", tag = "v0.1.14"}
 soc-classification-library = {git = "https://github.com/ONSdigital/soc-classification-library.git", tag = "v0.1.6"}
-soc-classification-utils = {git = "https://github.com/ONSdigital/soc-classification-utils.git", rev = "f48c0c6"}
+soc-classification-utils = {git = "https://github.com/ONSdigital/soc-classification-utils.git", tag = "v0.1.5"}
 survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.git", tag = "v0.0.8"}
 firebase-admin = "^6.5.0"
 
