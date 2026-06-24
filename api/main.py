@@ -115,7 +115,14 @@ async def lifespan(fastapi_app: FastAPI):
     else:
         fastapi_app.state.soc_rephrase_client = SOCRephraseClient()
 
-    shared_http_client = httpx.AsyncClient()
+    shared_http_client = httpx.AsyncClient(
+        timeout=httpx.Timeout(5.0, connect=5.0),
+        limits=httpx.Limits(
+            max_connections=100,
+            max_keepalive_connections=20,
+            keepalive_expiry=5.0,
+        ),
+    )
     fastapi_app.state.vector_store_http_client = shared_http_client
     fastapi_app.state.sic_vector_store_client = SICVectorStoreClient(
         base_url=resolve_sic_vector_store_base_url(),
@@ -125,10 +132,33 @@ async def lifespan(fastapi_app: FastAPI):
         base_url=resolve_soc_vector_store_base_url(),
         http_client=shared_http_client,
     )
+    logger.info(
+        "Application clients initialised",
+        sic_llm=type(fastapi_app.state.gemini_llm).__name__,
+        sic_llm_model=fastapi_app.state.gemini_llm.model_name,
+        soc_llm=type(fastapi_app.state.soc_llm).__name__,
+        soc_llm_model=fastapi_app.state.soc_llm.model_name,
+        sic_lookup_client=type(fastapi_app.state.sic_lookup_client).__name__,
+        soc_lookup_client=type(fastapi_app.state.soc_lookup_client).__name__,
+        sic_rephrase_client=type(fastapi_app.state.sic_rephrase_client).__name__,
+        soc_rephrase_client=type(fastapi_app.state.soc_rephrase_client).__name__,
+        sic_vector_store_client=type(
+            fastapi_app.state.sic_vector_store_client
+        ).__name__,
+        soc_vector_store_client=type(
+            fastapi_app.state.soc_vector_store_client
+        ).__name__,
+        http_client=type(shared_http_client).__name__,
+        vector_store_http_client_shared=str(
+            fastapi_app.state.sic_vector_store_client.http_client
+            is fastapi_app.state.soc_vector_store_client.http_client
+        ),
+    )
 
-    yield
-    # Shutdown
-    await shared_http_client.aclose()
+    try:
+        yield
+    finally:
+        await shared_http_client.aclose()
 
 
 app: FastAPI = FastAPI(
