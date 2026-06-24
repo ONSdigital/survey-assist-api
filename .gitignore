@@ -190,3 +190,4 @@ output.txt
 
 # Temporary files
 *.tmp
+*.csv
