@@ -10,19 +10,16 @@ from typing import Any
 
 import httpx
 from fastapi import HTTPException
+from google.auth.exceptions import DefaultCredentialsError
+from google.auth.transport.requests import Request
+from google.oauth2 import id_token
 from survey_assist_utils.logging import get_logger
 
 from utils.survey import truncate_identifier
 
-try:
-    from google.auth.exceptions import DefaultCredentialsError
-    from google.auth.transport.requests import Request
-    from google.oauth2 import id_token
-
-    GOOGLE_AUTH_AVAILABLE = True
-except ImportError:
-    GOOGLE_AUTH_AVAILABLE = False
-    DefaultCredentialsError = Exception  # type: ignore[misc,assignment]
+# Debugging: Run local
+# DO NOT Merge.
+GOOGLE_AUTH_AVAILABLE = True
 
 logger = get_logger(__name__)
 
@@ -239,6 +236,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             )
             response.raise_for_status()
             result = response.json()
+
             # Log only counts/summaries, not full payloads
             if (
                 isinstance(result, dict)
@@ -248,6 +246,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 logger.info(
                     f"{self.get_service_name()} search results summary",
                     results_count=str(len(result["results"])),
+                    sample_results=result["results"][:3],
                     job_title=truncate_identifier(job_title),
                     job_description=truncate_identifier(job_description),
                     org_description=truncate_identifier(industry_descr),

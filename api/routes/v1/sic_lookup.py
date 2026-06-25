@@ -6,10 +6,15 @@ It defines the endpoint for looking up SIC codes based on descriptions.
 
 # pylint: disable=duplicate-code  # SIC/SOC routes share structure by design
 
-from fastapi import APIRouter, Depends, Request
+from typing import Any
 
-from api.routes.v1.lookup_handlers import execute_lookup_request
+from fastapi import APIRouter, Depends, Request
+from survey_assist_utils.logging import get_logger
+
 from api.services.sic_lookup_client import SICLookupClient
+from api.services.sic_vector_store_client import SICVectorStoreClient
+
+logger = get_logger(__name__)
 
 router = APIRouter(tags=["SIC Lookup"])
 
@@ -29,11 +34,20 @@ def get_lookup_client(request: Request) -> SICLookupClient:
 lookup_client_dependency = Depends(get_lookup_client)
 
 
+def get_sic_vector_store_client(request: Request) -> SICVectorStoreClient:
+    """Get the application-scoped SIC vector-store client."""
+    return request.app.state.sic_vector_store_client
+
+
+sic_vector_store_dependency = Depends(get_sic_vector_store_client)
+
+
 @router.get("/sic-lookup")
 async def sic_lookup(
     description: str,
     similarity: bool = False,
     lookup_client: SICLookupClient = lookup_client_dependency,
+    vector_store_client: SICVectorStoreClient = sic_vector_store_dependency,
 ):
     """Lookup the SIC code for a given description.
 
@@ -41,6 +55,7 @@ async def sic_lookup(
         description (str): The description to look up.
         similarity (bool, optional): Whether to use similarity search. Defaults to False.
         lookup_client (SICLookupClient): The SIC lookup client instance.
+        vector_store_client (SICVectorStoreClient): The SIC vector store client instance.
 
     Returns:
         dict: The SIC lookup result.
@@ -60,10 +75,48 @@ async def sic_lookup(
         }
     ```
     """
-    return execute_lookup_request(
-        description=description,
-        similarity=similarity,
-        lookup_client=lookup_client,
-        endpoint_name="sic-lookup",
-        code_label="SIC",
+    # lookup_result = execute_lookup_request(
+    #     description=description,
+    #     similarity=similarity,
+    #     lookup_client=lookup_client,
+    #     endpoint_name="sic-lookup",
+    #     code_label="SIC",
+    # )
+
+    results: list[dict[str, Any]] = await vector_store_client.search(
+        industry_descr=description,
+        job_title=description,
+        job_description=description,
     )
+
+    logger.info(
+        "SIC SAYT results",
+        description=description,
+        results=results,
+    )
+
+    ordered_results = sorted(
+        results,
+        key=lambda result: float(result["distance"]),
+    )
+
+    # seen: set[tuple[str, str]] = set() #for unique_key = (code, title)
+    seen: set[str] = set()  # for unique_key = code
+    unique_results: list[dict[str, str]] = []
+
+    for result in ordered_results:
+        code = str(result["code"])
+        title = str(result["title"])
+        unique_key = code
+
+        if unique_key in seen:
+            continue
+
+        seen.add(unique_key)
+        unique_results.append(
+            {
+                "en": f"{code} - {title}",
+            }
+        )
+
+    return unique_results

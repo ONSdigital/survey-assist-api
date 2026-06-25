@@ -126,9 +126,25 @@ async def lifespan(fastapi_app: FastAPI):
         http_client=shared_http_client,
     )
 
-    yield
-    # Shutdown
-    await shared_http_client.aclose()
+    logger.info(
+        "Application clients initialised",
+        sic_llm=type(fastapi_app.state.gemini_llm).__name__,
+        soc_llm=type(fastapi_app.state.soc_llm).__name__,
+        sic_lookup=type(fastapi_app.state.sic_lookup_client).__name__,
+        soc_lookup=type(fastapi_app.state.soc_lookup_client).__name__,
+        sic_rephrase=type(fastapi_app.state.sic_rephrase_client).__name__,
+        soc_rephrase=type(fastapi_app.state.soc_rephrase_client).__name__,
+        vector_store_http_client_shared=str(
+            fastapi_app.state.sic_vector_store_client.http_client
+            is fastapi_app.state.soc_vector_store_client.http_client
+        ),
+    )
+
+    try:
+        yield
+    finally:
+        # Shutdown
+        await shared_http_client.aclose()
 
 
 app: FastAPI = FastAPI(
