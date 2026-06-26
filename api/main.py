@@ -135,9 +135,13 @@ async def lifespan(fastapi_app: FastAPI):
     logger.info(
         "Application clients initialised",
         sic_llm=type(fastapi_app.state.gemini_llm).__name__,
-        sic_llm_model=fastapi_app.state.gemini_llm.model_name,
+        sic_llm_model=getattr(
+            fastapi_app.state.gemini_llm, "model_name", "gemini-2.5-flash"
+        ),
         soc_llm=type(fastapi_app.state.soc_llm).__name__,
-        soc_llm_model=fastapi_app.state.soc_llm.model_name,
+        soc_llm_model=getattr(
+            fastapi_app.state.soc_llm, "model_name", "gemini-2.5-flash"
+        ),
         sic_lookup_client=type(fastapi_app.state.sic_lookup_client).__name__,
         soc_lookup_client=type(fastapi_app.state.soc_lookup_client).__name__,
         sic_rephrase_client=type(fastapi_app.state.sic_rephrase_client).__name__,
