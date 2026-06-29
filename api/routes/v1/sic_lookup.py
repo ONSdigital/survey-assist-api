@@ -11,6 +11,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Request
 from survey_assist_utils.logging import get_logger
 
+from api.routes.v1.lookup_handlers import execute_lookup_request
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
 
@@ -75,48 +76,52 @@ async def sic_lookup(
         }
     ```
     """
-    # lookup_result = execute_lookup_request(
-    #     description=description,
-    #     similarity=similarity,
-    #     lookup_client=lookup_client,
-    #     endpoint_name="sic-lookup",
-    #     code_label="SIC",
-    # )
-
-    results: list[dict[str, Any]] = await vector_store_client.search(
-        industry_descr=description,
-        job_title=description,
-        job_description=description,
-    )
-
-    logger.info(
-        "SIC SAYT results",
-        description=description,
-        results=results,
-    )
-
-    ordered_results = sorted(
-        results,
-        key=lambda result: float(result["distance"]),
-    )
-
-    # seen: set[tuple[str, str]] = set() #for unique_key = (code, title)
-    seen: set[str] = set()  # for unique_key = code
-    unique_results: list[dict[str, str]] = []
-
-    for result in ordered_results:
-        code = str(result["code"])
-        title = str(result["title"])
-        unique_key = code
-
-        if unique_key in seen:
-            continue
-
-        seen.add(unique_key)
-        unique_results.append(
-            {
-                "en": f"{code} - {title}",
-            }
+    if similarity:
+        logger.info("SIC similarity search - using vector store")
+        return execute_lookup_request(
+            description=description,
+            similarity=similarity,
+            lookup_client=lookup_client,
+            endpoint_name="sic-lookup",
+            code_label="SIC",
         )
 
-    return unique_results
+    else:
+        logger.info("SAYT test code executed - using vector store")
+        results: list[dict[str, Any]] = await vector_store_client.search(
+            industry_descr=description,
+            job_title=description,
+            job_description=description,
+        )
+
+        logger.info(
+            "SIC SAYT results",
+            description=description,
+            results=results,
+        )
+
+        ordered_results = sorted(
+            results,
+            key=lambda result: float(result["distance"]),
+        )
+
+        # seen: set[tuple[str, str]] = set() #for unique_key = (code, title)
+        seen: set[str] = set()  # for unique_key = code
+        unique_results: list[dict[str, str]] = []
+
+        for result in ordered_results:
+            code = str(result["code"])
+            title = str(result["title"])
+            unique_key = code
+
+            if unique_key in seen:
+                continue
+
+            seen.add(unique_key)
+            unique_results.append(
+                {
+                    "en": f"{code} - {title}",
+                }
+            )
+
+        return unique_results
