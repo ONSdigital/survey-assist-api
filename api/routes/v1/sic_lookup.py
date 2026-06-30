@@ -76,7 +76,7 @@ async def sic_lookup(
         }
     ```
     """
-    if similarity:
+    if similarity is False:
         logger.info("SIC similarity search - using vector store")
         return execute_lookup_request(
             description=description,
