@@ -24,6 +24,7 @@ from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
 from api.routes.v1.soc_lookup import router as soc_lookup_router
 from api.services.firestore_client import init_firestore_client
+from api.services.google_id_token_provider import GoogleIDTokenProvider
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
@@ -115,15 +116,29 @@ async def lifespan(fastapi_app: FastAPI):
     else:
         fastapi_app.state.soc_rephrase_client = SOCRephraseClient()
 
+    # Create shared async HTTP client for vector store services
     shared_http_client = httpx.AsyncClient()
     fastapi_app.state.vector_store_http_client = shared_http_client
+
+    sic_url = resolve_sic_vector_store_base_url()
+    soc_url = resolve_soc_vector_store_base_url()
+
+    # Create Google ID token providers for SIC and SOC vector store services
+    sic_token_provider = GoogleIDTokenProvider(sic_url)
+    soc_token_provider = GoogleIDTokenProvider(soc_url)
+
+    # Create SIC and SOC vector store clients with shared HTTP client and
+    # separate token providers
     fastapi_app.state.sic_vector_store_client = SICVectorStoreClient(
-        base_url=resolve_sic_vector_store_base_url(),
+        base_url=sic_url,
         http_client=shared_http_client,
+        google_id_token_provider=sic_token_provider,
     )
+
     fastapi_app.state.soc_vector_store_client = SOCVectorStoreClient(
-        base_url=resolve_soc_vector_store_base_url(),
+        base_url=soc_url,
         http_client=shared_http_client,
+        google_id_token_provider=soc_token_provider,
     )
 
     logger.info(
