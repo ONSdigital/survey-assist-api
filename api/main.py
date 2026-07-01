@@ -141,9 +141,6 @@ async def lifespan(fastapi_app: FastAPI):
         sic_token_provider = NoAuthTokenProvider()
         soc_token_provider = NoAuthTokenProvider()
     
-    sic_token_provider = GoogleIDTokenProvider(sic_url)
-    soc_token_provider = GoogleIDTokenProvider(soc_url)
-
     # Create SIC and SOC vector store clients with shared HTTP client and
     # separate token providers
     fastapi_app.state.sic_vector_store_client = SICVectorStoreClient(
