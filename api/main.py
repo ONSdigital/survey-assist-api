@@ -24,7 +24,10 @@ from api.routes.v1.result import router as result_router
 from api.routes.v1.sic_lookup import router as sic_lookup_router
 from api.routes.v1.soc_lookup import router as soc_lookup_router
 from api.services.firestore_client import init_firestore_client
-from api.services.google_id_token_provider import GoogleIDTokenProvider
+from api.services.google_id_token_provider import (
+    GoogleIDTokenProvider,
+    NoAuthTokenProvider,
+)
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
 from api.services.sic_vector_store_client import SICVectorStoreClient
@@ -37,6 +40,9 @@ logger = get_logger(__name__)
 DEFAULT_SIC_VECTOR_STORE_URL = "http://localhost:8088"
 DEFAULT_SOC_VECTOR_STORE_URL = "http://localhost:8089"
 
+def vector_store_auth_enabled() -> bool:
+    """Return whether vector-store auth should be enabled."""
+    return os.getenv("VECTOR_STORE_AUTH_ENABLED", "true").lower() == "true"
 
 def resolve_sic_vector_store_base_url() -> str:
     """Resolve the SIC vector store base URL from environment or default."""
@@ -124,6 +130,17 @@ async def lifespan(fastapi_app: FastAPI):
     soc_url = resolve_soc_vector_store_base_url()
 
     # Create Google ID token providers for SIC and SOC vector store services
+    if vector_store_auth_enabled():
+        logger.info("Vector store auth enabled, using Google ID token providers")
+        sic_token_provider = GoogleIDTokenProvider(sic_url)
+        soc_token_provider = GoogleIDTokenProvider(soc_url)
+    else:
+        logger.warning(
+            "Vector store auth disabled, using NoAuthTokenProvider for local/sidecar calls"
+        )
+        sic_token_provider = NoAuthTokenProvider()
+        soc_token_provider = NoAuthTokenProvider()
+    
     sic_token_provider = GoogleIDTokenProvider(sic_url)
     soc_token_provider = GoogleIDTokenProvider(soc_url)
 

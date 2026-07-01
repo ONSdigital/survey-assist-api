@@ -43,3 +43,10 @@ class GoogleIDTokenProvider:  # pylint: disable=too-few-public-methods
         return {
             "Authorization": f"Bearer {self._credentials.token}",
         }
+
+class NoAuthTokenProvider:  # pylint: disable=too-few-public-methods
+    """Token provider that deliberately disables auth for local/sidecar calls."""
+
+    async def get_headers(self) -> dict[str, str]:
+        """Return no auth headers."""
+        return {}

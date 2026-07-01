@@ -15,7 +15,10 @@ from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 from survey_assist_utils.logging import get_logger
 
-from api.services.google_id_token_provider import GoogleIDTokenProvider
+from api.services.google_id_token_provider import (
+    GoogleIDTokenProvider,
+    NoAuthTokenProvider,
+)
 from utils.survey import truncate_identifier
 
 # Debugging: Run local
@@ -39,7 +42,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         self,
         base_url: str,
         http_client: httpx.AsyncClient,
-        google_id_token_provider: GoogleIDTokenProvider,
+        google_id_token_provider: GoogleIDTokenProvider | NoAuthTokenProvider,
     ) -> None:
         """Initialise the base vector store client.
 
