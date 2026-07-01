@@ -20,7 +20,7 @@ from utils.survey import truncate_identifier
 
 # Debugging: Run local
 # DO NOT Merge.
-GOOGLE_AUTH_AVAILABLE = True
+GOOGLE_AUTH_AVAILABLE = False
 
 logger = get_logger(__name__)
 
