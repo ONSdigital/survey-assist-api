@@ -15,16 +15,6 @@ from survey_assist_utils.logging import get_logger
 from api.services.google_id_token_provider import TokenProvider
 from utils.survey import truncate_identifier
 
-try:
-    from google.auth.exceptions import DefaultCredentialsError
-    from google.auth.transport.requests import Request
-    from google.oauth2 import id_token
-
-    GOOGLE_AUTH_AVAILABLE = True
-except ImportError:
-    GOOGLE_AUTH_AVAILABLE = False
-    DefaultCredentialsError = Exception  # type: ignore[misc,assignment]
-
 logger = get_logger(__name__)
 
 
@@ -59,42 +49,6 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
     def http_client(self) -> httpx.AsyncClient:
         """Return the shared async HTTP client used for outbound requests."""
         return self._http_client
-
-    def _get_auth_headers(self) -> dict[str, str]:
-        """Get authentication headers for Google Cloud services.
-
-        Returns:
-            dict: Dictionary containing authorization header if available.
-        """
-        if not GOOGLE_AUTH_AVAILABLE:
-            logger.warning(
-                "Google Auth not available, proceeding without authentication"
-            )
-            return {}
-
-        try:
-            # For Cloud Run service-to-service communication, we need an ID token
-            # The audience should be the base URL of the receiving service
-            audience = self.base_url.rstrip("/")
-
-            # Get the ID token for the specific audience
-            auth_req = Request()
-            id_token_value = id_token.fetch_id_token(auth_req, audience)
-
-            logger.debug(
-                f"Successfully obtained Google Cloud ID token for audience: {audience}"
-            )
-            return {"Authorization": f"Bearer {id_token_value}"}
-
-        except (ValueError, OSError, RuntimeError) as e:
-            logger.warning(f"Failed to get Google Cloud ID token: {e}")
-            return {}
-        except DefaultCredentialsError as e:  # pylint: disable=broad-exception-caught
-            # DefaultCredentialsError may be Exception when google.auth is unavailable
-            logger.warning(
-                f"Default credentials not found, proceeding without auth: {e}"
-            )
-            return {}
 
     @abstractmethod
     def get_status_url(self) -> str:
