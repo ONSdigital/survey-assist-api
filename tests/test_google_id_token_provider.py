@@ -1,6 +1,5 @@
 """Tests for Google ID token providers."""
 
-import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -8,7 +7,6 @@ from google.auth.credentials import TokenState
 
 from api.services.google_id_token_provider import (
     GoogleIDTokenProvider,
-    NoAuthTokenProvider,
 )
 
 
@@ -26,9 +24,7 @@ async def test_get_headers_uses_fresh_cached_token() -> None:
     ):
         provider = GoogleIDTokenProvider("https://vector-store.example")
 
-    assert await provider.get_headers() == {
-        "Authorization": "Bearer cached-token"
-    }
+    assert await provider.get_headers() == {"Authorization": "Bearer cached-token"}
     credentials.refresh.assert_not_called()
 
 

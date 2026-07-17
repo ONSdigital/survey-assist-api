@@ -202,6 +202,18 @@ async def test_get_status_connection_error():
     with pytest.raises(HTTPException) as exc_info:
         await client.get_status()
 
+    assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+    assert exc_info.value.detail == (
+        "Failed to check SIC vector store status: Connection error"
+    )
+
+    token_provider.get_headers.assert_awaited_once_with()
+    mock_http_client.get.assert_awaited_once_with(
+        "http://nonexistent:8088/v1/sic-vector-store/status",
+        headers={},
+    )
+
+
 @pytest.mark.api
 def test_embeddings_endpoint(test_client):
     """Test the embeddings endpoint of the Survey Assist API.

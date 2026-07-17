@@ -12,9 +12,7 @@ from api.services.sic_vector_store_client import SICVectorStoreClient
 async def test_get_status_passes_provider_headers_to_http_client() -> None:
     """Pass authentication headers to the status request."""
     token_provider = AsyncMock()
-    token_provider.get_headers.return_value = {
-        "Authorization": "Bearer test-token"
-    }
+    token_provider.get_headers.return_value = {"Authorization": "Bearer test-token"}
 
     response = Mock()
     response.json.return_value = {"status": "ready"}
