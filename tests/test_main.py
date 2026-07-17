@@ -60,14 +60,18 @@ def test_resolve_sic_vector_store_base_url_uses_expected_base_url(
 async def test_vector_store_clients_share_http_client():
     """SIC and SOC vector store clients share one injected HTTP client."""
     shared_http_client = httpx.AsyncClient()
+    sic_token_provider = AsyncMock()
+    soc_token_provider = AsyncMock()
     try:
         sic_client = SICVectorStoreClient(
             base_url=resolve_sic_vector_store_base_url(),
             http_client=shared_http_client,
+            google_id_token_provider=sic_token_provider,
         )
         soc_client = SOCVectorStoreClient(
             base_url=resolve_soc_vector_store_base_url(),
             http_client=shared_http_client,
+            google_id_token_provider=soc_token_provider,
         )
 
         assert sic_client.http_client is shared_http_client
@@ -155,6 +159,7 @@ async def test_get_status_success():
 
     mock_http_client = AsyncMock()
     mock_http_client.get.return_value = mock_response
+    sic_token_provider = AsyncMock()
 
     with patch(
         "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
@@ -163,6 +168,7 @@ async def test_get_status_success():
         client = SICVectorStoreClient(
             base_url="http://localhost:8088",
             http_client=mock_http_client,
+            google_id_token_provider=sic_token_provider,
         )
         response = await client.get_status()
         assert response == EMBEDDINGS_STATUS_EXAMPLE
@@ -193,6 +199,7 @@ async def test_get_status_connection_error():
         client = SICVectorStoreClient(
             base_url="http://nonexistent:8088",
             http_client=mock_http_client,
+            google_id_token_provider=AsyncMock(),
         )
         with pytest.raises(HTTPException) as exc_info:
             await client.get_status()

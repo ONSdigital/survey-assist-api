@@ -12,6 +12,10 @@ import httpx
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
+from api.services.google_id_token_provider import (
+    GoogleIDTokenProvider,
+    NoAuthTokenProvider,
+)
 from utils.survey import truncate_identifier
 
 try:
@@ -37,15 +41,22 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         base_url: The base URL of the vector store service.
     """
 
-    def __init__(self, base_url: str, http_client: httpx.AsyncClient) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        http_client: httpx.AsyncClient,
+        google_id_token_provider: GoogleIDTokenProvider | NoAuthTokenProvider,
+    ) -> None:
         """Initialise the base vector store client.
 
         Args:
             base_url: The base URL of the vector store service.
             http_client: Shared async HTTP client for outbound requests.
+            google_id_token_provider: Provider for Google ID tokens.
         """
         self.base_url = base_url
         self._http_client = http_client
+        self._google_id_token_provider = google_id_token_provider
 
     @property
     def http_client(self) -> httpx.AsyncClient:
@@ -128,7 +139,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             )
 
             # Get authentication headers
-            headers = self._get_auth_headers()
+            headers = await self._google_id_token_provider.get_headers()
             if headers:
                 logger.debug(
                     f"Using authentication headers for {self.get_service_name()}"
@@ -203,7 +214,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             url = self.get_search_url()
 
             # Get authentication headers
-            headers = self._get_auth_headers()
+            headers = await self._google_id_token_provider.get_headers()
             if headers:
                 logger.debug(
                     f"Using authentication headers for {self.get_service_name()}"
