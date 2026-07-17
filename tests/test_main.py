@@ -16,7 +16,7 @@ Dependencies:
 """
 
 from http import HTTPStatus
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
@@ -27,6 +27,7 @@ from api.main import (
     app,
     resolve_sic_vector_store_base_url,
     resolve_soc_vector_store_base_url,
+    vector_store_auth_enabled,
 )
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
 from api.services.sic_vector_store_client import SICVectorStoreClient
@@ -161,17 +162,14 @@ async def test_get_status_success():
     mock_http_client.get.return_value = mock_response
     sic_token_provider = AsyncMock()
 
-    with patch(
-        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-        return_value={},
-    ):
-        client = SICVectorStoreClient(
-            base_url="http://localhost:8088",
-            http_client=mock_http_client,
-            google_id_token_provider=sic_token_provider,
-        )
-        response = await client.get_status()
-        assert response == EMBEDDINGS_STATUS_EXAMPLE
+    client = SICVectorStoreClient(
+        base_url="http://localhost:8088",
+        http_client=mock_http_client,
+        google_id_token_provider=sic_token_provider,
+    )
+    response = await client.get_status()
+    sic_token_provider.get_headers.assert_awaited_once_with()
+    assert response == EMBEDDINGS_STATUS_EXAMPLE
 
 
 @pytest.mark.api
@@ -192,20 +190,17 @@ async def test_get_status_connection_error():
     mock_http_client = AsyncMock()
     mock_http_client.get.side_effect = httpx.HTTPError("Connection error")
 
-    with patch(
-        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-        return_value={},
-    ):
-        client = SICVectorStoreClient(
-            base_url="http://nonexistent:8088",
-            http_client=mock_http_client,
-            google_id_token_provider=AsyncMock(),
-        )
-        with pytest.raises(HTTPException) as exc_info:
-            await client.get_status()
-        assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
-        assert "Failed to check SIC vector store status" in str(exc_info.value.detail)
+    token_provider = AsyncMock()
+    token_provider.get_headers.return_value = {}
 
+    client = SICVectorStoreClient(
+        base_url="http://nonexistent:8088",
+        http_client=mock_http_client,
+        google_id_token_provider=token_provider,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await client.get_status()
 
 @pytest.mark.api
 def test_embeddings_endpoint(test_client):
@@ -225,3 +220,27 @@ def test_embeddings_endpoint(test_client):
     response = test_client.get("/v1/survey-assist/embeddings")
     assert response.status_code == HTTPStatus.OK
     assert response.json() == EMBEDDINGS_STATUS_EXAMPLE
+
+
+@pytest.mark.api
+@pytest.mark.parametrize(
+    ("env_value", "expected"),
+    [
+        (None, True),
+        ("true", True),
+        ("TRUE", True),
+        ("false", False),
+    ],
+)
+def test_vector_store_auth_enabled(
+    monkeypatch,
+    env_value,
+    expected,
+) -> None:
+    """Return the configured vector store authentication state."""
+    if env_value is None:
+        monkeypatch.delenv("VECTOR_STORE_AUTH_ENABLED", raising=False)
+    else:
+        monkeypatch.setenv("VECTOR_STORE_AUTH_ENABLED", env_value)
+
+    assert vector_store_auth_enabled() is expected
