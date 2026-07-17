@@ -27,6 +27,7 @@ from api.services.firestore_client import init_firestore_client
 from api.services.google_id_token_provider import (
     GoogleIDTokenProvider,
     NoAuthTokenProvider,
+    TokenProvider,
 )
 from api.services.sic_lookup_client import SICLookupClient
 from api.services.sic_rephrase_client import SICRephraseClient
@@ -138,8 +139,8 @@ async def lifespan(fastapi_app: FastAPI):
     sic_url = resolve_sic_vector_store_base_url()
     soc_url = resolve_soc_vector_store_base_url()
 
-    sic_token_provider: GoogleIDTokenProvider | NoAuthTokenProvider
-    soc_token_provider: GoogleIDTokenProvider | NoAuthTokenProvider
+    sic_token_provider: TokenProvider
+    soc_token_provider: TokenProvider
 
     # Create Google ID token providers for SIC and SOC vector store services
     if vector_store_auth_enabled():

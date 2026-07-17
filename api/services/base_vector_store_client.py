@@ -12,10 +12,7 @@ import httpx
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
-from api.services.google_id_token_provider import (
-    GoogleIDTokenProvider,
-    NoAuthTokenProvider,
-)
+from api.services.google_id_token_provider import TokenProvider
 from utils.survey import truncate_identifier
 
 try:
@@ -45,7 +42,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
         self,
         base_url: str,
         http_client: httpx.AsyncClient,
-        google_id_token_provider: GoogleIDTokenProvider | NoAuthTokenProvider,
+        google_id_token_provider: TokenProvider,
     ) -> None:
         """Initialise the base vector store client.
 

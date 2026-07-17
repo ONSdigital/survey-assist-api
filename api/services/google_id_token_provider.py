@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import Protocol
 
 from google.auth.credentials import Credentials, TokenState
 from google.auth.transport.requests import Request
@@ -10,6 +11,13 @@ from google.oauth2 import id_token
 from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class TokenProvider(Protocol):  # pylint: disable=too-few-public-methods
+    """Provides headers for outbound vector-store requests."""
+
+    async def get_headers(self) -> dict[str, str]:
+        """Return headers to send with the request."""
 
 
 class GoogleIDTokenProvider:  # pylint: disable=too-few-public-methods

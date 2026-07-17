@@ -7,10 +7,7 @@ check the status of the SIC embeddings and perform similarity searches.
 import httpx
 
 from api.services.base_vector_store_client import BaseVectorStoreClient
-from api.services.google_id_token_provider import (
-    GoogleIDTokenProvider,
-    NoAuthTokenProvider,
-)
+from api.services.google_id_token_provider import TokenProvider
 
 
 class SICVectorStoreClient(
@@ -30,7 +27,7 @@ class SICVectorStoreClient(
         base_url: str = "http://localhost:8088",
         *,
         http_client: httpx.AsyncClient,
-        google_id_token_provider: GoogleIDTokenProvider | NoAuthTokenProvider,
+        google_id_token_provider: TokenProvider,
     ) -> None:
         """Initialise the SIC vector store client.
 

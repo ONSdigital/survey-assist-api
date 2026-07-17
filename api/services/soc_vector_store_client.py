@@ -7,10 +7,7 @@ check the status of the SOC embeddings and perform similarity searches.
 import httpx
 
 from api.services.base_vector_store_client import BaseVectorStoreClient
-from api.services.google_id_token_provider import (
-    GoogleIDTokenProvider,
-    NoAuthTokenProvider,
-)
+from api.services.google_id_token_provider import TokenProvider
 
 
 class SOCVectorStoreClient(
@@ -31,7 +28,7 @@ class SOCVectorStoreClient(
         base_url: str = "http://localhost:8089",
         *,
         http_client: httpx.AsyncClient,
-        google_id_token_provider: GoogleIDTokenProvider | NoAuthTokenProvider,
+        google_id_token_provider: TokenProvider,
     ) -> None:
         """Initialise the SOC vector store client.
 
