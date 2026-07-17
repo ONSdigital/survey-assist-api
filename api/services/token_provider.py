@@ -1,4 +1,4 @@
-"""Google ID token provider."""
+"""Token provider."""
 
 from __future__ import annotations
 

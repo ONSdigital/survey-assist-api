@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from google.auth.credentials import TokenState
 
-from api.services.google_id_token_provider import (
+from api.services.token_provider import (
     GoogleIDTokenProvider,
 )
 
@@ -19,7 +19,7 @@ async def test_get_headers_uses_fresh_cached_token() -> None:
     credentials.token = "cached-token"
 
     with patch(
-        "api.services.google_id_token_provider.id_token.fetch_id_token_credentials",
+        "api.services.token_provider.id_token.fetch_id_token_credentials",
         return_value=credentials,
     ):
         provider = GoogleIDTokenProvider("https://vector-store.example")
@@ -44,7 +44,7 @@ async def test_get_headers_refreshes_stale_token_once() -> None:
     credentials.refresh.side_effect = refresh_credentials
 
     with patch(
-        "api.services.google_id_token_provider.id_token.fetch_id_token_credentials",
+        "api.services.token_provider.id_token.fetch_id_token_credentials",
         return_value=credentials,
     ):
         provider = GoogleIDTokenProvider("https://vector-store.example")

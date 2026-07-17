@@ -7,7 +7,7 @@ check the status of the SIC embeddings and perform similarity searches.
 import httpx
 
 from api.services.base_vector_store_client import BaseVectorStoreClient
-from api.services.google_id_token_provider import TokenProvider
+from api.services.token_provider import TokenProvider
 
 
 class SICVectorStoreClient(
@@ -27,19 +27,19 @@ class SICVectorStoreClient(
         base_url: str = "http://localhost:8088",
         *,
         http_client: httpx.AsyncClient,
-        google_id_token_provider: TokenProvider,
+        token_provider: TokenProvider,
     ) -> None:
         """Initialise the SIC vector store client.
 
         Args:
             base_url: The base URL of the SIC vector store service.
             http_client: Shared async HTTP client for outbound requests.
-            google_id_token_provider: Provider for Google ID tokens.
+            token_provider: Provider for Google ID tokens.
         """
         super().__init__(
             base_url,
             http_client=http_client,
-            google_id_token_provider=google_id_token_provider,
+            token_provider=token_provider,
         )
 
     def get_status_url(self) -> str:

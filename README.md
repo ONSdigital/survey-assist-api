@@ -109,9 +109,11 @@ The API supports the following environment variables:
 
 - `GCP_PROJECT_ID`: Google Cloud Project ID
 - `FIRESTORE_DB_ID`: Firestore Database ID
+- `SIC_VECTOR_STORE`: URL of the vector store service
+- `SIC_VECTOR_STORE_AUTH_ENABLED`: Defaults to True. Set to False when the vector store runs locally or is a side-car deployment alongside the API in Cloud Run
 - `SIC_LOOKUP_DATA_PATH`: Path to SIC lookup data file
 - `SIC_REPHRASE_DATA_PATH`: Path to SIC rephrase data file 
+- `SOC_VECTOR_STORE`: URL of the vector store service
+- `SOC_VECTOR_STORE_AUTH_ENABLED`: Defaults to True. Set to False when the vector store runs locally or is a side-car deployment alongside the API in Cloud Run
 - `SOC_REPHRASE_DATA_PATH`: Optional path to SOC rephrase data file; if unset, packaged example data from `soc-classification-library` is used.
 - `SOC_LOOKUP_DATA_PATH`: Optional path to SOC lookup CSV; if unset, packaged example data from `soc-classification-library` is used.
-- `SIC_VECTOR_STORE`: URL of the vector store service
-- `VECTOR_STORE_AUTH_ENABLED`: Defaults to True. Set to False when the vector store runs locally or is a side-car deployment alongside the API in Cloud Run

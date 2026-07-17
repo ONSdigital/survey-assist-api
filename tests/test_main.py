@@ -16,7 +16,7 @@ Dependencies:
 """
 
 from http import HTTPStatus
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import httpx
 import pytest
@@ -25,6 +25,7 @@ from survey_assist_utils.logging import get_logger
 
 from api.main import (
     app,
+    create_vector_store_token_provider,
     resolve_sic_vector_store_base_url,
     resolve_soc_vector_store_base_url,
     vector_store_auth_enabled,
@@ -32,6 +33,7 @@ from api.main import (
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
 from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
+from api.services.token_provider import NoAuthTokenProvider
 
 logger = get_logger(__name__)
 
@@ -67,12 +69,12 @@ async def test_vector_store_clients_share_http_client():
         sic_client = SICVectorStoreClient(
             base_url=resolve_sic_vector_store_base_url(),
             http_client=shared_http_client,
-            google_id_token_provider=sic_token_provider,
+            token_provider=sic_token_provider,
         )
         soc_client = SOCVectorStoreClient(
             base_url=resolve_soc_vector_store_base_url(),
             http_client=shared_http_client,
-            google_id_token_provider=soc_token_provider,
+            token_provider=soc_token_provider,
         )
 
         assert sic_client.http_client is shared_http_client
@@ -165,7 +167,7 @@ async def test_get_status_success():
     client = SICVectorStoreClient(
         base_url="http://localhost:8088",
         http_client=mock_http_client,
-        google_id_token_provider=sic_token_provider,
+        token_provider=sic_token_provider,
     )
     response = await client.get_status()
     sic_token_provider.get_headers.assert_awaited_once_with()
@@ -196,7 +198,7 @@ async def test_get_status_connection_error():
     client = SICVectorStoreClient(
         base_url="http://nonexistent:8088",
         http_client=mock_http_client,
-        google_id_token_provider=token_provider,
+        token_provider=token_provider,
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -235,24 +237,54 @@ def test_embeddings_endpoint(test_client):
 
 
 @pytest.mark.api
-@pytest.mark.parametrize(
-    ("env_value", "expected"),
-    [
-        (None, True),
-        ("true", True),
-        ("TRUE", True),
-        ("false", False),
-    ],
-)
-def test_vector_store_auth_enabled(
-    monkeypatch,
-    env_value,
-    expected,
-) -> None:
-    """Return the configured vector store authentication state."""
-    if env_value is None:
-        monkeypatch.delenv("VECTOR_STORE_AUTH_ENABLED", raising=False)
-    else:
-        monkeypatch.setenv("VECTOR_STORE_AUTH_ENABLED", env_value)
+def test_vector_store_auth_is_configured_per_client(monkeypatch) -> None:
+    """Configure authentication independently for each vector store."""
+    monkeypatch.setenv("SIC_VECTOR_STORE_AUTH_ENABLED", "true")
+    monkeypatch.setenv("SOC_VECTOR_STORE_AUTH_ENABLED", "false")
 
-    assert vector_store_auth_enabled() is expected
+    assert vector_store_auth_enabled("sic") is True
+    assert vector_store_auth_enabled("soc") is False
+
+
+@pytest.mark.api
+def test_vector_store_auth_defaults_to_enabled(monkeypatch) -> None:
+    """Authentication is enabled by default if the environment variable is not set."""
+    monkeypatch.delenv(
+        "SIC_VECTOR_STORE_AUTH_ENABLED",
+        raising=False,
+    )
+
+    assert vector_store_auth_enabled("sic") is True
+
+
+@pytest.mark.api
+def test_vector_store_auth_rejects_invalid_value(monkeypatch) -> None:
+    """Raise ValueError if the environment variable is set to an invalid value."""
+    monkeypatch.setenv("SIC_VECTOR_STORE_AUTH_ENABLED", "invalid")
+
+    with pytest.raises(
+        ValueError,
+        match="SIC_VECTOR_STORE_AUTH_ENABLED",
+    ):
+        vector_store_auth_enabled("sic")
+
+
+@pytest.mark.api
+def test_create_token_provider_uses_client_setting(monkeypatch) -> None:
+    """Create the configured token provider for each vector store."""
+    monkeypatch.setenv("SIC_VECTOR_STORE_AUTH_ENABLED", "true")
+    monkeypatch.setenv("SOC_VECTOR_STORE_AUTH_ENABLED", "false")
+
+    with patch("api.main.GoogleIDTokenProvider") as google_provider:
+        sic_provider = create_vector_store_token_provider(
+            "sic",
+            "https://sic.example",
+        )
+        soc_provider = create_vector_store_token_provider(
+            "soc",
+            "http://localhost:8089",
+        )
+
+    google_provider.assert_called_once_with("https://sic.example")
+    assert sic_provider is google_provider.return_value
+    assert isinstance(soc_provider, NoAuthTokenProvider)

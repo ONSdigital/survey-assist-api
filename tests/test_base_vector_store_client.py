@@ -23,7 +23,7 @@ async def test_get_status_passes_provider_headers_to_http_client() -> None:
 
     client = SICVectorStoreClient(
         http_client=http_client,
-        google_id_token_provider=token_provider,
+        token_provider=token_provider,
     )
 
     assert await client.get_status() == {"status": "ready"}
