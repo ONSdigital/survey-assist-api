@@ -7655,8 +7655,8 @@ survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/sic-classification-utils.git"
-reference = "v0.1.15"
-resolved_reference = "65e068dab062ddf8eda14e1cfa679c80f28cf60a"
+reference = "d0193d6"
+resolved_reference = "d0193d6eb6eda8dc837878b1dd271ceef4a8591d"
 
 [[package]]
 name = "six"
@@ -7740,8 +7740,8 @@ transformers = ">=4.52.4,<5.0.0"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/soc-classification-utils.git"
-reference = "3fc1e16"
-resolved_reference = "3fc1e16b68d68726fb9733ca76cddc69626711e6"
+reference = "2b8b206"
+resolved_reference = "2b8b206e32c5cb92a6c1e9df0482f32a595890ba"
 
 [[package]]
 name = "sqlalchemy"
@@ -9119,4 +9119,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "b811c8666d0d60535bcabc1ae52655127788f75ad1f1c014545ad6c2a146966d"
+content-hash = "04957f8888f6c04fc851b6ccc89dec9702cd9fa49b1755d6189f276f7969a48d"
