@@ -4,9 +4,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from google.auth.credentials import TokenState
+from google.auth.exceptions import RefreshError
 
 from api.services.token_provider import (
     GoogleIDTokenProvider,
+    TokenProviderError,
 )
 
 
@@ -53,3 +55,53 @@ async def test_get_headers_refreshes_stale_token_once() -> None:
 
     assert headers == {"Authorization": "Bearer refreshed-token"}
     credentials.refresh.assert_called_once()
+
+
+@pytest.mark.api
+@pytest.mark.asyncio
+async def test_get_headers_wraps_refresh_error() -> None:
+    """Raise TokenProviderError when refreshing Google credentials fails."""
+    credentials = MagicMock()
+    credentials.token_state = TokenState.STALE
+    credentials.token = None
+    credentials.refresh.side_effect = RefreshError(
+        "Permission iam.serviceAccounts.getOpenIdToken denied"
+    )
+
+    with patch(
+        "api.services.token_provider.id_token.fetch_id_token_credentials",
+        return_value=credentials,
+    ):
+        provider = GoogleIDTokenProvider("https://vector-store.example")
+
+    with pytest.raises(
+        TokenProviderError,
+        match="Unable to obtain Google ID token",
+    ) as exc_info:
+        await provider.get_headers()
+
+    assert isinstance(exc_info.value.__cause__, RefreshError)
+    credentials.refresh.assert_called_once()
+
+
+@pytest.mark.api
+@pytest.mark.asyncio
+async def test_get_headers_raises_when_token_is_missing() -> None:
+    """Raise TokenProviderError when credentials contain no ID token."""
+    credentials = MagicMock()
+    credentials.token_state = TokenState.FRESH
+    credentials.token = None
+
+    with patch(
+        "api.services.token_provider.id_token.fetch_id_token_credentials",
+        return_value=credentials,
+    ):
+        provider = GoogleIDTokenProvider("https://vector-store.example")
+
+    with pytest.raises(
+        TokenProviderError,
+        match="Google ID token was not available",
+    ):
+        await provider.get_headers()
+
+    credentials.refresh.assert_not_called()

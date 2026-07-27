@@ -6,11 +6,16 @@ import asyncio
 from typing import Protocol
 
 from google.auth.credentials import Credentials, TokenState
+from google.auth.exceptions import GoogleAuthError
 from google.auth.transport.requests import Request
 from google.oauth2 import id_token
 from survey_assist_utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+class TokenProviderError(RuntimeError):
+    """Raised when authentication headers cannot be obtained."""
 
 
 class TokenProvider(Protocol):  # pylint: disable=too-few-public-methods
@@ -34,19 +39,22 @@ class GoogleIDTokenProvider:  # pylint: disable=too-few-public-methods
 
     async def get_headers(self) -> dict[str, str]:
         """Return an ID token, refreshing it only when necessary."""
-        if self._credentials.token_state is not TokenState.FRESH:
-            async with self._refresh_lock:
-                # Recheck after acquiring the lock because another request
-                # may already have refreshed the token.
-                if self._credentials.token_state is not TokenState.FRESH:
-                    logger.info("Refreshing Google ID token")
-                    await asyncio.to_thread(
-                        self._credentials.refresh,
-                        self._request,
-                    )
+        try:
+            if self._credentials.token_state is not TokenState.FRESH:
+                async with self._refresh_lock:
+                    # Recheck after acquiring the lock because another request
+                    # may already have refreshed the token.
+                    if self._credentials.token_state is not TokenState.FRESH:
+                        logger.info("Refreshing Google ID token")
+                        await asyncio.to_thread(
+                            self._credentials.refresh,
+                            self._request,
+                        )
+        except GoogleAuthError as exc:
+            raise TokenProviderError("Unable to obtain Google ID token") from exc
 
         if self._credentials.token is None:
-            raise RuntimeError("Google ID token was not available")
+            raise TokenProviderError("Google ID token was not available")
 
         return {
             "Authorization": f"Bearer {self._credentials.token}",

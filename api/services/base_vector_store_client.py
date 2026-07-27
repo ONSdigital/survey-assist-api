@@ -12,7 +12,7 @@ import httpx
 from fastapi import HTTPException
 from survey_assist_utils.logging import get_logger
 
-from api.services.token_provider import TokenProvider
+from api.services.token_provider import TokenProvider, TokenProviderError
 from utils.survey import truncate_identifier
 
 logger = get_logger(__name__)
@@ -120,6 +120,17 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 f"{self.get_service_name()} status summary", summary=str(summary)
             )
             return result
+
+        except TokenProviderError as e:
+            logger.error(
+                f"Failed to authenticate to {self.get_service_name()}",
+                error=str(e),
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail=(f"Unable to authenticate to " f"{self.get_service_name()}"),
+            ) from e
+
         except httpx.HTTPError as e:
             logger.error(
                 f"Failed to check {self.get_service_name()} status", error=str(e)
@@ -128,6 +139,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to check {self.get_service_name()} status: {e!s}",
             ) from e
+
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Catch-all for truly unexpected errors, convert to HTTPException
             logger.error(
@@ -237,6 +249,17 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
             if isinstance(result, dict) and "results" in result:
                 return result["results"]
             return result
+
+        except TokenProviderError as e:
+            logger.error(
+                f"Failed to authenticate to {self.get_service_name()}",
+                error=str(e),
+            )
+            raise HTTPException(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail=(f"Unable to authenticate to " f"{self.get_service_name()}"),
+            ) from e
+
         except httpx.HTTPError as e:
             logger.error(
                 f"Failed to search {self.get_service_name()}",
@@ -250,6 +273,7 @@ class BaseVectorStoreClient(ABC):  # pylint: disable=too-few-public-methods
                 status_code=HTTPStatus.SERVICE_UNAVAILABLE,
                 detail=f"Failed to search {self.get_service_name()}: {e!s}",
             ) from e
+
         except Exception as e:  # pylint: disable=broad-exception-caught
             # Catch-all for truly unexpected errors, convert to HTTPException
             logger.error(

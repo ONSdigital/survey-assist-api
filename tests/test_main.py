@@ -163,6 +163,7 @@ async def test_get_status_success():
     mock_http_client = AsyncMock()
     mock_http_client.get.return_value = mock_response
     sic_token_provider = AsyncMock()
+    sic_token_provider.get_headers.return_value = {}
 
     client = SICVectorStoreClient(
         base_url="http://localhost:8088",
