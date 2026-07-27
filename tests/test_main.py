@@ -40,22 +40,77 @@ logger = get_logger(__name__)
 
 @pytest.mark.api
 @pytest.mark.parametrize(
-    ("env_value", "expected_base_url"),
+    (
+        "env_var",
+        "resolver",
+        "env_value",
+        "expected_base_url",
+    ),
     [
-        ("  http://vector-store.internal:8088  ", "http://vector-store.internal:8088"),
-        (None, "http://localhost:8088"),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            "  http://vector-store.internal:8088  ",
+            "http://vector-store.internal:8088",
+        ),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            "https://sic-vector-store.example/",
+            "https://sic-vector-store.example",
+        ),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            "  https://sic-vector-store.example///  ",
+            "https://sic-vector-store.example",
+        ),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            None,
+            "http://localhost:8088",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            "  http://vector-store.internal:8089  ",
+            "http://vector-store.internal:8089",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            "https://soc-vector-store.example/",
+            "https://soc-vector-store.example",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            "  https://soc-vector-store.example///  ",
+            "https://soc-vector-store.example",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            None,
+            "http://localhost:8089",
+        ),
     ],
 )
-def test_resolve_sic_vector_store_base_url_uses_expected_base_url(
-    monkeypatch, env_value, expected_base_url
-):
-    """Test SIC vector store URL resolution from environment and fallback."""
+def test_resolve_vector_store_base_url_uses_expected_value(
+    monkeypatch,
+    env_var,
+    resolver,
+    env_value,
+    expected_base_url,
+) -> None:
+    """Resolve and normalise SIC and SOC vector-store base URLs."""
     if env_value is None:
-        monkeypatch.delenv("SIC_VECTOR_STORE", raising=False)
+        monkeypatch.delenv(env_var, raising=False)
     else:
-        monkeypatch.setenv("SIC_VECTOR_STORE", env_value)
+        monkeypatch.setenv(env_var, env_value)
 
-    assert resolve_sic_vector_store_base_url() == expected_base_url
+    assert resolver() == expected_base_url
 
 
 @pytest.mark.api

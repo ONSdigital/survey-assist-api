@@ -72,8 +72,10 @@ def resolve_sic_vector_store_base_url() -> str:
     """Resolve the SIC vector store base URL from environment or default."""
     env_url = os.getenv("SIC_VECTOR_STORE")
     if env_url and env_url.strip():
-        logger.info(f"Using SIC vector store URL from environment: {env_url.strip()}")
-        return env_url.strip()
+        logger.info(
+            f"Using SIC vector store URL from environment: {env_url.strip().rstrip('/')}"
+        )
+        return env_url.strip().rstrip("/")
 
     logger.warning(
         "SIC_VECTOR_STORE environment variable not set, using default localhost URL"
@@ -85,8 +87,10 @@ def resolve_soc_vector_store_base_url() -> str:
     """Resolve the SOC vector store base URL from environment or default."""
     env_url = os.getenv("SOC_VECTOR_STORE")
     if env_url and env_url.strip():
-        logger.info(f"Using SOC vector store URL from environment: {env_url.strip()}")
-        return env_url.strip()
+        logger.info(
+            f"Using SOC vector store URL from environment: {env_url.strip().rstrip('/')}"
+        )
+        return env_url.strip().rstrip("/")
 
     logger.warning(
         "SOC_VECTOR_STORE environment variable not set, using default localhost URL"
