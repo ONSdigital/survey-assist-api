@@ -89,6 +89,7 @@ convention = "google"
     # Allow use of assert statements in tests
     "S101",
 ]
+"tests/test_token_provider.py" = ["S105"]
 
 [tool.ruff.format]
 quote-style = "double"

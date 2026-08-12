@@ -25,34 +25,92 @@ from survey_assist_utils.logging import get_logger
 
 from api.main import (
     app,
+    create_vector_store_token_provider,
     resolve_sic_vector_store_base_url,
     resolve_soc_vector_store_base_url,
+    vector_store_auth_enabled,
 )
 from api.models.embeddings import EMBEDDINGS_STATUS_EXAMPLE
 from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
+from api.services.token_provider import NoAuthTokenProvider
 
 logger = get_logger(__name__)
 
 
 @pytest.mark.api
 @pytest.mark.parametrize(
-    ("env_value", "expected_base_url"),
+    (
+        "env_var",
+        "resolver",
+        "env_value",
+        "expected_base_url",
+    ),
     [
-        ("  http://vector-store.internal:8088  ", "http://vector-store.internal:8088"),
-        (None, "http://localhost:8088"),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            "  http://vector-store.internal:8088  ",
+            "http://vector-store.internal:8088",
+        ),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            "https://sic-vector-store.example/",
+            "https://sic-vector-store.example",
+        ),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            "  https://sic-vector-store.example///  ",
+            "https://sic-vector-store.example",
+        ),
+        (
+            "SIC_VECTOR_STORE",
+            resolve_sic_vector_store_base_url,
+            None,
+            "http://localhost:8088",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            "  http://vector-store.internal:8089  ",
+            "http://vector-store.internal:8089",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            "https://soc-vector-store.example/",
+            "https://soc-vector-store.example",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            "  https://soc-vector-store.example///  ",
+            "https://soc-vector-store.example",
+        ),
+        (
+            "SOC_VECTOR_STORE",
+            resolve_soc_vector_store_base_url,
+            None,
+            "http://localhost:8089",
+        ),
     ],
 )
-def test_resolve_sic_vector_store_base_url_uses_expected_base_url(
-    monkeypatch, env_value, expected_base_url
-):
-    """Test SIC vector store URL resolution from environment and fallback."""
+def test_resolve_vector_store_base_url_uses_expected_value(
+    monkeypatch,
+    env_var,
+    resolver,
+    env_value,
+    expected_base_url,
+) -> None:
+    """Resolve and normalise SIC and SOC vector-store base URLs."""
     if env_value is None:
-        monkeypatch.delenv("SIC_VECTOR_STORE", raising=False)
+        monkeypatch.delenv(env_var, raising=False)
     else:
-        monkeypatch.setenv("SIC_VECTOR_STORE", env_value)
+        monkeypatch.setenv(env_var, env_value)
 
-    assert resolve_sic_vector_store_base_url() == expected_base_url
+    assert resolver() == expected_base_url
 
 
 @pytest.mark.api
@@ -60,14 +118,18 @@ def test_resolve_sic_vector_store_base_url_uses_expected_base_url(
 async def test_vector_store_clients_share_http_client():
     """SIC and SOC vector store clients share one injected HTTP client."""
     shared_http_client = httpx.AsyncClient()
+    sic_token_provider = AsyncMock()
+    soc_token_provider = AsyncMock()
     try:
         sic_client = SICVectorStoreClient(
             base_url=resolve_sic_vector_store_base_url(),
             http_client=shared_http_client,
+            token_provider=sic_token_provider,
         )
         soc_client = SOCVectorStoreClient(
             base_url=resolve_soc_vector_store_base_url(),
             http_client=shared_http_client,
+            token_provider=soc_token_provider,
         )
 
         assert sic_client.http_client is shared_http_client
@@ -155,17 +217,17 @@ async def test_get_status_success():
 
     mock_http_client = AsyncMock()
     mock_http_client.get.return_value = mock_response
+    sic_token_provider = AsyncMock()
+    sic_token_provider.get_headers.return_value = {}
 
-    with patch(
-        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-        return_value={},
-    ):
-        client = SICVectorStoreClient(
-            base_url="http://localhost:8088",
-            http_client=mock_http_client,
-        )
-        response = await client.get_status()
-        assert response == EMBEDDINGS_STATUS_EXAMPLE
+    client = SICVectorStoreClient(
+        base_url="http://localhost:8088",
+        http_client=mock_http_client,
+        token_provider=sic_token_provider,
+    )
+    response = await client.get_status()
+    sic_token_provider.get_headers.assert_awaited_once_with()
+    assert response == EMBEDDINGS_STATUS_EXAMPLE
 
 
 @pytest.mark.api
@@ -186,18 +248,28 @@ async def test_get_status_connection_error():
     mock_http_client = AsyncMock()
     mock_http_client.get.side_effect = httpx.HTTPError("Connection error")
 
-    with patch(
-        "api.services.base_vector_store_client.BaseVectorStoreClient._get_auth_headers",
-        return_value={},
-    ):
-        client = SICVectorStoreClient(
-            base_url="http://nonexistent:8088",
-            http_client=mock_http_client,
-        )
-        with pytest.raises(HTTPException) as exc_info:
-            await client.get_status()
-        assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
-        assert "Failed to check SIC vector store status" in str(exc_info.value.detail)
+    token_provider = AsyncMock()
+    token_provider.get_headers.return_value = {}
+
+    client = SICVectorStoreClient(
+        base_url="http://nonexistent:8088",
+        http_client=mock_http_client,
+        token_provider=token_provider,
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await client.get_status()
+
+    assert exc_info.value.status_code == HTTPStatus.SERVICE_UNAVAILABLE
+    assert exc_info.value.detail == (
+        "Failed to check SIC vector store status: Connection error"
+    )
+
+    token_provider.get_headers.assert_awaited_once_with()
+    mock_http_client.get.assert_awaited_once_with(
+        "http://nonexistent:8088/v1/sic-vector-store/status",
+        headers={},
+    )
 
 
 @pytest.mark.api
@@ -218,3 +290,57 @@ def test_embeddings_endpoint(test_client):
     response = test_client.get("/v1/survey-assist/embeddings")
     assert response.status_code == HTTPStatus.OK
     assert response.json() == EMBEDDINGS_STATUS_EXAMPLE
+
+
+@pytest.mark.api
+def test_vector_store_auth_is_configured_per_client(monkeypatch) -> None:
+    """Configure authentication independently for each vector store."""
+    monkeypatch.setenv("SIC_VECTOR_STORE_AUTH_ENABLED", "true")
+    monkeypatch.setenv("SOC_VECTOR_STORE_AUTH_ENABLED", "false")
+
+    assert vector_store_auth_enabled("sic") is True
+    assert vector_store_auth_enabled("soc") is False
+
+
+@pytest.mark.api
+def test_vector_store_auth_defaults_to_enabled(monkeypatch) -> None:
+    """Authentication is enabled by default if the environment variable is not set."""
+    monkeypatch.delenv(
+        "SIC_VECTOR_STORE_AUTH_ENABLED",
+        raising=False,
+    )
+
+    assert vector_store_auth_enabled("sic") is True
+
+
+@pytest.mark.api
+def test_vector_store_auth_rejects_invalid_value(monkeypatch) -> None:
+    """Raise ValueError if the environment variable is set to an invalid value."""
+    monkeypatch.setenv("SIC_VECTOR_STORE_AUTH_ENABLED", "invalid")
+
+    with pytest.raises(
+        ValueError,
+        match="SIC_VECTOR_STORE_AUTH_ENABLED",
+    ):
+        vector_store_auth_enabled("sic")
+
+
+@pytest.mark.api
+def test_create_token_provider_uses_client_setting(monkeypatch) -> None:
+    """Create the configured token provider for each vector store."""
+    monkeypatch.setenv("SIC_VECTOR_STORE_AUTH_ENABLED", "true")
+    monkeypatch.setenv("SOC_VECTOR_STORE_AUTH_ENABLED", "false")
+
+    with patch("api.main.GoogleIDTokenProvider") as google_provider:
+        sic_provider = create_vector_store_token_provider(
+            "sic",
+            "https://sic.example",
+        )
+        soc_provider = create_vector_store_token_provider(
+            "soc",
+            "http://localhost:8089",
+        )
+
+    google_provider.assert_called_once_with("https://sic.example")
+    assert sic_provider is google_provider.return_value
+    assert isinstance(soc_provider, NoAuthTokenProvider)

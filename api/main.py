@@ -30,6 +30,11 @@ from api.services.sic_vector_store_client import SICVectorStoreClient
 from api.services.soc_lookup_client import SOCLookupClient
 from api.services.soc_rephrase_client import SOCRephraseClient
 from api.services.soc_vector_store_client import SOCVectorStoreClient
+from api.services.token_provider import (
+    GoogleIDTokenProvider,
+    NoAuthTokenProvider,
+    TokenProvider,
+)
 
 logger = get_logger(__name__)
 
@@ -37,12 +42,40 @@ DEFAULT_SIC_VECTOR_STORE_URL = "http://localhost:8088"
 DEFAULT_SOC_VECTOR_STORE_URL = "http://localhost:8089"
 
 
+def vector_store_auth_enabled(vector_store_name: str) -> bool:
+    """Return whether authentication is enabled for a vector store."""
+    env_var = f"{vector_store_name.upper()}_VECTOR_STORE_AUTH_ENABLED"
+    value = os.getenv(env_var, "true").strip().lower()
+
+    if value not in {"true", "false"}:
+        raise ValueError(f"{env_var} must be 'true' or 'false'")
+
+    return value == "true"
+
+
+def create_vector_store_token_provider(
+    vector_store_name: str,
+    base_url: str,
+) -> TokenProvider:
+    """Create the configured token provider for a vector store."""
+    service_name = vector_store_name.upper()
+
+    if vector_store_auth_enabled(vector_store_name):
+        logger.info(f"{service_name} vector store auth enabled")
+        return GoogleIDTokenProvider(base_url)
+
+    logger.warning(f"{service_name} vector store auth disabled")
+    return NoAuthTokenProvider()
+
+
 def resolve_sic_vector_store_base_url() -> str:
     """Resolve the SIC vector store base URL from environment or default."""
     env_url = os.getenv("SIC_VECTOR_STORE")
     if env_url and env_url.strip():
-        logger.info(f"Using SIC vector store URL from environment: {env_url.strip()}")
-        return env_url.strip()
+        logger.info(
+            f"Using SIC vector store URL from environment: {env_url.strip().rstrip('/')}"
+        )
+        return env_url.strip().rstrip("/")
 
     logger.warning(
         "SIC_VECTOR_STORE environment variable not set, using default localhost URL"
@@ -54,8 +87,10 @@ def resolve_soc_vector_store_base_url() -> str:
     """Resolve the SOC vector store base URL from environment or default."""
     env_url = os.getenv("SOC_VECTOR_STORE")
     if env_url and env_url.strip():
-        logger.info(f"Using SOC vector store URL from environment: {env_url.strip()}")
-        return env_url.strip()
+        logger.info(
+            f"Using SOC vector store URL from environment: {env_url.strip().rstrip('/')}"
+        )
+        return env_url.strip().rstrip("/")
 
     logger.warning(
         "SOC_VECTOR_STORE environment variable not set, using default localhost URL"
@@ -123,14 +158,27 @@ async def lifespan(fastapi_app: FastAPI):
             keepalive_expiry=5.0,
         ),
     )
+
     fastapi_app.state.vector_store_http_client = shared_http_client
+
+    sic_url = resolve_sic_vector_store_base_url()
+    soc_url = resolve_soc_vector_store_base_url()
+
+    sic_token_provider = create_vector_store_token_provider("sic", sic_url)
+    soc_token_provider = create_vector_store_token_provider("soc", soc_url)
+
+    # Create SIC and SOC vector store clients with shared HTTP client and
+    # separate token providers
     fastapi_app.state.sic_vector_store_client = SICVectorStoreClient(
-        base_url=resolve_sic_vector_store_base_url(),
+        base_url=sic_url,
         http_client=shared_http_client,
+        token_provider=sic_token_provider,
     )
+
     fastapi_app.state.soc_vector_store_client = SOCVectorStoreClient(
-        base_url=resolve_soc_vector_store_base_url(),
+        base_url=soc_url,
         http_client=shared_http_client,
+        token_provider=soc_token_provider,
     )
     logger.info(
         "Application clients initialised",
