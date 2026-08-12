@@ -863,7 +863,7 @@ dev = ["chroma-hnswlib (==0.7.6)", "fastapi (>=0.115.9)", "opentelemetry-instrum
 
 [[package]]
 name = "classifai"
-version = "1.0.0"
+version = "1.1.1"
 description = "A generalised, extendable and modular solution for LLM automated / assisted classification."
 optional = false
 python-versions = ">=3.10,<4.0"
@@ -873,25 +873,28 @@ develop = false
 
 [package.dependencies]
 fastapi = {version = ">=0.115.11", extras = ["standard"]}
+fsspec = ">=2026.3.0"
 numpy = ">=2.2.4"
 pandas = ">=2.3.0"
 pandera = {version = ">=0.27.0", extras = ["pandas"]}
 polars = ">=1.26.0"
 pydantic = ">=2.9.2"
+torch = {version = ">=2.7.1", optional = true}
 tqdm = ">=4.67.1"
+transformers = {version = ">=4.52.4", optional = true}
 uvicorn = ">0.34.0"
 
 [package.extras]
 all = ["classifai[gcp,huggingface,ollama]"]
-gcp = ["google-genai (>=1.68.0)"]
+gcp = ["gcsfs (>=2026.4.0)", "google-genai (>=1.68.0)"]
 huggingface = ["torch (>=2.7.1)", "transformers (>=4.52.4)"]
 ollama = ["ollama (>=0.5.1)"]
 
 [package.source]
 type = "git"
 url = "https://github.com/datasciencecampus/classifai.git"
-reference = "v1.0.0"
-resolved_reference = "7f82b25e4765010bc2baf86be9baf23ad4b2feec"
+reference = "v1.1.1"
+resolved_reference = "eff548056ee2f4d9cc099fcf948a32c8fe6d12de"
 
 [[package]]
 name = "click"
@@ -1775,14 +1778,14 @@ files = [
 
 [[package]]
 name = "fsspec"
-version = "2025.9.0"
+version = "2026.7.0"
 description = "File-system specification"
 optional = false
-python-versions = ">=3.9"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "fsspec-2025.9.0-py3-none-any.whl", hash = "sha256:530dc2a2af60a414a832059574df4a6e10cce927f6f4a78209390fe38955cfb7"},
-    {file = "fsspec-2025.9.0.tar.gz", hash = "sha256:19fd429483d25d28b65ec68f9f4adc16c17ea2c7c7bf54ec61360d478fb19c19"},
+    {file = "fsspec-2026.7.0-py3-none-any.whl", hash = "sha256:b57ddbafedfaef7018c1ecab32aa200a9d7ca26b77965f64e48b70061249d279"},
+    {file = "fsspec-2026.7.0.tar.gz", hash = "sha256:c803c40f4cf860b49dea58ee3e1c33cb9c790520e233537e1340049f89b82a88"},
 ]
 
 [package.extras]
@@ -1793,24 +1796,24 @@ dask = ["dask", "distributed"]
 dev = ["pre-commit", "ruff (>=0.5)"]
 doc = ["numpydoc", "sphinx", "sphinx-design", "sphinx-rtd-theme", "yarl"]
 dropbox = ["dropbox", "dropboxdrivefs", "requests"]
-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "dask", "distributed", "dropbox", "dropboxdrivefs", "fusepy", "gcsfs", "libarchive-c", "ocifs", "panel", "paramiko", "pyarrow (>=1)", "pygit2", "requests", "s3fs", "smbprotocol", "tqdm"]
+full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "dask", "distributed", "dropbox", "dropboxdrivefs", "fusepy", "gcsfs (>=2026.4.0)", "libarchive-c", "ocifs", "panel", "paramiko", "pyarrow (>=1)", "pygit2", "requests", "s3fs (>=2026.6.0)", "smbprotocol", "tqdm"]
 fuse = ["fusepy"]
-gcs = ["gcsfs"]
+gcs = ["gcsfs (>=2026.4.0)"]
 git = ["pygit2"]
 github = ["requests"]
-gs = ["gcsfs"]
+gs = ["gcsfs (>=2026.4.0)"]
 gui = ["panel"]
 hdfs = ["pyarrow (>=1)"]
 http = ["aiohttp (!=4.0.0a0,!=4.0.0a1)"]
 libarchive = ["libarchive-c"]
 oci = ["ocifs"]
-s3 = ["s3fs"]
+s3 = ["s3fs (>=2026.6.0)"]
 sftp = ["paramiko"]
 smb = ["smbprotocol"]
 ssh = ["paramiko"]
 test = ["aiohttp (!=4.0.0a0,!=4.0.0a1)", "numpy", "pytest", "pytest-asyncio (!=0.22.0)", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-recording", "pytest-rerunfailures", "requests"]
 test-downstream = ["aiobotocore (>=2.5.4,<3.0.0)", "dask[dataframe,test]", "moto[server] (>4,<5)", "pytest-timeout", "xarray"]
-test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "cloudpickle", "dask", "distributed", "dropbox", "dropboxdrivefs", "fastparquet", "fusepy", "gcsfs", "jinja2", "kerchunk", "libarchive-c", "lz4", "notebook", "numpy", "ocifs", "pandas", "panel", "paramiko", "pyarrow", "pyarrow (>=1)", "pyftpdlib", "pygit2", "pytest", "pytest-asyncio (!=0.22.0)", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-recording", "pytest-rerunfailures", "python-snappy", "requests", "smbprotocol", "tqdm", "urllib3", "zarr", "zstandard ; python_version < \"3.14\""]
+test-full = ["adlfs", "aiohttp (!=4.0.0a0,!=4.0.0a1)", "backports-zstd ; python_version < \"3.14\"", "cloudpickle", "dask", "distributed", "dropbox", "dropboxdrivefs", "fastparquet", "fusepy", "gcsfs (>=2026.4.0)", "jinja2", "kerchunk", "libarchive-c", "lz4", "notebook", "numpy", "ocifs", "pandas (<3.0.0)", "panel", "paramiko", "pyarrow (>=1)", "pyftpdlib", "pygit2", "pytest", "pytest-asyncio (!=0.22.0)", "pytest-benchmark", "pytest-cov", "pytest-mock", "pytest-recording", "pytest-rerunfailures", "python-snappy", "requests", "s3fs (>=2026.6.0)", "smbprotocol", "tqdm", "urllib3", "zarr (<3.2.0)", "zstandard ; python_version < \"3.14\""]
 tqdm = ["tqdm"]
 
 [[package]]
@@ -7637,14 +7640,14 @@ develop = false
 
 [package.dependencies]
 autocorrect = "^2.6.1"
-classifai = {git = "https://github.com/datasciencecampus/classifai.git", tag = "v1.0.0", extras = ["huggingface"]}
+classifai = {git = "https://github.com/datasciencecampus/classifai.git", tag = "v1.1.1", extras = ["huggingface"]}
 google-cloud-storage = ">=2.18,<3"
 langchain = ">=0.3,<0.4"
 langchain-core = ">=0.3.76,<0.4"
 langchain-google-vertexai = "^2.1.2"
 langchain-openai = "0.3.21"
+nest-asyncio = "^1.6.0"
 numpy = "^2.3.0"
-openpyxl = "^3.1.5"
 pandas = "^2.3.0"
 pydantic = "^2.11.1"
 scikit-learn = "^1.3.0"
@@ -7655,8 +7658,8 @@ survey-assist-utils = {git = "https://github.com/ONSdigital/survey-assist-utils.
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/sic-classification-utils.git"
-reference = "d0193d6"
-resolved_reference = "d0193d6eb6eda8dc837878b1dd271ceef4a8591d"
+reference = "cda8d84"
+resolved_reference = "cda8d846d9d8e6575854e15a20bd2b3c291a8769"
 
 [[package]]
 name = "six"
@@ -7740,8 +7743,8 @@ transformers = ">=4.52.4,<5.0.0"
 [package.source]
 type = "git"
 url = "https://github.com/ONSdigital/soc-classification-utils.git"
-reference = "2b8b206"
-resolved_reference = "2b8b206e32c5cb92a6c1e9df0482f32a595890ba"
+reference = "d0be4ae"
+resolved_reference = "d0be4aea25a57e7b4495456796dbb5d1ab53b1bd"
 
 [[package]]
 name = "sqlalchemy"
@@ -9119,4 +9122,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "04957f8888f6c04fc851b6ccc89dec9702cd9fa49b1755d6189f276f7969a48d"
+content-hash = "c08780cbebc081763a7cd34f1ef08897b272817307db8e4636b2620f7d65ac4a"
