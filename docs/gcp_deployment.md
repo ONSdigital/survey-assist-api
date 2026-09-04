@@ -90,25 +90,32 @@ The CI/CD pipeline configures the following environment variables for the Cloud 
 
 **Required:**
 
-- `SIC_VECTOR_STORE`: URL of the SIC classification vector store service (required for classification functionality)
+- `SIC_VECTOR_STORE`: URL of the SIC instance of `survey-assist-vector-store-api` (required for SIC classification)
+- `SOC_VECTOR_STORE`: URL of the SOC instance of `survey-assist-vector-store-api` (required for SOC classification)
 - `FIRESTORE_DB_ID`: Firestore Database ID (required for result and feedback endpoints)
 
 **Optional:**
 
 - `GCP_PROJECT_ID`: Google Cloud Project ID (optional, uses default project if not set)
+- `SIC_VECTOR_STORE_AUTH_ENABLED`: Defaults to `true`. Set to `false` only for local or side-car vector-store runs
+- `SOC_VECTOR_STORE_AUTH_ENABLED`: Defaults to `true`. Set to `false` only for local or side-car vector-store runs
+- `SAYT_VECTOR_STORE`: URL of the SAYT instance of `survey-assist-vector-store-api` (required for suggestions)
+- `SAYT_VECTOR_STORE_AUTH_ENABLED`: Defaults to `true`. Set to `false` only for local or side-car SAYT runs
 - `SIC_LOOKUP_DATA_PATH`: Path to custom SIC lookup data file (optional, defaults to package example data)
 - `SIC_REPHRASE_DATA_PATH`: Path to custom SIC rephrase data file (optional, defaults to package example data)
+- `SOC_LOOKUP_DATA_PATH`: Path to custom SOC lookup data file (optional, defaults to package example data)
+- `SOC_REPHRASE_DATA_PATH`: Path to custom SOC rephrase data file (optional, defaults to package example data)
 
 **Data Loading Behaviour**:
 
-- **Package Data (default)**: The API uses example data from the `industrial_classification.data` package when no custom data paths are specified
-- **Custom Data Sources**: Can be specified via `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables
+- **Package Data (default)**: The API uses example data from the classification libraries when no custom data paths are specified
+- **Custom Data Sources**: Can be specified via `SIC_LOOKUP_DATA_PATH`, `SIC_REPHRASE_DATA_PATH`, `SOC_LOOKUP_DATA_PATH`, and `SOC_REPHRASE_DATA_PATH`
 - **Firestore**: If `FIRESTORE_DB_ID` is not set, result endpoints will return 503 errors and feedback endpoint will return 500 errors
 
-**Note**: The `SIC_VECTOR_STORE` URL is configured in the CI/CD pipeline. To find the vector store service URL:
+**Note**: Vector store and SAYT URLs are configured by Terraform / CI/CD. To find deployed service URLs:
 
 ```bash
-gcloud run services list --project={PROJECT_ID} --region={REGION} | grep -i vector
+gcloud run services list --project={PROJECT_ID} --region={REGION} | grep -iE 'vector|sayt'
 ```
 
 ### Service Account Configuration
@@ -139,13 +146,21 @@ curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/surve
 # Test SIC lookup endpoint
 curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/survey-assist/sic-lookup?description=electrical%20installation"
 
+# Test SOC lookup endpoint
+curl -H "Authorization: Bearer ${JWT_TOKEN}" "https://{API_GATEWAY_URL}/v1/survey-assist/soc-lookup?description=chief%20executives%20and%20senior%20officials"
+
+# Test suggestions endpoint (SAYT)
+curl -X POST -H "Authorization: Bearer ${JWT_TOKEN}" -H "Content-Type: application/json" \
+  -d '{"type":"sic","query":"soft","limit":5}' \
+  "https://{API_GATEWAY_URL}/v1/survey-assist/suggestions"
+
 # Test classify endpoint
 curl -X POST -H "Authorization: Bearer ${JWT_TOKEN}" -H "Content-Type: application/json" -d '{"llm": "gemini", "type": "sic", "job_title": "Electrician", "job_description": "Installing electrical systems", "org_description": "Electrical contracting company"}' "https://{API_GATEWAY_URL}/v1/survey-assist/classify"
 ```
 
 ## Service-to-Service Authentication
 
-The Survey Assist API is configured to communicate securely with other Cloud Run services (such as the SIC Classification Vector Store) using Google Cloud's service-to-service authentication with ID tokens.
+The Survey Assist API is configured to communicate securely with other Cloud Run services (SIC/SOC vector-store and SAYT instances of `survey-assist-vector-store-api`) using Google Cloud's service-to-service authentication with ID tokens.
 
 ### Authentication Implementation
 
@@ -166,13 +181,13 @@ google-auth = "^2.28.0"
 
 ### Environment Configuration
 
-The `SIC_VECTOR_STORE` environment variable is configured by the CI/CD pipeline to enable secure communication with the vector store service.
+`SIC_VECTOR_STORE`, `SOC_VECTOR_STORE`, and `SAYT_VECTOR_STORE` are configured by Terraform / CI/CD. The corresponding `*_AUTH_ENABLED` flags default to `true` in GCP so the API sends Google ID tokens to those services.
 
 ### Service Account Permissions
 
 The `survey-assist-api` service account requires the following IAM roles for service-to-service communication:
 
-- **Cloud Run Invoker** (`roles/run.invoker`) on the vector store service
+- **Cloud Run Invoker** (`roles/run.invoker`) on the SIC, SOC, and SAYT vector-store services
 - **IAM Service Account Token Creator** (`roles/iam.serviceAccountTokenCreator`) for generating ID tokens
 
 These permissions are configured as part of the infrastructure setup.
@@ -198,7 +213,7 @@ curl -X POST \
 
 **Expected Response**: Successful SIC classification with proper authentication between services.
 
-**Data Loading Verification**: The deployed service will use package example data by default, or custom datasets if `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables are set. You can verify this by checking the startup logs for data loading messages showing which data source was used.
+**Data Loading Verification**: The deployed service will use package example data by default, or custom datasets if lookup/rephrase path environment variables are set. You can verify this by checking the startup logs for data loading messages showing which data source was used.
 
 #### Complete Working Example
 
@@ -288,9 +303,19 @@ curl --header "Authorization: Bearer ${JWT_TOKEN}" \
 curl --header "Authorization: Bearer ${JWT_TOKEN}" \
   "https://$GATEWAY_URL/v1/survey-assist/embeddings"
 
-# Test SIC lookup endpoint (uses package data by default)
+# Test SIC lookup endpoint
 curl --header "Authorization: Bearer ${JWT_TOKEN}" \
   "https://$GATEWAY_URL/v1/survey-assist/sic-lookup?description=electrical%20installation"
+
+# Test SOC lookup endpoint
+curl --header "Authorization: Bearer ${JWT_TOKEN}" \
+  "https://$GATEWAY_URL/v1/survey-assist/soc-lookup?description=chief%20executives%20and%20senior%20officials"
+
+# Test suggestions endpoint (SAYT)
+curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"sic","query":"soft","limit":5}' \
+  "https://$GATEWAY_URL/v1/survey-assist/suggestions"
 
 # Test classify endpoint (uses package data by default)
 curl -X POST --header "Authorization: Bearer ${JWT_TOKEN}" \
@@ -329,9 +354,11 @@ curl "https://$GATEWAY_URL/v1/survey-assist/config"
 **Expected Responses**:
 
 - **Config**: Returns LLM model, embedding model, Firestore database ID, and prompt configurations
-- **Data Loading**: Service uses package example data by default, or custom data if `SIC_LOOKUP_DATA_PATH` and `SIC_REPHRASE_DATA_PATH` environment variables are set
-- **Embeddings**: Returns vector store status and metadata
+- **Data Loading**: Service uses package example data by default, or custom data if lookup/rephrase path environment variables are set
+- **Embeddings**: Returns SIC and SOC vector store status and metadata
 - **SIC Lookup**: Returns SIC code lookup results
+- **SOC Lookup**: Returns SOC code lookup results
+- **Suggestions**: Returns typeahead suggestions from SAYT (`type: "sic"` only)
 - **Classify**: Returns generic classification response with SIC/SOC results
   - **Rephrasing enabled**: `candidates[].descriptive` shows user-friendly descriptions (e.g., "Crop growing", "Dairy farming")
   - **Rephrasing disabled**: `candidates[].descriptive` shows original SIC descriptions
@@ -344,8 +371,10 @@ curl "https://$GATEWAY_URL/v1/survey-assist/config"
 All endpoints are accessible via the API Gateway at `{API_GATEWAY_URL}/v1/survey-assist/`:
 
 - **Config**: `GET /config` - Get API configuration and prompt settings
-- **Embeddings**: `GET /embeddings` - Get vector store status and metadata
+- **Embeddings**: `GET /embeddings` - Get SIC and SOC vector store status and metadata
 - **SIC Lookup**: `GET /sic-lookup` - Lookup SIC codes by description
+- **SOC Lookup**: `GET /soc-lookup` - Lookup SOC codes by description
+- **Suggestions**: `POST /suggestions` - Typeahead suggestions from SAYT (`type: "sic"` only)
 - **Classification**: `POST /classify` - Classify job descriptions to SIC/SOC codes (generic response format)
 - **Results**:
   - `POST /result` - Store survey interaction results (requires `FIRESTORE_DB_ID`)
@@ -655,11 +684,18 @@ The CI/CD pipeline configures the following environment variables. These are doc
 
 **Required environment variables:**
 
-- `SIC_VECTOR_STORE`: URL of the SIC classification vector store service
+- `SIC_VECTOR_STORE`: URL of the SIC instance of `survey-assist-vector-store-api`
+- `SOC_VECTOR_STORE`: URL of the SOC instance of `survey-assist-vector-store-api`
 - `FIRESTORE_DB_ID`: Firestore Database ID (required for result and feedback endpoints)
 
 **Optional environment variables:**
 
 - `GCP_PROJECT_ID`: Google Cloud Project ID (uses default project if not set)
+- `SIC_VECTOR_STORE_AUTH_ENABLED`: Defaults to `true` in GCP
+- `SOC_VECTOR_STORE_AUTH_ENABLED`: Defaults to `true` in GCP
+- `SAYT_VECTOR_STORE`: URL of the SAYT instance of `survey-assist-vector-store-api`
+- `SAYT_VECTOR_STORE_AUTH_ENABLED`: Defaults to `true` in GCP
 - `SIC_LOOKUP_DATA_PATH`: Path to custom SIC lookup data file (defaults to package example data)
 - `SIC_REPHRASE_DATA_PATH`: Path to custom SIC rephrase data file (defaults to package example data)
+- `SOC_LOOKUP_DATA_PATH`: Path to custom SOC lookup data file (defaults to package example data)
+- `SOC_REPHRASE_DATA_PATH`: Path to custom SOC rephrase data file (defaults to package example data)
