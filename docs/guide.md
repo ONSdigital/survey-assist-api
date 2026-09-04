@@ -771,7 +771,7 @@ The Swagger2 specification is available at `/swagger2.json`
 - Python 3.12
 - Poetry for dependency management
 - Access to the SIC Classification Library
-- Access to the Vector Store Service
+- Access to `survey-assist-vector-store-api` (SIC and SOC instances of the same service)
 
 ### Setup
 
@@ -782,20 +782,31 @@ The Swagger2 specification is available at `/swagger2.json`
    cd survey-assist-api
    poetry install
 
-   # Clone vector store service
-   git clone https://github.com/ONSdigital/sic-classification-vector-store.git
-   cd sic-classification-vector-store
+   # Clone the merged vector-store service
+   git clone https://github.com/ONSdigital/survey-assist-vector-store-api.git
+   cd survey-assist-vector-store-api
    poetry install
    ```
 
-2. Start both services (in separate terminal windows):
-   ```bash
-   # Terminal 1 - Start the vector store service
-   cd sic-classification-vector-store
-   make run-vector-store
+   Build local SIC and SOC vector-store artifacts before starting the services (see the `survey-assist-vector-store-api` README). Point each process at its own artifact directory, for example `VECTOR_STORE_DIR=vector_store_sic` and `VECTOR_STORE_DIR=vector_store_soc`.
 
-   # Terminal 2 - Start the survey assist API
+2. Start the services (in separate terminal windows):
+   ```bash
+   # Terminal 1 - SIC vector-store instance (default port 8088)
+   cd survey-assist-vector-store-api
+   export VECTOR_STORE_DIR=vector_store_sic
+   make run-vector-store-api
+
+   # Terminal 2 - SOC vector-store instance (port 8089)
+   cd survey-assist-vector-store-api
+   export VECTOR_STORE_DIR=vector_store_soc
+   poetry run uvicorn survey_assist_vector_store_api.vector_store_api.main:app \
+     --host 0.0.0.0 --port 8089 --reload
+
+   # Terminal 3 - Survey Assist API
    cd survey-assist-api
+   export SIC_VECTOR_STORE_AUTH_ENABLED=false
+   export SOC_VECTOR_STORE_AUTH_ENABLED=false
    make run-api
    make run-docs
    ```
@@ -803,10 +814,10 @@ The Swagger2 specification is available at `/swagger2.json`
 3. Access the services:
    - Survey Assist API: http://localhost:8080
    - Documentation: http://localhost:8000
-   - Vector Store: http://localhost:8088 (default port, configurable via SIC_VECTOR_STORE environment variable)
+   - SIC vector store: http://localhost:8088 (configurable via `SIC_VECTOR_STORE`)
+   - SOC vector store: http://localhost:8089 (configurable via `SOC_VECTOR_STORE`)
 
-Note: Both services must be running simultaneously for the embeddings endpoint to work. The vector store service must be started before making requests to the `/embeddings` endpoint.
-
+Note: The SIC and SOC vector-store instances must be running for classify and embeddings to work against both taxonomies. Confirm each with `GET /v1/configuration` before calling Survey Assist API.
 ## Local Development with Docker
 
 ### Prerequisites for Docker Setup
@@ -877,10 +888,18 @@ gcloud iam service-accounts keys create service-account-key.json \
 **Note**: The API requires GCP credentials to start up due to LLM initialisation at startup.
 
 #### 4. Start the Vector Store Service
-In a separate terminal, start the vector store service locally:
+In separate terminals, start SIC and SOC instances of `survey-assist-vector-store-api` locally (after building artifacts into `vector_store_sic` and `vector_store_soc`):
 ```bash
-cd sic-classification-vector-store
-make run-vector-store
+# SIC on 8088
+cd survey-assist-vector-store-api
+export VECTOR_STORE_DIR=vector_store_sic
+make run-vector-store-api
+
+# SOC on 8089
+cd survey-assist-vector-store-api
+export VECTOR_STORE_DIR=vector_store_soc
+poetry run uvicorn survey_assist_vector_store_api.vector_store_api.main:app \
+  --host 0.0.0.0 --port 8089 --reload
 ```
 
 #### 5. Get Host Machine IP Address
@@ -964,9 +983,10 @@ INFO:api.services.sic_rephrase_client:Loaded XXXX rephrased SIC descriptions fro
 **Warning Signs**: If you see errors like "No such file or directory" or "File not found" for the CSV files, the data hasn't loaded properly.
 
 #### 2. Verify Vector Store
-Ensure the vector store is accessible:
+Ensure the SIC and SOC vector-store instances are accessible:
 ```bash
-curl http://localhost:8088/health
+curl http://localhost:8088/v1/configuration
+curl http://localhost:8089/v1/configuration
 ```
 
 #### 3. Test API Endpoints
@@ -1064,8 +1084,9 @@ gcloud projects get-iam-policy YOUR_PROJECT_ID \
 
 **Network Connectivity Issues**
 ```bash
-# Test connectivity from container to host
-docker exec <container_id> curl http://<host-ip-address>:8088/health
+# Test connectivity from container to host vector-store instances
+docker exec <container_id> curl http://<host-ip-address>:8088/v1/configuration
+docker exec <container_id> curl http://<host-ip-address>:8089/v1/configuration
 
 # Verify Colima VM is running
 colima status
