@@ -180,7 +180,7 @@ The classification process works as follows (the same steps apply to SIC and SOC
 #### Store Result
 - **Path**: `/v1/survey-assist/result`
 - **Method**: POST
-- **Description**: Stores classification results in Firestore for later retrieval and analysis. Requires `FIRESTORE_DB_ID` environment variable to be set.
+- **Description**: Stores a survey result in Firestore for later retrieval and analysis. An interaction can be `classify`, `lookup`, or `suggestion`. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Request Body**:
   ```json
   {
@@ -229,6 +229,59 @@ The classification process works as follows (the same steps apply to SIC and SOC
     ]
   }
   ```
+
+  A suggestion interaction uses the same outer result. `flavour`, `time_start`, and `time_end` are for the search-as-you-type question. `input` is the survey answers so far, each with `field` and `value`. `queries_sent` is how many searches were sent. Each item in `queries` has `value`, `time_start`, and `time_end`. The example below is someone who selected a list item: `listed` is true, `description` is the chosen item, and `not_listed_description` is empty. Element 0 of `suggestions` is the top of the last list shown.
+
+  ```json
+  {
+    "type": "suggestion",
+    "flavour": "sic",
+    "time_start": "2024-03-19T10:02:00Z",
+    "time_end": "2024-03-19T10:03:00Z",
+    "input": [
+      {
+        "field": "job_title",
+        "value": "Baker"
+      },
+      {
+        "field": "job_description",
+        "value": "Bakes bread and cakes"
+      }
+    ],
+    "queries_sent": 2,
+    "queries": [
+      {
+        "value": "bak",
+        "time_start": "2024-03-19T10:02:10Z",
+        "time_end": "2024-03-19T10:02:11Z"
+      },
+      {
+        "value": "baking bread",
+        "time_start": "2024-03-19T10:02:20Z",
+        "time_end": "2024-03-19T10:02:21Z"
+      }
+    ],
+    "response": {
+      "listed": true,
+      "code": "10710",
+      "description": "Manufacture of bread; manufacture of fresh pastry goods and cakes",
+      "suggestions": [
+        {
+          "code": "10710",
+          "description": "Manufacture of bread; manufacture of fresh pastry goods and cakes"
+        },
+        {
+          "code": "47240",
+          "description": "Retail sale of bread, cakes, flour confectionery and sugar confectionery in specialised stores"
+        }
+      ],
+      "not_listed_description": ""
+    }
+  }
+  ```
+
+  When the person chooses Not listed, `listed` is false, `description` may be empty, and `not_listed_description` is the text they entered. `suggestions` is still that last list. `code` is still sent; `99999` is a valid value when no industry code was chosen.
+
 - **Response**: Returns stored result information with Firestore document ID:
   ```json
   {
@@ -241,7 +294,7 @@ The classification process works as follows (the same steps apply to SIC and SOC
 #### Get Result
 - **Path**: `/v1/survey-assist/result`
 - **Method**: GET
-- **Description**: Retrieves a stored classification result from Firestore by document ID. Requires `FIRESTORE_DB_ID` environment variable to be set.
+- **Description**: Retrieves a stored result from Firestore by document ID. The body is the same shape that was posted, including a suggestion interaction when one was stored. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
 
     - `result_id` (required): The Firestore document ID of the result to retrieve (e.g., "abc123xyz456def789gh")
@@ -251,7 +304,7 @@ The classification process works as follows (the same steps apply to SIC and SOC
 #### List Results
 - **Path**: `/v1/survey-assist/results`
 - **Method**: GET
-- **Description**: Lists stored classification results from Firestore filtered by survey_id, wave_id, and optionally case_id. Requires `FIRESTORE_DB_ID` environment variable to be set.
+- **Description**: Lists stored results from Firestore filtered by survey_id, wave_id, and optionally case_id. Requires `FIRESTORE_DB_ID` environment variable to be set.
 - **Query Parameters**:
 
     - `survey_id` (required): Survey identifier to filter by
@@ -514,6 +567,75 @@ curl -X POST "http://localhost:8080/v1/survey-assist/result" \
               "follow_up": {
                 "questions": []
               }
+            }
+          }
+        ]
+      }
+    ]
+  }'
+
+# Store a suggestion result. The classify example above is unchanged.
+# This body is a selected list item. For Not listed, set listed to false,
+# description may be empty, not_listed_description is their text, and code
+# may be 99999. suggestions stays the last list, with element 0 at the top.
+curl -X POST "http://localhost:8080/v1/survey-assist/result" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "survey_id": "test-survey-123",
+    "case_id": "test-case-456",
+    "wave_id": "wave-789",
+    "user": "test.userSA187",
+    "time_start": "2024-03-19T10:00:00Z",
+    "time_end": "2024-03-19T10:05:00Z",
+    "responses": [
+      {
+        "person_id": "person-1",
+        "time_start": "2024-03-19T10:02:00Z",
+        "time_end": "2024-03-19T10:03:00Z",
+        "survey_assist_interactions": [
+          {
+            "type": "suggestion",
+            "flavour": "sic",
+            "time_start": "2024-03-19T10:02:00Z",
+            "time_end": "2024-03-19T10:03:00Z",
+            "input": [
+              {
+                "field": "job_title",
+                "value": "Baker"
+              },
+              {
+                "field": "job_description",
+                "value": "Bakes bread and cakes"
+              }
+            ],
+            "queries_sent": 2,
+            "queries": [
+              {
+                "value": "bak",
+                "time_start": "2024-03-19T10:02:10Z",
+                "time_end": "2024-03-19T10:02:11Z"
+              },
+              {
+                "value": "baking bread",
+                "time_start": "2024-03-19T10:02:20Z",
+                "time_end": "2024-03-19T10:02:21Z"
+              }
+            ],
+            "response": {
+              "listed": true,
+              "code": "10710",
+              "description": "Manufacture of bread; manufacture of fresh pastry goods and cakes",
+              "suggestions": [
+                {
+                  "code": "10710",
+                  "description": "Manufacture of bread; manufacture of fresh pastry goods and cakes"
+                },
+                {
+                  "code": "47240",
+                  "description": "Retail sale of bread, cakes, flour confectionery and sugar confectionery in specialised stores"
+                }
+              ],
+              "not_listed_description": ""
             }
           }
         ]
