@@ -39,7 +39,7 @@ This endpoint performs SOC lookup by description (exact match by default, with o
 
 ### Result Storage Endpoints
 
-The API provides endpoints for storing and retrieving survey results that can contain SIC and/or SOC classification data:
+The API provides endpoints for storing and retrieving survey results. A stored result can contain classification data for SIC, SOC, or both. It can also contain a lookup or a suggestion interaction:
 
 **POST** `/v1/survey-assist/result`
 
@@ -53,7 +53,7 @@ Retrieve a stored survey result from Firestore by document ID. Requires `FIRESTO
 
 List stored survey results filtered by survey_id, wave_id, and optionally case_id. Requires `FIRESTORE_DB_ID` environment variable to be set.
 
-**Note:** The result storage endpoints support both the legacy format (with `survey_assist_interactions` containing `flavour: "sic"` or `flavour: "soc"`) and the generic format (with `GenericSurveyAssistResult` containing `GenericClassificationResult` objects with `type: "sic"` or `type: "soc"`).
+**Note:** The result storage endpoints support both the legacy format (with `survey_assist_interactions` containing `flavour: "sic"` or `flavour: "soc"`) and the generic format (with `GenericSurveyAssistResult` containing `GenericClassificationResult` objects with `type: "sic"` or `type: "soc"`). A stored interaction can also be a suggestion (`type: "suggestion"`). That interaction has `queries_sent`, `queries` (`value`, `time_start`, `time_end`), and a response of `listed`, `code`, `description`, `suggestions`, and `not_listed_description`. The [guide](guide.md) has a full example, including Not listed.
 
 #### Request Format
 
