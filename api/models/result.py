@@ -120,6 +120,53 @@ class LookupResponse(BaseModel):
     )
 
 
+class SuggestionQuery(BaseModel):
+    """One search sent to /suggestions."""
+
+    value: str = Field(..., description="The search string sent to /suggestions")
+    time_start: datetime = Field(..., description="When that search response started")
+    time_end: datetime = Field(..., description="When that search response ended")
+
+
+class SuggestionListItem(BaseModel):
+    """One item from the last suggestions list shown to the person."""
+
+    code: str = Field(..., description="Industry code shown for this list item")
+    description: str = Field(..., description="Words shown for this list item")
+
+
+class SuggestionResponse(BaseModel):
+    """What the person did with the last suggestions list.
+
+    Stored as sent. The API does not look up or derive an industry code.
+    """
+
+    listed: bool = Field(
+        ..., description="Whether the person selected an item from the list"
+    )
+    code: str = Field(
+        ...,
+        description="Industry code for the selection, or 99999 when none is available",
+    )
+    description: str = Field(
+        ...,
+        description="The item chosen from the list. Empty when listed is false",
+    )
+    suggestions: list[SuggestionListItem] = Field(
+        ...,
+        description=(
+            "Last /suggestions list only, in the order shown. "
+            "Element 0 is the top of the list"
+        ),
+    )
+    not_listed_description: str = Field(
+        ...,
+        description=(
+            "Empty when listed is true. Otherwise the text entered after Not listed"
+        ),
+    )
+
+
 class SurveyAssistInteraction(BaseModel):
     """Model for survey assist interaction."""
 
@@ -136,6 +183,34 @@ class SurveyAssistInteraction(BaseModel):
     input: list[InputField] = Field(..., description="Input data for the interaction")
     response: Union[ClassificationResponse, LookupResponse] = Field(
         ..., description="Response from the interaction"
+    )
+
+
+class SuggestionInteraction(BaseModel):
+    """A search-as-you-type interaction stored on a survey result."""
+
+    type: str = Field(
+        ...,
+        description="Interaction type (suggestion)",
+        pattern="^suggestion$",
+    )
+    flavour: str = Field(
+        ..., description="Classification flavour (sic or soc)", pattern="^(sic|soc)$"
+    )
+    time_start: datetime = Field(..., description="When the SAYT question is shown")
+    time_end: datetime = Field(..., description="When the SAYT question is answered")
+    input: list[InputField] = Field(
+        ...,
+        description="Survey answers up to the point the result was sent",
+    )
+    queries_sent: int = Field(
+        ..., description="Number of individual searches sent to /suggestions"
+    )
+    queries: list[SuggestionQuery] = Field(
+        ..., description="Each search sent to /suggestions"
+    )
+    response: SuggestionResponse = Field(
+        ..., description="The selection or Not listed outcome, and the last list"
     )
 
 
@@ -166,9 +241,9 @@ class Response(BaseModel):
     person_id: str = Field(..., description="Identifier for the person")
     time_start: datetime = Field(..., description="Start time of the response")
     time_end: datetime = Field(..., description="End time of the response")
-    survey_assist_interactions: list[SurveyAssistInteraction] = Field(
-        ..., description="List of survey assist interactions"
-    )
+    survey_assist_interactions: list[
+        Union[SurveyAssistInteraction, SuggestionInteraction]
+    ] = Field(..., description="List of survey assist interactions")
 
 
 class GenericResponse(BaseModel):

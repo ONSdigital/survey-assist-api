@@ -345,6 +345,13 @@ def test_multiple_results_same_day():
 # Tests for the result endpoint
 
 
+_RESULTS_QUERY = {
+    "survey_id": "test-survey-123",
+    "wave_id": "wave-789",
+    "case_id": "test-case-456",
+}
+
+
 class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
     """Test class for the result endpoint."""
 
@@ -509,8 +516,8 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_list_results.return_value = mock_results_data
 
         response = client.get(
-            "/v1/survey-assist/results?"
-            "survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+            "/v1/survey-assist/results",
+            params=_RESULTS_QUERY,
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -528,8 +535,8 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_list_results.return_value = []
 
         response = client.get(
-            "/v1/survey-assist/results?"
-            "survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+            "/v1/survey-assist/results",
+            params=_RESULTS_QUERY,
         )
         assert response.status_code == status.HTTP_200_OK
 
@@ -543,8 +550,211 @@ class TestResultEndpoint:  # pylint: disable=attribute-defined-outside-init
         mock_list_results.side_effect = Exception("List error")
 
         response = client.get(
-            "/v1/survey-assist/results?"
-            "survey_id=test-survey-123&wave_id=wave-789&case_id=test-case-456"
+            "/v1/survey-assist/results",
+            params=_RESULTS_QUERY,
         )
         assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert "Internal server error: List error" in response.json()["detail"]
+
+
+def _suggestion_result(*, listed: bool, code: str, description: str, not_listed: str):
+    """Build a Proposed Result Object for a SAYT suggestion interaction."""
+    return {
+        "survey_id": "shape_tomorrow_prototype",
+        "case_id": "11",
+        "wave_id": "17-11-2025-14D",
+        "user": "11-01",
+        "time_start": "2025-10-18T09:12:35.561268+00:00",
+        "time_end": "2025-10-18T09:12:49.216444+00:00",
+        "responses": [
+            {
+                "person_id": "11-01",
+                "time_start": "2025-10-18T09:12:35.561268+00:00",
+                "time_end": "2025-10-18T09:12:48.802457+00:00",
+                "survey_assist_interactions": [
+                    {
+                        "type": "suggestion",
+                        "flavour": "sic",
+                        "time_start": "2026-09-23T09:58:00Z",
+                        "time_end": "2026-09-23T10:05:02Z",
+                        "input": [
+                            {"field": "org_name", "value": "Exampleway Electricians"},
+                            {"field": "org_location", "value": "Ipswich"},
+                            {
+                                "field": "org_description",
+                                "value": "Electrical installers",
+                            },
+                        ],
+                        "queries_sent": 2,
+                        "queries": [
+                            {
+                                "value": "Electrical installers",
+                                "time_start": "2026-09-23T10:02:00Z",
+                                "time_end": "2026-09-23T10:03:00Z",
+                            },
+                            {
+                                "value": "Elec",
+                                "time_start": "2026-09-23T09:59:00Z",
+                                "time_end": "2026-09-23T10:00:00Z",
+                            },
+                        ],
+                        "response": {
+                            "listed": listed,
+                            "code": code,
+                            "description": description,
+                            "suggestions": [
+                                {
+                                    "code": "43210",
+                                    "description": "Electrical installation",
+                                },
+                                {
+                                    "code": "43333",
+                                    "description": "Electrical wholesaler",
+                                },
+                            ],
+                            "not_listed_description": not_listed,
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+
+
+def _assert_suggestion_stored_as_sent(mock_store, body):
+    """The stored document is the body sent, with no derived industry code."""
+    assert mock_store.call_count == 1
+    stored = mock_store.call_args.args[0]
+    sent = body["responses"][0]["survey_assist_interactions"][0]
+    got = stored["responses"][0]["survey_assist_interactions"][0]
+    assert got["type"] == "suggestion"
+    assert got["queries_sent"] == sent["queries_sent"]
+    assert [item["value"] for item in got["queries"]] == [
+        item["value"] for item in sent["queries"]
+    ]
+    assert got["queries"][-1]["value"] == "Elec"
+    assert "time_start" in got["queries"][-1]
+    assert "time_end" in got["queries"][-1]
+    assert [item["field"] for item in got["input"]] == [
+        item["field"] for item in sent["input"]
+    ]
+    assert [item["description"] for item in got["response"]["suggestions"]] == [
+        "Electrical installation",
+        "Electrical wholesaler",
+    ]
+    assert got["response"]["listed"] == sent["response"]["listed"]
+    assert got["response"]["code"] == sent["response"]["code"]
+    assert got["response"]["description"] == sent["response"]["description"]
+    assert (
+        got["response"]["not_listed_description"]
+        == sent["response"]["not_listed_description"]
+    )
+
+
+def test_store_suggestion_when_item_selected():
+    """POST /result stores a suggestion where the person picked a list item."""
+    body = _suggestion_result(
+        listed=True,
+        code="43210",
+        description="Electrical installation",
+        not_listed="",
+    )
+    with patch("api.routes.v1.result.store_result") as mock_store:
+        mock_store.return_value = "doc-listed"
+        response = client.post("/v1/survey-assist/result", json=body)
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json()["result_id"] == "doc-listed"
+    _assert_suggestion_stored_as_sent(mock_store, body)
+
+
+def test_store_suggestion_when_not_listed():
+    """POST /result stores a Not listed answer and the last list shown."""
+    body = _suggestion_result(
+        listed=False,
+        code="99999",
+        description="",
+        not_listed="We fit consumer units",
+    )
+    with patch("api.routes.v1.result.store_result") as mock_store:
+        mock_store.return_value = "doc-not-listed"
+        response = client.post("/v1/survey-assist/result", json=body)
+
+    assert response.status_code == status.HTTP_200_OK
+    _assert_suggestion_stored_as_sent(mock_store, body)
+
+
+def test_get_suggestion_result():
+    """A stored suggestion result is returned with the list order unchanged."""
+    body = _suggestion_result(
+        listed=True,
+        code="99999",
+        description="Electrical installation",
+        not_listed="",
+    )
+    with patch("api.routes.v1.result.get_result") as mock_get:
+        mock_get.return_value = body
+        response = client.get("/v1/survey-assist/result?result_id=doc-listed")
+
+    assert response.status_code == status.HTTP_200_OK
+    interaction = response.json()["responses"][0]["survey_assist_interactions"][0]
+    assert interaction["type"] == "suggestion"
+    assert interaction["response"]["code"] == "99999"
+    assert interaction["response"]["suggestions"][0]["description"] == (
+        "Electrical installation"
+    )
+    assert interaction["queries"][-1]["value"] == "Elec"
+
+
+def test_store_lookup_result_unchanged():
+    """An existing lookup result still saves as one new record."""
+    body = {
+        "survey_id": "test-survey-123",
+        "case_id": "test-case-456",
+        "wave_id": "wave-789",
+        "user": "test.userSA187",
+        "time_start": "2024-03-19T10:00:00Z",
+        "time_end": "2024-03-19T10:05:00Z",
+        "responses": [
+            {
+                "person_id": "person-1",
+                "time_start": "2024-03-19T10:00:00Z",
+                "time_end": "2024-03-19T10:01:00Z",
+                "survey_assist_interactions": [
+                    {
+                        "type": "lookup",
+                        "flavour": "sic",
+                        "time_start": "2024-03-19T10:00:00Z",
+                        "time_end": "2024-03-19T10:01:00Z",
+                        "input": [{"field": "org_description", "value": "Bakery"}],
+                        "response": {
+                            "found": True,
+                            "code": "10710",
+                            "code_division": "10",
+                            "potential_codes_count": 1,
+                            "potential_divisions": [],
+                            "potential_codes": [
+                                {"code": "10710", "description": "Manufacture of bread"}
+                            ],
+                        },
+                    }
+                ],
+            }
+        ],
+    }
+    with patch("api.routes.v1.result.store_result") as mock_store:
+        mock_store.return_value = "doc-lookup"
+        response = client.post("/v1/survey-assist/result", json=body)
+
+    assert response.status_code == status.HTTP_200_OK
+    stored = mock_store.call_args.args[0]
+    interaction = stored["responses"][0]["survey_assist_interactions"][0]
+    assert interaction["type"] == "lookup"
+    assert interaction["response"]["found"] is True
+    assert "queries_sent" not in interaction
+
+
+def test_result_has_no_update_endpoint():
+    """Option 3 keeps one POST creating one record. There is no update call."""
+    response = client.put("/v1/survey-assist/result", json={})
+    assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
